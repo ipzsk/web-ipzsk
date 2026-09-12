@@ -13,17 +13,32 @@
 
 ## 生图链路
 
-线上页面通过同源 Vercel Functions 提交异步任务，Functions 使用服务器端环境变量访问 APIMart。浏览器无法读取 API Key。
+浏览器**直接调网关** `https://api.ipzsk.com`，用登录用户自己的令牌：
 
-相关文件：
+1. 登录（`/account.html`）→ 会话 cookie（www 与 api 同属 ipzsk.com，算同站，cookie 会被带上）
+2. `POST /api/me/web/session-key` → 拿一把绑这次登录会话的令牌（刷新页面只轮换同一行，退出即失效）
+3. `POST /v1/images/generations` → `GET /v1/tasks/<id>` 轮询
 
-- `api/images/generations.js`：提交 GPT Image 2 生图任务。
-- `api/tasks.js`：查询 APIMart 异步任务结果。
+**网站这侧不再持有任何上游密钥**。原先是同源 Function 拿一把共享的 `APIMART_API_KEY`
+匿名转发，生成的图谁都记不到人头上——额度、扣费、插件分成因此全部落空。
+`api/images/generations.js` 与 `api/tasks.js` 已删除，`APIMART_API_KEY` 可以从 Vercel 移除。
 
-Vercel Production 环境需要配置敏感变量 `APIMART_API_KEY`。API 地址可通过可选变量 `APIMART_BASE_URL` 覆盖，默认使用 `https://api.apimart.ai/v1`。密钥不得写入仓库。
+## 账户
+
+`account.html` + `account.js`：注册（图形验证码 + 邮箱 6 位验证码）、登录、余额、兑换码、退出。
+余额读 `/api/me/wallet`；开启 lanehub 模式后它返回的是 lanehub 侧的真实额度（`source: "lanehub"`）。
 
 ## DSH PPT 文本代理
 
-桌面端通过 `POST /api/v1/chat/completions` 请求受限的 GPT-5 文本代理，用于生成 PPT 大纲。代理强制使用 `gpt-5`，最多接收 32 条消息、返回 3,000 tokens，并且只在 `Authorization: Bearer <token>` 与服务器端 `DSH_PPT_PROXY_TOKEN` 一致时转发请求。
+`POST /api/v1/chat/completions` 现在**只做转发**：把调用方自己的 IPZSK 令牌
+（`ipz_…`，桌面端登录后由网关签发）原样转给网关，计费与归属由网关负责。
+服务端不再有共享口令，`DSH_PPT_PROXY_TOKEN` 与 `APIMART_API_KEY` 都可以从 Vercel 删掉。
+可选变量 `IPZSK_GATEWAY_URL` 覆盖网关地址，默认 `https://api.ipzsk.com`。
 
-Vercel Production 还需要配置 `DSH_PPT_PROXY_TOKEN`。它是可单独撤销的桌面代理凭据，不能与 `APIMART_API_KEY` 使用相同值。
+桌面端改成直连 `api.ipzsk.com/v1` 之后，这个文件可以整个删除。
+
+## 测试
+
+```
+node --test
+```

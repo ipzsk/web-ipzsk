@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; script-src 'self'; connect-src https://api.ipzsk.com; form-action 'none'; base-uri 'none'" />
+  <title>IPZSK · 账户</title>
+  <style>
+    :root{font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;color:#272b37;background:#f5f6fa}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%}
+    body{display:flex;justify-content:center;padding:48px 16px}
+    main{width:100%;max-width:460px}
+    h1{font-size:22px;margin:0 0 4px}p.lead{margin:0 0 24px;color:#6b7180;font-size:14px}
+    section{background:#fff;border:1px solid #e6e8ef;border-radius:14px;padding:20px;margin-bottom:16px}
+    h2{font-size:15px;margin:0 0 14px}
+    label{display:block;font-size:13px;color:#555c6b;margin:12px 0 6px}
+    input{width:100%;padding:10px 12px;border:1px solid #d9dce5;border-radius:9px;font:inherit;background:#fff}
+    button{padding:10px 16px;border:0;border-radius:9px;background:#172417;color:#fff;font:inherit;cursor:pointer}
+    button.ghost{background:#eef0f5;color:#3a4050}
+    button:disabled{opacity:.55;cursor:wait}
+    .row{display:flex;gap:10px;align-items:flex-end;margin-top:12px}
+    .row>*{flex:1}.row>button{flex:0 0 auto}
+    .tabs{display:flex;gap:8px;margin-bottom:4px}
+    .tabs button{background:#eef0f5;color:#3a4050;flex:1}
+    .tabs button[aria-pressed="true"]{background:#172417;color:#fff}
+    .captcha{display:flex;gap:10px;align-items:center;margin-top:12px}
+    .captcha img{height:52px;border-radius:8px;border:1px solid #e6e8ef;cursor:pointer}
+    .notice{margin-top:14px;font-size:13px;min-height:18px}
+    .notice.error{color:#b3261e}.notice.ok{color:#2c6e49}
+    .balance{font-size:30px;font-weight:600;letter-spacing:-.5px}
+    .balance small{font-size:13px;font-weight:400;color:#6b7180;margin-left:8px}
+    table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px}
+    td{padding:7px 0;border-bottom:1px solid #f0f1f5;color:#555c6b}
+    td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+    .hidden{display:none!important}
+    a{color:#2c6e49}
+  </style>
+</head>
+<body>
+<main>
+  <h1>IPZSK 账户</h1>
+  <p class="lead">登录后即可使用生图与模型服务，新账户注册赠送体验额度。</p>
+
+  <section id="authCard">
+    <div class="tabs"><button id="tabLogin" aria-pressed="true">登录</button><button id="tabRegister" aria-pressed="false">注册</button></div>
+    <label for="email">邮箱</label><input id="email" type="email" autocomplete="email" />
+    <label for="password">密码<span id="passwordHint" class="hidden"> · 至少 12 位</span></label>
+    <input id="password" type="password" autocomplete="current-password" />
+    <div id="captchaBox" class="captcha hidden">
+      <img id="captchaImage" alt="点击刷新验证码" />
+      <input id="captchaAnswer" placeholder="输入图中字符" maxlength="5" autocomplete="off" />
+    </div>
+    <div class="row"><button id="submitAuth">登录</button></div>
+    <div id="authNotice" class="notice"></div>
+  </section>
+
+  <section id="verifyCard" class="hidden">
+    <h2>验证邮箱</h2>
+    <p class="lead" id="verifyLead">验证码已发送，请查收邮件。</p>
+    <label for="otp">6 位验证码</label><input id="otp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" />
+    <div class="row"><button id="submitOtp">完成验证</button><button id="resendOtp" class="ghost">重新发送</button></div>
+    <div id="verifyNotice" class="notice"></div>
+  </section>
+
+  <section id="accountCard" class="hidden">
+    <h2>余额</h2>
+    <div class="balance"><span id="balance">—</span><small id="balanceSource"></small></div>
+    <table id="entries"></table>
+  </section>
+
+  <section id="voucherCard" class="hidden">
+    <h2>兑换码</h2>
+    <div class="row"><input id="voucherCode" placeholder="IPZ-XXXXXXXX-…" autocomplete="off" /><button id="redeem">兑换</button></div>
+    <div id="voucherNotice" class="notice"></div>
+  </section>
+
+  <section id="sessionCard" class="hidden">
+    <h2>当前账户</h2>
+    <p class="lead" id="who"></p>
+    <div class="row"><a href="/image.html"><button class="ghost" type="button">去生图</button></a><button id="signOut" class="ghost">退出登录</button></div>
+  </section>
+</main>
+<script src="/account.js"></script>
+</body>
+</html>
