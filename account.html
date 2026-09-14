@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>登录 · IPZSK</title><link rel="stylesheet" href="/account.css"><script type="module" src="/account.js"></script>
+<link rel="stylesheet" href="/site-nav.css">
+<link rel="stylesheet" href="/recharge.css"><script type="module" src="/recharge.js"></script></head>
+<body>
+<header class="site-header"><nav class="site-nav" aria-label="主导航"><a class="site-brand" href="/">IPZSK</a><div class="site-links"><a href="/">首页 · 下载</a><a href="/image.html">生图</a><a href="/video">生视频</a><a href="/workspace">内容工作台</a><a href="/account?recharge=1" data-open-recharge>充值 / 兑换</a><a href="/account" aria-current="page">我的</a></div></nav></header>
+<main class="redeem-main auth-page" id="account-main">
+  <div class="account-brand"><a href="/" class="brand-symbol" aria-label="返回 IPZSK 首页">iP</a><a href="/" class="brand-name">IPZSK<span>知识库工作台</span></a></div>
+  <div class="account-surface">
+    <header class="account-heading"><p id="auth-step" class="auth-step" hidden></p><h1 id="account-heading" tabindex="-1">欢迎回来</h1><p id="account-description" class="muted">登录你的 IPZSK 账户，继续工作。</p></header>
+    <p id="account-notice" class="account-notice" role="status" tabindex="-1" hidden></p>
+    <div id="email-login">
+      <section id="password-login" data-auth-view="login">
+        <form id="password-login-form" novalidate>
+          <div class="auth-field"><label for="login-email">邮箱</label><input id="login-email" name="email" type="email" autocomplete="username" placeholder="you@example.com" required maxlength="254"></div>
+          <div class="auth-field"><div class="label-row"><label for="login-password">密码</label><button class="text-button" type="button" data-auth-nav="reset">忘记密码？</button></div><div class="password-field"><input id="login-password" name="password" type="password" autocomplete="current-password" required maxlength="128"><button class="password-toggle" type="button" data-password-toggle="login-password" aria-label="显示密码" aria-pressed="false">显示</button></div></div>
+          <button class="primary auth-primary" type="submit" data-busy-label="正在登录…">登录</button>
+        </form>
+        <p class="auth-switch">还没有账户？<button class="text-button" type="button" data-auth-nav="register">创建账户</button></p>
+      </section>
+      <section id="password-register" data-auth-view="register" hidden>
+        <form id="register-form" novalidate>
+          <div class="auth-field"><label for="register-email">邮箱</label><input id="register-email" name="email" type="email" autocomplete="username" placeholder="you@example.com" required maxlength="254"></div>
+          <div class="auth-field"><label for="register-password">设置密码</label><div class="password-field"><input id="register-password" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128" aria-describedby="register-password-hint"><button class="password-toggle" type="button" data-password-toggle="register-password" aria-label="显示密码" aria-pressed="false">显示</button></div><p class="field-hint" id="register-password-hint">至少 12 个字符，建议使用一句容易记住的话。</p></div>
+          <button id="register-submit" class="primary auth-primary" type="submit" data-busy-label="正在发送…" disabled>继续，验证邮箱</button>
+        </form>
+        <p id="register-status" class="service-status" role="status">正在检查验证服务…</p>
+        <p class="auth-switch">已有账户？<button class="text-button" type="button" data-auth-nav="login">去登录</button></p>
+      </section>
+      <section id="register-verification" data-auth-view="verify" hidden>
+        <div class="email-recipient"><span>验证邮箱</span><strong id="register-recipient"></strong><button id="register-back" class="text-button" type="button">修改邮箱</button></div>
+        <form id="verify-register-form" novalidate><input name="email" type="hidden">
+          <div class="auth-field"><label for="register-code">邮箱验证码</label><input id="register-code" class="otp-input" name="otp" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" placeholder="6 位数字验证码" required maxlength="6" aria-describedby="register-code-hint"><p id="register-code-hint" class="field-hint">验证码 5 分钟内有效，请勿与他人分享。</p></div>
+          <button class="primary auth-primary" type="submit" data-busy-label="正在验证…">验证并完成注册</button>
+        </form>
+        <div class="resend-row"><span>没收到邮件？</span><button id="resend-register" class="text-button" type="button" disabled>重新发送</button></div>
+        <p class="field-hint">也可以检查垃圾邮件，或确认上方邮箱是否正确。</p>
+        <p class="auth-switch"><button class="text-button" type="button" data-auth-nav="login">返回登录</button></p>
+      </section>
+      <section id="password-reset" data-auth-view="reset" hidden>
+        <form id="reset-send-form" novalidate>
+          <div class="auth-field"><label for="reset-email">注册邮箱</label><input id="reset-email" name="email" type="email" autocomplete="username" placeholder="you@example.com" required maxlength="254"></div>
+          <button id="reset-send" class="primary auth-primary" type="submit" data-busy-label="正在发送…" disabled>发送重置验证码</button>
+        </form>
+        <p id="reset-status" class="service-status" role="status">正在检查验证服务…</p>
+        <p class="auth-switch"><button class="text-button" type="button" data-auth-nav="login">← 返回登录</button></p>
+      </section>
+      <section id="reset-confirmation" data-auth-view="reset-confirm" hidden>
+        <div class="email-recipient"><span>注册邮箱</span><strong id="reset-recipient"></strong><button id="reset-back" class="text-button" type="button">修改邮箱</button></div>
+        <form id="reset-password-form" novalidate><input name="email" type="hidden">
+          <div class="auth-field"><label for="reset-code">邮箱验证码</label><input id="reset-code" class="otp-input" name="otp" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" placeholder="6 位数字验证码" required maxlength="6" aria-describedby="reset-code-hint"><p id="reset-code-hint" class="field-hint">验证码有效期 5 分钟。</p></div>
+          <div class="auth-field"><label for="reset-password">新密码</label><div class="password-field"><input id="reset-password" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128" aria-describedby="reset-password-hint"><button class="password-toggle" type="button" data-password-toggle="reset-password" aria-label="显示密码" aria-pressed="false">显示</button></div><p id="reset-password-hint" class="field-hint">至少 12 个字符。重置后，其他设备需要重新登录。</p></div>
+          <button class="primary auth-primary" type="submit" data-busy-label="正在重置…">确认重置密码</button>
+        </form>
+        <div class="resend-row"><span>没收到邮件？</span><button id="resend-reset" class="text-button" type="button" disabled>重新发送</button></div>
+        <p class="auth-switch"><button class="text-button" type="button" data-auth-nav="login">返回登录</button></p>
+      </section>
+      <section id="auth-success" data-auth-view="success" hidden>
+        <div class="success-mark" aria-hidden="true">✓</div><p id="success-description" class="muted"></p>
+        <button class="primary auth-primary" type="button" data-auth-nav="login">去登录</button>
+      </section>
+      <p class="auth-security">由安全验证保护你的账户</p>
+    </div>
+  </div>
+<section id="customer-panel" hidden>
+  <div class="account-identity"><span id="customer-email"></span><button id="customer-logout" class="text-button">退出登录</button></div>
+  <article class="card personal-profile"><h2>账号资料</h2><dl><div><dt>显示名称</dt><dd id="customer-name"></dd></div><div><dt>邮箱状态</dt><dd id="customer-verification"></dd></div><div><dt>注册时间</dt><dd id="customer-created"></dd></div></dl></article>
+  <nav class="personal-shortcuts" aria-label="我的内容"><a href="/workspace">我的内容工作台 <small>选题、草稿与排版 · 本机保存</small></a><a href="/workspace#images">我的图片 <small>查看当前账号的云端图片</small></a><a href="/#downloads">下载客户端 <small>查看最新正式版</small></a></nav>
+  <div class="account-top-grid">
+    <article class="card balance-card"><p>可用点数</p><strong id="customer-balance"></strong><p id="customer-frozen" class="muted" hidden></p><p id="customer-usage" class="muted"></p><button id="customer-refresh" class="text-button">刷新</button></article>
+    <article class="card"><h2>充值 / 兑换</h2><p class="muted">10 元 = 1,000 点 · 50 元 = 5,000 点。网页与客户端共用。</p><button type="button" class="primary" data-open-recharge>购买充值码 / 兑换到账</button></article>
+  </div>
+  <article class="card"><h2>消费记录</h2><div id="customer-requests" class="table-wrap"></div><div class="pagination"><button id="usage-prev" class="secondary">上一页</button><span id="usage-page"></span><button id="usage-next" class="secondary">下一页</button></div></article>
+  <details class="card account-advanced"><summary>余额变动</summary><div id="customer-ledger" class="advanced-content"></div></details>
+<details class="card account-advanced"><summary>高级设置 · API 接入</summary><div class="advanced-content"><p id="customer-token-prefix" class="muted"></p><p class="footnote">Base URL：https://api.ipzsk.com/v1</p><label>凭证名称<input id="customer-key-name" maxlength="100" placeholder="例如：我的电脑"></label><details><summary>限速与有效期（可选）</summary><label>每分钟请求上限（留空沿用账户）<input id="customer-key-rpm" type="number" min="1" max="600"></label><label>有效期（留空永久）<input id="customer-key-expiry" type="datetime-local"></label></details><div id="customer-keys"></div><button id="customer-issue-token" class="secondary">生成 API 凭证</button><section id="customer-token-result" hidden><p class="footnote">完整凭证只显示这一次，请妥善保存。</p><textarea id="customer-token" readonly rows="3" aria-label="新生成的 API 凭证"></textarea><button id="customer-copy-token" class="secondary">复制凭证</button></section></div></details>
+<details class="card account-advanced"><summary>帮助与数据说明</summary><div class="advanced-content"><p class="muted">内容工作台的草稿与偏好目前保存在本机浏览器，按登录账号区分；更换设备不会自动同步。图片库读取当前账号的云端记录。</p><p class="muted">需要找回密码时，可退出登录，在登录页选择「忘记密码」。客户端下载与更新说明见首页的版本说明。</p></div></details>
+</section>
+  <footer class="account-footer"><a href="/">← 返回首页</a><a href="/developer">开发者中心</a></footer>
+</main>
+<dialog id="captcha-dialog" aria-labelledby="captcha-title"><h2 id="captcha-title">图片验证码</h2><p id="captcha-status" role="status" aria-live="polite"></p><form id="captcha-form" novalidate><img id="captcha-image" width="300" height="110" alt="随机字符验证码，请输入图片中的字符" hidden><button id="captcha-retry" class="text-button" type="button">看不清？换一张</button><label for="captcha-answer">图片中的字符</label><input id="captcha-answer" name="answer" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="5" aria-describedby="captcha-status" required><div class="captcha-actions"><button id="captcha-continue" class="primary" type="submit" disabled>验证并继续</button><button id="captcha-cancel" class="text-button" type="button">取消</button></div></form></dialog>
+</body></html>

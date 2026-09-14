@@ -1,0 +1,12 @@
+IPZSK 图片工作台网页版
+
+Based on JayceHuang/dsh-imagegen 1.7.0 (Apache-2.0).
+Original project: https://github.com/JayceHuang/dsh-imagegen
+Apache license: /image-studio/LICENSE
+
+Modified for standalone web hosting: browser persistence, APIMart request adapter,
+IPZSK categorized template catalog, Chinese prompt translation, web theme.
+
+Punk-Skill styles and images: adrianpunk/Punk-Skill (MIT).
+Other inspiration cases retain their original authors and source URLs in the catalog.
+The software license does not grant ownership of third-party example artwork.

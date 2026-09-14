@@ -1,2 +1,9 @@
 README.md
 test
+image-studio/node_modules
+image-studio/vendor
+image-studio/web
+image-studio/tests
+image-studio/*.mjs
+image-studio/package*.json
+image-studio/upstream-package.json

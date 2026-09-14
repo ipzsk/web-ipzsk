@@ -22,10 +22,10 @@ afterEach(() => {
   delete global.fetch;
 });
 
-test("rejects requests when the proxy token is missing on the server", async () => {
+test("rejects unauthenticated requests before upstream access", async () => {
   const res = responseRecorder();
   await handler({ method: "POST", headers: {}, body: {} }, res);
-  assert.equal(res.statusCode, 503);
+  assert.equal(res.statusCode, 401);
 });
 
 test("rejects invalid desktop credentials", async () => {
@@ -46,15 +46,15 @@ test("forwards an authenticated, constrained GPT-5 request", async () => {
   const res = responseRecorder();
   await handler({
     method: "POST",
-    headers: { authorization: "Bearer desktop-token" },
+    headers: { authorization: "Bearer ipz_" + "x".repeat(43) },
     body: { model: "other-model", messages: [{ role: "developer", content: "只输出 JSON" }, { role: "user", content: "生成 PPT 大纲" }], max_tokens: 9_000, stream: false },
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.equal(upstream.url, "https://api.apimart.ai/v1/chat/completions");
+  assert.equal(upstream.url, "https://api.ipzsk.com/v1/chat/completions");
   assert.equal(upstream.body.model, "gpt-5");
   assert.equal(upstream.body.max_completion_tokens, 3_000);
   assert.equal(upstream.body.stream, false);
-  assert.equal(upstream.options.headers.Authorization, "Bearer upstream-token");
+  assert.equal(upstream.options.headers.Authorization, "Bearer ipz_" + "x".repeat(43));
   assert.equal(Buffer.concat(res.chunks).toString(), '{"choices":[]}');
 });

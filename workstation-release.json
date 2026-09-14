@@ -1,0 +1,15 @@
+{
+  "version": "1.0.0",
+  "assets": {
+    "mac": {
+      "filename": "IPZSK-Workstation-mac-1.0.0.zip",
+      "bytes": 779513630,
+      "sha256": "6bce988d4940781d3b0608a9ee4a542657297a7f11994bd3c4c42254996ac132"
+    },
+    "windows": {
+      "filename": "IPZSK-Workstation-windows-1.0.0.zip",
+      "bytes": 616651394,
+      "sha256": "e2c96228ff7a84b28aa415d31b19257f3ff28dfd111ee611e91e0873995d345b"
+    }
+  }
+}

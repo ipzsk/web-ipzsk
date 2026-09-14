@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="IPZSK 知识库工作台，把生图、演示文稿、知识管理和常用软件下载整合在一个入口。" />
+  <meta name="description" content="下载 IPZSK 桌面客户端，使用生图、内容工作台，并管理个人账号。" />
   <meta name="theme-color" content="#f4f2eb" />
-  <meta property="og:title" content="IPZSK · 知识库工作台" />
+  <meta property="og:title" content="IPZSK · 桌面客户端下载" />
   <meta property="og:description" content="让资料、创作和工具进入同一条工作流。" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://ipzsk.com" />
-  <title>IPZSK · 知识库工作台</title>
+  <title>IPZSK · 桌面客户端下载</title>
   <style>
     :root {
       --paper: #f4f2eb;
@@ -319,7 +319,7 @@
       .nav { gap: 10px; }
       .brand-copy small { display: none; }
       .nav-cta { padding: 10px 12px; font-size: 0; }
-      .nav-cta::after { content: "进入"; font-size: 11px; }
+      .nav-cta::after { content: attr(data-mobile-label); font-size: 11px; }
       .tabs { justify-content: flex-start; border-radius: 12px; }
       .tab { padding: 9px 12px; font-size: 11px; }
       .hero { padding: 58px 0 48px; }
@@ -346,7 +346,8 @@
       *, *::before, *::after { transition: none !important; }
     }
   </style>
-</head>
+<link rel="stylesheet" href="/home-downloads.css">
+<link rel="stylesheet" href="/recharge.css"><script type="module" src="/recharge.js"></script></head>
 <body>
   <header class="topbar">
     <nav class="nav shell" aria-label="主导航">
@@ -354,116 +355,47 @@
         <span class="brand-mark">IP</span>
         <span class="brand-copy"><strong>IPZSK</strong><small>KNOWLEDGE WORKSPACE</small></span>
       </a>
-      <div class="tabs" role="tablist" aria-label="功能导航">
-        <a class="tab active" href="/" aria-current="page">首页</a>
-        <a class="tab live" href="/image.html">生图<span class="tab-dot"></span></a>
-        <a class="tab" href="#ppt">生 PPT<span class="tab-dot"></span></a>
-        <a class="tab" href="#knowledge">知识库<span class="tab-dot"></span></a>
-        <a class="tab" href="#downloads">软件下载<span class="tab-dot"></span></a>
+      <div class="tabs" aria-label="功能导航">
+        <a class="tab active" href="/" aria-current="page">首页 · 下载</a>
+        <a class="tab" href="/image.html">生图</a>
+        <a class="tab" href="/video">生视频</a>
+        <a class="tab" href="/workspace">内容工作台</a>
+        <a class="tab" href="/account?recharge=1" data-open-recharge>充值 / 兑换</a>
+        <a class="tab" href="/account">我的</a>
       </div>
-      <a class="nav-cta" href="#features">探索工作台 <span aria-hidden="true">↗</span></a>
     </nav>
   </header>
 
   <main>
-    <section class="hero shell" id="home">
+    <section class="hero shell download-hero" id="home">
       <div class="hero-copy">
-        <span class="eyebrow">Knowledge Workspace · 01</span>
-        <h1>让知识真正<br />进入<span>工作流</span></h1>
-        <p>从资料沉淀、内容理解到图像与演示生成，把每天会用到的知识和工具收进一个清晰、顺手的入口。</p>
-        <div class="hero-actions">
-          <a class="button primary" href="#features">查看全部功能 <span aria-hidden="true">↓</span></a>
-          <a class="button secondary" href="/image.html">打开生图工具 <span aria-hidden="true">↗</span></a>
-        </div>
-        <div class="hero-note">
-          <span class="avatars" aria-hidden="true"><span class="avatar">图</span><span class="avatar">知</span><span class="avatar">演</span></span>
-          一个入口，连接创作、知识与效率工具
-        </div>
+        <span class="eyebrow">IPZSK DESKTOP · YOUR CREATIVE SPACE</span>
+        <h1>把 AI 工具<br />装进<span>你的电脑</span></h1>
+        <p>下载 IPZSK 桌面客户端，登录你的账号。<br />创作内容、使用模型、安装插件，从这里开始。</p>
+        <div class="hero-actions"><a class="button primary" href="#downloads">选择设备，下载软件 <span aria-hidden="true">↓</span></a><a class="button secondary" href="/workspace">先体验内容工作台 ↗</a></div>
+        <div class="hero-note">Mac · Windows / 插件独立安装与更新</div>
       </div>
-
-      <div class="workspace-preview" aria-label="知识库工作台界面预览">
-        <div class="preview-top"><span class="traffic"><i></i><i></i><i></i></span><span class="preview-search">⌕ 搜索知识、工具或工作流</span></div>
-        <div class="preview-body">
-          <aside class="preview-side">
-            <div class="preview-logo">IP</div>
-            <div class="side-item active"><i class="side-icon"></i>工作台</div>
-            <div class="side-item"><i class="side-icon"></i>知识库</div>
-            <div class="side-item"><i class="side-icon"></i>最近创作</div>
-            <div class="side-item"><i class="side-icon"></i>工具箱</div>
-          </aside>
-          <div class="preview-main">
-            <small>GOOD MORNING</small>
-            <h2>今天想完成什么？</h2>
-            <p>选择一个能力，马上开始你的工作流。</p>
-            <div class="quick-grid">
-              <div class="quick-card"><div class="quick-head"><span class="quick-icon">✦</span><span class="quick-status">可使用</span></div><b>生成图片</b><p>把内容主题快速转成视觉</p></div>
-              <div class="quick-card"><div class="quick-head"><span class="quick-icon">▤</span><span class="quick-status">筹备中</span></div><b>生成 PPT</b><p>从资料到完整演示文稿</p></div>
-              <div class="quick-card"><div class="quick-head"><span class="quick-icon">⌘</span><span class="quick-status">筹备中</span></div><b>知识库</b><p>沉淀、搜索和调用资料</p></div>
-              <div class="quick-card"><div class="quick-head"><span class="quick-icon">↓</span><span class="quick-status">筹备中</span></div><b>软件下载</b><p>常用软件与配置入口</p></div>
-            </div>
-          </div>
-        </div>
+      <div class="desktop-downloads" id="downloads">
+        <div class="download-heading"><span class="section-label">DOWNLOAD THE APP</span><h2>选择你的设备</h2><p>安装包以当前正式版为准。</p></div>
+        <article class="platform-download"><div><h3>macOS · M 系列芯片</h3><p>Apple Silicon</p><small id="mac-meta"></small></div><a class="button primary download" data-platform="mac" aria-disabled="true">读取版本…</a></article>
+        <article class="platform-download"><div><h3>macOS · Intel 芯片</h3><p>Intel Mac</p><small id="mac-intel-meta"></small></div><a class="button secondary download" data-platform="mac-intel" aria-disabled="true">读取版本…</a></article>
+        <article class="platform-download"><div><h3>Windows</h3><p>Windows 64 位</p><small id="windows-meta"></small></div><a class="button secondary download" data-platform="windows" aria-disabled="true">读取版本…</a></article>
+        <p id="release-status" role="status">正在获取最新正式版…</p>
+        <a class="download-help" href="https://github.com/JayceHuang/ipzsk-dsh-desktop/releases/latest">版本说明与全部安装包 ↗</a>
       </div>
     </section>
-
-    <section class="section shell" id="features">
-      <div class="section-head">
-        <div><span class="section-label">Workspace Modules</span><h2>四个模块，覆盖从知识到交付的全过程</h2></div>
-        <p>首页先承担功能介绍与统一入口。各模块会逐步开放，已经可用的能力会直接进入工作页面。</p>
-      </div>
-      <div class="feature-grid">
-        <article class="feature-card live" id="image">
-          <div class="feature-top"><span class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m6 16 4-4 3 3 2-2 3 3"/><circle cx="15.5" cy="8.5" r="1.5"/></svg></span><span class="badge">现已开放</span></div>
-          <h3>生图</h3>
-          <p>输入主题、选择风格与画幅，快速生成适合封面、社交媒体和头像场景的视觉内容。</p>
-          <a class="feature-link" href="/image.html">立即使用 <span>↗</span></a>
-        </article>
-
-        <article class="feature-card" id="ppt">
-          <div class="feature-top"><span class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="15" rx="3"/><path d="M8 21h8M12 18v3M7 8h4M7 12h10"/></svg></span><span class="badge">筹备中</span></div>
-          <h3>生 PPT</h3>
-          <p>将想法、文章或资料整理成结构完整、可以继续编辑的演示文稿。</p>
-          <span class="feature-link">即将开放 <span>→</span></span>
-        </article>
-
-        <article class="feature-card knowledge" id="knowledge">
-          <div class="feature-top"><span class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v17H6.5A2.5 2.5 0 0 0 4 22zM20 5.5A2.5 2.5 0 0 0 17.5 3H13v17h4.5A2.5 2.5 0 0 1 20 22z"/></svg></span><span class="badge">筹备中</span></div>
-          <h3>知识库</h3>
-          <p>集中管理文章、文档与灵感，在需要的时候搜索、理解并重新调用。</p>
-          <span class="feature-link">即将开放 <span>→</span></span>
-        </article>
-
-        <article class="feature-card download" id="downloads">
-          <div class="feature-top"><span class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 20h14"/></svg></span><span class="badge">筹备中</span></div>
-          <h3>软件下载</h3>
-          <p>汇总常用软件、插件和配置说明，为不同设备提供清晰可靠的下载入口。</p>
-          <span class="feature-link">即将开放 <span>→</span></span>
-        </article>
-      </div>
-    </section>
-
-    <section class="section shell">
-      <div class="flow-panel">
-        <div><span class="section-label">Simple Flow</span><h2>少一点切换，多一点完成</h2><p>工作台把散落的能力组织成一条连续路径，让资料可以沉淀，让内容可以继续生长。</p></div>
-        <div class="steps">
-          <div class="step"><span class="step-num">01</span><div><b>收进来</b><p>把文章、文档、灵感和常用工具集中到一个入口。</p></div></div>
-          <div class="step"><span class="step-num">02</span><div><b>用起来</b><p>搜索知识、生成图片或整理演示，不再反复搬运内容。</p></div></div>
-          <div class="step"><span class="step-num">03</span><div><b>交付出去</b><p>把结果转成可以分享、展示和继续编辑的成品。</p></div></div>
-        </div>
-      </div>
-    </section>
+    <section class="section shell" id="features"><div class="section-head"><div><span class="section-label">CREATE YOUR WAY</span><h2>也可以，直接在网页里开始。</h2></div><p>创作工具和账号服务，各有清晰的入口。</p></div><div class="feature-grid">
+      <article class="feature-card live"><span class="badge">现已开放</span><h3>生图</h3><p>描述画面，生成图片。查看当前账号的云端图片记录。</p><a class="feature-link" href="/image.html">开始生图 ↗</a></article>
+      <article class="feature-card"><span class="badge">已接入</span><h3>生视频</h3><p>登录后使用账户余额生成 AI 视频，支持清晰度、时长设置与任务进度查询。</p><a class="feature-link" href="/video">开始生成视频 ↗</a></article>
+      <article class="feature-card"><span class="badge">现已开放</span><h3>内容工作台</h3><p>整理选题、编辑文稿、预览排版。当前草稿保存在本机。</p><a class="feature-link" href="/workspace">进入内容工作台 ↗</a></article>
+      <article class="feature-card"><span class="badge">账号与服务</span><h3>我的</h3><p>查看个人资料、账户余额、充值与消费记录，管理自己的创作入口。</p><a class="feature-link" href="/account">打开个人中心 ↗</a></article>
+    </div></section>
   </main>
 
   <footer>
     <div class="footer-inner shell"><span><strong>IPZSK</strong> · 知识库工作台</span><span>把知识变成可以继续工作的能力。</span></div>
   </footer>
 
-  <script>
-    const tabs = [...document.querySelectorAll('.tab[href^="#"]')];
-    tabs.forEach(tab => tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(item => item.classList.remove('active'));
-      tab.classList.add('active');
-    }));
-  </script>
+  <script src="/home-downloads.js" defer></script>
 </body>
 </html>

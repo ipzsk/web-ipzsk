@@ -1,0 +1,209 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/video",
+      "has": [
+        {
+          "type": "host",
+          "value": "ipzsk.com"
+        }
+      ],
+      "destination": "https://www.ipzsk.com/video",
+      "permanent": false
+    },
+    {
+      "source": "/video.html",
+      "destination": "https://www.ipzsk.com/video",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "ipzsk.com"
+        }
+      ],
+      "destination": "https://www.ipzsk.com/",
+      "permanent": false
+    },
+    {
+      "source": "/downloads/:file",
+      "destination": "https://api.ipzsk.com/downloads/:file",
+      "permanent": false
+    },
+    {
+      "source": "/account",
+      "has": [
+        {
+          "type": "host",
+          "value": "ipzsk.com"
+        }
+      ],
+      "destination": "https://www.ipzsk.com/account",
+      "permanent": false
+    },
+    {
+      "source": "/login",
+      "destination": "https://www.ipzsk.com/account",
+      "permanent": false
+    },
+    {
+      "source": "/register",
+      "destination": "https://www.ipzsk.com/account?mode=register",
+      "permanent": false
+    },
+    {
+      "source": "/developer",
+      "has": [
+        {
+          "type": "host",
+          "value": "ipzsk.com"
+        }
+      ],
+      "destination": "https://www.ipzsk.com/developer",
+      "permanent": false
+    },
+    {
+      "source": "/workspace",
+      "has": [
+        {
+          "type": "host",
+          "value": "ipzsk.com"
+        }
+      ],
+      "destination": "https://www.ipzsk.com/workspace",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/workstation",
+      "destination": "/workstation.html"
+    },
+    {
+      "source": "/account",
+      "destination": "/account.html"
+    },
+    {
+      "source": "/developer",
+      "destination": "/developer.html"
+    },
+    {
+      "source": "/workspace",
+      "destination": "/workspace.html"
+    },
+    {
+      "source": "/video",
+      "destination": "/video.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/account",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self'; connect-src https://api.ipzsk.com; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/developer",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src https://api.ipzsk.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/account.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self'; connect-src https://api.ipzsk.com; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/workspace(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://4625b08a63fe2d8151c0df01b6d98490.r2.cloudflarestorage.com; connect-src https://api.ipzsk.com; frame-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    },
+    {
+      "source": "/video(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://api.ipzsk.com; media-src https:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    }
+  ]
+}
