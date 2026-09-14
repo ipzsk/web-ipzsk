@@ -30,7 +30,7 @@ async function loadAccount(){
     text.textContent=`${r.name} · ${r.prefix}… · ${r.revoked_at?'已吊销':r.expires_at&&new Date(r.expires_at)<new Date()?'已到期':'有效'} · 限速 ${r.rpm??'账户上限'} · 到期 ${r.expires_at?new Date(r.expires_at).toLocaleString('zh-CN'):'永久'} `;p.append(text);
     if(!r.revoked_at){const b=document.createElement('button');b.className='text-button';b.textContent='吊销';b.addEventListener('click',handler(async()=>{if(!confirm('吊销这把凭证？使用它的应用将停止调用。'))return;await request('/api/me/tokens/'+r.id+'/revoke',{});await loadAccount();}));p.append(b);}return p;
   }));
-  $('#customer-ledger').replaceChildren(...wallet.entries.map((r)=>{const p=document.createElement('p');p.className='muted';const label=r.kind==='consumption'?'消费':r.kind==='signup_bonus'?'注册赠送':'充值';p.textContent=`${new Date(r.created_at).toLocaleString('zh-CN')} · ${label} ${points(r.amount_points)}`;return p;}));
+  $('#customer-ledger').replaceChildren(...wallet.entries.map((r)=>{const p=document.createElement('p');p.className='muted';p.textContent=`${new Date(r.created_at).toLocaleString('zh-CN')} · ${r.kind==='consumption'?'消费':'充值'} ${points(r.amount_points)}`;return p;}));
 }
 $('#customer-issue-token').addEventListener('click',handler(async()=>{const r=await request('/api/me/tokens',{name:$('#customer-key-name').value||'默认凭证',rpm:$('#customer-key-rpm').value?Number($('#customer-key-rpm').value):null,expires_at:$('#customer-key-expiry').value?new Date($('#customer-key-expiry').value).toISOString():null});$('#customer-token').value=r.token;$('#customer-token-result').hidden=false;await loadAccount();}));
 $('#customer-copy-token').addEventListener('click',handler(async()=>{await navigator.clipboard.writeText($('#customer-token').value);authUi.notice('已复制凭证。');}));
