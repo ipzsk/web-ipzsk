@@ -326,6 +326,17 @@ describe('remote sync', () => {
     return { repo, server, kv, setOnline: (v: boolean) => { online = v } }
   }
 
+  it('a new project syncs with POST directly (no PUT → 404 first)', async () => {
+    const server = createMockServer(memKV(), () => true, 0)
+    const calls: string[] = []
+    const repo = createSyncedRepo(createLocalRepo(memKV(), () => true), (m, path, body) => { calls.push(m); return server.transport(m, path, body) }, () => true)
+    const p = await repo.create('A')
+    expect(await repo.sync(p.id)).toBe('synced')
+    await repo.save(p.id, doc('v2'))
+    expect(await repo.sync(p.id)).toBe('synced')
+    expect(calls).toEqual(['POST', 'PUT'])
+  })
+
   it('create → POST, edit → PUT with revision; remote edit → 409 conflict → each resolution', async () => {
     const { repo, server, kv, setOnline } = setup()
     const p = await repo.create('A')

@@ -14,6 +14,8 @@ export interface CanvasProjectMeta {
   preview: { x: number; y: number; w: number; h: number; kind: NodeKind }[]
   /** Local changes not yet accepted by the server (the offline queue). */
   dirty?: boolean
+  /** Never accepted by the server (created / copied locally): sync POSTs it instead of PUT → 404 → POST. */
+  unsynced?: boolean
 }
 
 export interface CanvasProjectSnapshot { meta: CanvasProjectMeta; document: CanvasDocument }
@@ -66,7 +68,7 @@ export function createLocalRepo(kv: KV = idbKV, online = navOnline): LocalRepo {
     },
     async create(title = '未命名画布') {
       const t = now()
-      const meta: CanvasProjectMeta = { id: crypto.randomUUID(), title: title.slice(0, 80), revision: 1, created_at: t, updated_at: t, preview: [], dirty: true }
+      const meta: CanvasProjectMeta = { id: crypto.randomUUID(), title: title.slice(0, 80), revision: 1, created_at: t, updated_at: t, preview: [], dirty: true, unsynced: true }
       await kv.set(docKey(meta.id), emptyDocument())
       await writeList([meta, ...(await list())])
       return meta
@@ -87,7 +89,7 @@ export function createLocalRepo(kv: KV = idbKV, online = navOnline): LocalRepo {
       const src = await repo.get(id)
       if (!src) return null
       const t = now()
-      const meta: CanvasProjectMeta = { ...src.meta, id: crypto.randomUUID(), title: `${src.meta.title} 副本`.slice(0, 80), revision: 1, created_at: t, updated_at: t, dirty: true }
+      const meta: CanvasProjectMeta = { ...src.meta, id: crypto.randomUUID(), title: `${src.meta.title} 副本`.slice(0, 80), revision: 1, created_at: t, updated_at: t, dirty: true, unsynced: true }
       await kv.set(docKey(meta.id), structuredClone(src.document))
       await writeList([meta, ...(await list())])
       return meta
@@ -162,7 +164,7 @@ export function createSyncedRepo(local: LocalRepo, send: Transport, online = nav
               if (!m || (!m.dirty && it.revision > m.revision)) await pull(it.id, m)
             }
             // ponytail: local projects missing remotely are treated as never-synced and re-uploaded (also resurrects ones deleted on another device).
-            for (const m of mine) if (!m.dirty && !items.some(it => it.id === m.id)) await local.setMeta(m.id, { dirty: true })
+            for (const m of mine) if (!m.dirty && !items.some(it => it.id === m.id)) await local.setMeta(m.id, { dirty: true, unsynced: true })
           }
         } catch { /* offline: local list */ }
       }
@@ -185,8 +187,12 @@ export function createSyncedRepo(local: LocalRepo, send: Transport, online = nav
       if (!online()) return 'offline'
       try {
         const { title, revision } = snap.meta
-        let r = await send('PUT', `/api/me/canvas/${id}`, { title, document: snap.document, revision })
-        if (r.status === 404) r = await send('POST', '/api/me/canvas', { id, title, document: snap.document })
+        const put = () => send('PUT', `/api/me/canvas/${id}`, { title, document: snap.document, revision })
+        const post = () => send('POST', '/api/me/canvas', { id, title, document: snap.document })
+        // New projects POST directly (no console 404); older local metas without the flag keep PUT → 404 → POST.
+        let r = snap.meta.unsynced ? await post() : await put()
+        if (r.status === 404 && !snap.meta.unsynced) r = await post()
+        else if (r.status === 409 && snap.meta.unsynced && !isServerProject(r.data?.project)) r = await put() // an earlier POST landed but its response was lost
         if (r.status === 409) {
           const remote = r.data?.project
           return isServerProject(remote) ? { conflict: toSnapshot(remote) } : 'offline'
@@ -195,7 +201,7 @@ export function createSyncedRepo(local: LocalRepo, send: Transport, online = nav
         const next = r.data?.project?.revision ?? r.data?.revision ?? revision + 1
         const cur = await local.get(id)
         // Edits saved while the request was in flight stay dirty for the next round.
-        await local.setMeta(id, { revision: next, dirty: cur?.meta.updated_at !== snap.meta.updated_at })
+        await local.setMeta(id, { revision: next, dirty: cur?.meta.updated_at !== snap.meta.updated_at, unsynced: false })
         return 'synced'
       } catch {
         return 'offline'
@@ -221,7 +227,7 @@ export async function resolveConflict(repo: CanvasRepo, id: string, choice: Conf
   if (choice === 'copy') {
     const t = now()
     copyId = crypto.randomUUID()
-    await repo.restore({ meta: { ...mine.meta, id: copyId, title: `${mine.meta.title} 副本`.slice(0, 80), revision: 1, created_at: t, updated_at: t, dirty: true }, document: mine.document })
+    await repo.restore({ meta: { ...mine.meta, id: copyId, title: `${mine.meta.title} 副本`.slice(0, 80), revision: 1, created_at: t, updated_at: t, dirty: true, unsynced: true }, document: mine.document })
   }
   await repo.restore({ meta: { ...remote.meta, dirty: false }, document: remote.document })
   return copyId
