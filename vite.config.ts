@@ -23,12 +23,13 @@ const api: ProxyOptions = {
   },
 }
 
-// History fallback for /studio deep links in dev (Vite's SPA fallback would serve the legacy index.html).
+// History fallback for /studio and /admin deep links in dev (Vite's SPA fallback would serve the legacy index.html).
 const studioFallback: Plugin = {
   name: 'studio-fallback',
   configureServer(server) {
     server.middlewares.use((req, _res, next) => {
-      if (req.url && /^\/studio(\/|\?|$)/.test(req.url)) req.url = '/studio.html' + (req.url.split('?')[1] ? '?' + req.url.split('?')[1] : '')
+      const m = req.url && /^\/(studio|admin)(\/|\?|$)/.exec(req.url)
+      if (m) req.url = `/${m[1]}.html` + (req.url!.split('?')[1] ? '?' + req.url!.split('?')[1] : '')
       next()
     })
   },
@@ -43,7 +44,12 @@ export default defineConfig(({ command }) => ({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    rollupOptions: { input: { studio: fileURLToPath(new URL('./studio.html', import.meta.url)) } },
+    rollupOptions: {
+      input: {
+        studio: fileURLToPath(new URL('./studio.html', import.meta.url)),
+        admin: fileURLToPath(new URL('./admin.html', import.meta.url)),
+      },
+    },
   },
   server: { port: 5174, proxy: { '/api': api, '/v1': api } },
 }))
