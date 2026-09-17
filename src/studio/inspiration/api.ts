@@ -1,14 +1,15 @@
 import { useSyncExternalStore } from 'react'
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { request } from '@/shared/api'
+import { isMock, request } from '@/shared/api'
 import type { CaseCategories, InspirationCaseDetail, Page } from '@/shared/contracts'
 import { categoryCounts, fromManifest, pageCases, similarCases, type CaseFilter, type CaseItem, type ManifestCase } from './lib'
 
 /*
  * Case library adapter. Both sources return the generated shapes (InspirationCase / Page), so the view doesn't care.
- * VITE_CASES_SOURCE=api → gateway `/api/public/cases*`; anything else (default) → static manifest mapped by fromManifest.
+ * Default → gateway `/api/public/cases*` (real originals, signed URLs, multi-category `cat=a,b`).
+ * Explicit fallback: VITE_CASES_SOURCE=static, and `?mock=1` (mock mode never hits the network) → static manifest via fromManifest.
  */
-export const casesFromApi = import.meta.env.VITE_CASES_SOURCE === 'api'
+export const casesFromApi = import.meta.env.VITE_CASES_SOURCE !== 'static' && !isMock
 
 let manifest: Promise<CaseItem[]> | undefined
 // Separate chunk (~1.3MB, mostly prompts) so the studio shell doesn't wait on it.
