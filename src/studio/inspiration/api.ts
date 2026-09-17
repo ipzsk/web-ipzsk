@@ -54,9 +54,8 @@ export const caseKeys = {
   similar: (id: string) => ['cases', 'similar', id] as const,
 }
 
-export const useCases = (f: CaseFilter, enabled = true) => useInfiniteQuery({
+export const useCases = (f: CaseFilter) => useInfiniteQuery({
   queryKey: caseKeys.list(f),
-  enabled,
   queryFn: ({ pageParam }) => listCases({ ...f, cursor: pageParam }),
   initialPageParam: null as string | null,
   getNextPageParam: (last) => last.next_cursor,
@@ -70,9 +69,8 @@ export const useCase = (id: string | null) => useQuery({
   staleTime: 5 * 60_000,
 })
 
-export const useCategories = (q: string, enabled = true) => useQuery({
-  queryKey: caseKeys.categories(q),
-  enabled,
+export const useCategories = (q: string) => useQuery({
+  queryKey: caseKeys.categories(casesFromApi ? '' : q), // API counts ignore q: one cache entry
   queryFn: () => listCategories(q),
   placeholderData: keepPreviousData,
   staleTime: 5 * 60_000,
