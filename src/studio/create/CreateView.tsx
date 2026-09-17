@@ -1,21 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { useMutationState } from '@tanstack/react-query'
-import { ArrowDown, ChevronDown, MessageSquarePlus, MoreHorizontal, PencilLine, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowDown, ChevronDown, MessageSquarePlus, MoreHorizontal, Sparkles } from 'lucide-react'
 import {
   Button, Dialog, DialogContent, DialogFooter, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-  ErrorState, IconButton, Input, Skeleton, Sticker, cn, focusRing, toast,
+  ErrorState, IconButton, Skeleton, Sticker, cn, focusRing,
 } from '@/ui'
 import { MediaLightbox, type MediaAsset } from '@/media'
 import { reducedMotion } from '@/media/types'
-import { queryClient } from '@/shared/query'
 import { COMPOSER_FILL_EVENT, dispatchStudioEvent } from '@/shared/events'
 import { GENERATION_SUBMIT_KEY, type PendingGeneration, type SubmitOutcome } from '../api/generation'
-import { recordKeys, recordsApi, useActiveGenerations, useThreadRecords, useThreads, type GenerationRecord, type Thread } from '../api/records'
+import { useActiveGenerations, useThreadRecords, type GenerationRecord } from '../api/records'
 import { useComposer } from '../store'
-import { deleteWithUndo, fillQueue, useHidden } from './actions'
+import { fillQueue, useHidden } from './actions'
 import { RequestBubble, ResultBubble } from './Bubbles'
-import { LegacyBanner, LegacyStream, useLegacy } from './LegacyImport'
+import { LegacyBanner, LegacyStream } from './LegacyImport'
+import { useThreadList } from './ThreadList'
 import { LEGACY_THREAD_ID, LEGACY_THREAD_TITLE } from './legacy'
 import { groupItems, mergeItems, newResultsAction, streamSignature, todayTitle, type ItemView, type PendingState } from './lib'
 
@@ -23,131 +23,44 @@ const SUGGESTIONS = ['一只橘猫戴着宇航员头盔，漂浮在空间站里�
 
 export function CreateView() {
   const { threadId: urlThread } = useParams()
-  const { search } = useLocation()
-  const navigate = useNavigate()
-  const threads = useThreads()
-  const hidden = useHidden(s => s.ids)
+  const { threads, list, threadId, legacyListed, signedOut, go, newThread, menu, renameDialog } = useThreadList()
   const today = threads.data?.find(t => t.title === todayTitle())
-  const list = (threads.data ?? []).filter(t => !hidden.has(`thread:${t.id}`))
-  const threadId = urlThread ?? null
   const legacyOpen = threadId === LEGACY_THREAD_ID
-  const legacy = useLegacy()
-  const legacyListed = legacy.marker?.state === 'imported'
-  const go = (id: string | null, replace = false) => navigate({ pathname: id ? `/studio/create/${id}` : '/studio/create', search }, { replace })
 
   // Default thread: today's, once it exists (created on the first send, see api/records.ts).
   useEffect(() => { if (!urlThread && today) go(today.id, true) }, [urlThread, today?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { useComposer.setState({ threadId: legacyOpen ? null : threadId }) }, [threadId, legacyOpen]) // the local legacy thread is never sent as thread_id
 
-  const [renaming, setRenaming] = useState<Thread | null>(null)
-  const newThread = async () => {
-    try {
-      const t = await recordsApi.createThread(`新会话 ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`)
-      await queryClient.invalidateQueries({ queryKey: recordKeys.threads })
-      go(t.id)
-    } catch { toast({ title: '新建会话失败', description: '请检查网络后重试', tone: 'error' }) }
-  }
-  const removeThread = (t: Thread) => {
-    if (t.id === threadId) go(list.find(x => x.id !== t.id)?.id ?? null)
-    deleteWithUndo(`会话「${t.title}」`, `thread:${t.id}`, async () => {
-      await recordsApi.deleteThread(t.id)
-      await queryClient.invalidateQueries({ queryKey: recordKeys.threads })
-    })
-  }
   const current = list.find(t => t.id === threadId)
 
-  const menu = (t: Thread) => (
-    <DropdownMenuContent align="end">
-      <DropdownMenuItem onSelect={() => setRenaming(t)}><PencilLine className="size-4" />重命名</DropdownMenuItem>
-      <DropdownMenuItem danger onSelect={() => removeThread(t)}><Trash2 className="size-4" />删除会话</DropdownMenuItem>
-    </DropdownMenuContent>
-  )
-
   return (
-    <div className="md:grid md:grid-cols-[220px_1fr] md:gap-6">
-      {/* Desktop rail */}
-      <aside aria-label="会话" className="sticky top-22 hidden max-h-[calc(100dvh-120px)] flex-col gap-1 overflow-y-auto md:flex">
-        <Button variant="secondary" size="sm" icon={<MessageSquarePlus className="size-4" />} onClick={() => void newThread()} className="mb-2">新建会话</Button>
-        {threads.isPending && Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-9" />)}
-        {threads.isError && <ErrorState reason="会话列表加载失败" action={{ label: '重试', onClick: () => void threads.refetch() }} />}
-        {list.map(t => (
-          <div key={t.id} className={cn('group/t flex h-9 items-center rounded-control text-sm', t.id === threadId ? 'bg-ink text-acid' : 'hover:bg-subtle')}>
-            <Link to={{ pathname: `/studio/create/${t.id}`, search }} aria-current={t.id === threadId ? 'page' : undefined} className={cn('min-w-0 flex-1 truncate px-3 leading-9', focusRing)}>{t.title || '未命名会话'}</Link>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button type="button" aria-label={`管理会话 ${t.title}`} className={cn('mr-1 grid size-7 cursor-pointer place-items-center rounded-[8px] md:opacity-0 md:group-hover/t:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100', t.id === threadId ? 'hover:bg-card/15' : 'hover:bg-line', focusRing)}>
-                  <MoreHorizontal className="size-4" />
-                </button>
-              </DropdownMenuTrigger>
-              {menu(t)}
-            </DropdownMenu>
-          </div>
-        ))}
-        {legacyListed && (
-          <Link to={{ pathname: `/studio/create/${LEGACY_THREAD_ID}`, search }} aria-current={legacyOpen ? 'page' : undefined}
-            className={cn('flex h-9 items-center truncate rounded-control px-3 text-sm', legacyOpen ? 'bg-ink text-acid' : 'text-muted hover:bg-subtle hover:text-ink', focusRing)}>{LEGACY_THREAD_TITLE}</Link>
-        )}
-        {threads.isSuccess && !list.length && <p className="px-3 py-2 text-xs text-muted">发送第一条后会自动创建今天的会话</p>}
-      </aside>
-
-      <div className="min-w-0">
-        {/* Mobile thread picker */}
-        <div className="mb-4 flex items-center gap-2 md:hidden">
+    <div className="min-w-0">
+      {/* Mobile thread picker (desktop: sidebar ThreadList) */}
+      {!signedOut && <div className="mb-4 flex items-center gap-2 md:hidden">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="sm" className="min-w-0 flex-1 justify-between"><span className="truncate">{legacyOpen ? LEGACY_THREAD_TITLE : current?.title ?? todayTitle()}</span><ChevronDown className="size-4" /></Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
+            {list.map(t => <DropdownMenuItem key={t.id} onSelect={() => go(t.id)} className={cn(t.id === threadId && 'font-semibold')}>{t.title || '未命名会话'}</DropdownMenuItem>)}
+            {legacyListed && <DropdownMenuItem onSelect={() => go(LEGACY_THREAD_ID)} className={cn(legacyOpen && 'font-semibold')}>{LEGACY_THREAD_TITLE}</DropdownMenuItem>}
+            {(list.length > 0 || legacyListed) && <DropdownMenuSeparator />}
+            <DropdownMenuItem onSelect={() => void newThread()}><MessageSquarePlus className="size-4" />新建会话</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {current && (
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="sm" className="min-w-0 flex-1 justify-between"><span className="truncate">{legacyOpen ? LEGACY_THREAD_TITLE : current?.title ?? todayTitle()}</span><ChevronDown className="size-4" /></Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
-              {list.map(t => <DropdownMenuItem key={t.id} onSelect={() => go(t.id)} className={cn(t.id === threadId && 'font-semibold')}>{t.title || '未命名会话'}</DropdownMenuItem>)}
-              {legacyListed && <DropdownMenuItem onSelect={() => go(LEGACY_THREAD_ID)} className={cn(legacyOpen && 'font-semibold')}>{LEGACY_THREAD_TITLE}</DropdownMenuItem>}
-              {(list.length > 0 || legacyListed) && <DropdownMenuSeparator />}
-              <DropdownMenuItem onSelect={() => void newThread()}><MessageSquarePlus className="size-4" />新建会话</DropdownMenuItem>
-            </DropdownMenuContent>
+            <DropdownMenuTrigger asChild><IconButton label="管理会话" variant="secondary" size="icon-sm"><MoreHorizontal className="size-4" /></IconButton></DropdownMenuTrigger>
+            {menu(current)}
           </DropdownMenu>
-          {current && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild><IconButton label="管理会话" variant="secondary" size="icon-sm"><MoreHorizontal className="size-4" /></IconButton></DropdownMenuTrigger>
-              {menu(current)}
-            </DropdownMenu>
-          )}
-        </div>
-        <LegacyBanner onImport={() => go(LEGACY_THREAD_ID)} />
-        {legacyOpen
-          ? <LegacyStream onDismiss={() => go(today?.id ?? null)} />
-          : <Stream key={threadId ?? 'none'} threadId={threadId} acceptsUnfiled={!threadId || threadId === today?.id} waitingForThreads={threads.isPending} />}
-      </div>
-
-      <RenameDialog thread={renaming} onClose={() => setRenaming(null)} />
+        )}
+      </div>}
+      <LegacyBanner onImport={() => go(LEGACY_THREAD_ID)} />
+      {legacyOpen
+        ? <LegacyStream onDismiss={() => go(today?.id ?? null)} />
+        : <Stream key={threadId ?? 'none'} threadId={threadId} acceptsUnfiled={!threadId || threadId === today?.id} waitingForThreads={threads.isPending} />}
+      {renameDialog}
     </div>
-  )
-}
-
-function RenameDialog({ thread, onClose }: { thread: Thread | null; onClose: () => void }) {
-  const [title, setTitle] = useState('')
-  useEffect(() => { if (thread) setTitle(thread.title) }, [thread])
-  const save = async () => {
-    if (!thread) return
-    const t = title.trim().slice(0, 80)
-    onClose()
-    const prev = queryClient.getQueryData<Thread[]>(recordKeys.threads)
-    queryClient.setQueryData<Thread[]>(recordKeys.threads, old => old?.map(x => x.id === thread.id ? { ...x, title: t } : x))
-    try { await recordsApi.renameThread(thread.id, t) } catch {
-      queryClient.setQueryData(recordKeys.threads, prev)
-      toast({ title: '重命名失败，已恢复', tone: 'error' })
-    }
-  }
-  return (
-    <Dialog open={!!thread} onOpenChange={o => { if (!o) onClose() }}>
-      <DialogContent title="重命名会话">
-        <form onSubmit={e => { e.preventDefault(); void save() }}>
-          <Input label="会话名称" value={title} maxLength={80} onChange={e => setTitle(e.target.value)} autoFocus />
-          <DialogFooter>
-            <Button onClick={onClose}>取消</Button>
-            <Button type="submit" variant="primary" disabled={!title.trim()} disabledReason="名称不能为空">保存</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   )
 }
 

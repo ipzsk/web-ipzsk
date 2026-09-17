@@ -218,9 +218,6 @@ export const useActiveGenerations = () => useQuery({
   staleTime: 0,
 })
 
-/** Sidebar 「进行中」 count. */
-export const useActiveGenerationCount = () => useActiveGenerations().data?.length ?? 0
-
 export const useThreads = () => useQuery({ queryKey: recordKeys.threads, queryFn: recordsApi.threads, staleTime: 60_000 })
 
 /* ---------- glue: accepted submits → records, default thread, anchors ---------- */

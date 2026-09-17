@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { NavLink, Outlet, Route, Routes, useLocation, useParams } from 'react-router'
-import { ArrowUp, Clapperboard, FolderOpen, Image, LayoutDashboard, LoaderCircle, MessagesSquare, Sparkles, type LucideIcon } from 'lucide-react'
-import { Badge, Button, OfflineBanner, SessionExpiredBanner, SegmentedControl, cn, focusRing } from '@/ui'
+import { ArrowUp, Clapperboard, FolderOpen, Image, LayoutDashboard, MessagesSquare, Sparkles, type LucideIcon } from 'lucide-react'
+import { Button, OfflineBanner, SessionExpiredBanner, SegmentedControl, cn, focusRing } from '@/ui'
 import { StatesPage } from '@/ui/states-page'
 import { MediaDndProvider } from '@/media'
 import { useOnline, useUnauthorizedBroadcast } from '@/shared/query'
@@ -13,7 +13,7 @@ import { CreateView } from './create/CreateView'
 import { AssetsView } from './assets/AssetsView'
 import { CanvasView } from './canvas/CanvasView'
 import { useCanvasAddListener } from './canvas/CanvasAddReceiver'
-import { useActiveGenerationCount } from './api/records'
+import { ThreadList } from './create/ThreadList'
 import { SubjectsPanel } from './subjects/SubjectsPanel'
 import { SubjectEditorHost } from './subjects/SubjectEditor'
 import { TemplateDialogsHost } from './templates/TemplateDialogs'
@@ -64,7 +64,6 @@ function Layout() {
   const online = useOnline()
   const sessionExpired = useUnauthorizedBroadcast()
   useScrollMemory(viewKey)
-  const active = useActiveGenerationCount()
   const canvasAdd = useCanvasAddListener()
   return (
     <MediaDndProvider>
@@ -78,9 +77,7 @@ function Layout() {
         <aside aria-label="工作台" className="sticky top-16 hidden h-[calc(100dvh-64px)] flex-col gap-1 border-r border-line p-3 md:flex">
           {views.map(v => <NavItem key={v.id} {...v} variant="side" />)}
           <div className="my-2 h-px bg-line" />
-          <div className="flex h-10 items-center gap-2.5 px-3 text-sm text-muted">
-            <LoaderCircle className="size-[18px]" />进行中<Badge tone={active ? 'ink' : 'outline'} className="ml-auto tabular-nums">{active}</Badge>
-          </div>
+          <ThreadList />
         </aside>
         <main className="min-w-0 px-4 pb-[calc(var(--composer-inset,0px)+32px)] pt-6 md:px-8 max-md:pb-[calc(var(--composer-inset,56px)+32px)]">
           <div key={viewKey} className="motion-safe:animate-fade-in"><Outlet /></div>
