@@ -1,12 +1,18 @@
-# IPZSK 创作工作台改造方案（v6）
+# IPZSK 创作工作台改造方案（v7）
 
-> 状态：已定稿 · 2026-09-17（v6）
+> 状态：已定稿 · 2026-09-17（v7，第二轮评审修订）
+> 相对 v6 的变化：
+> - 批次改为**客户端逐项提交**（删除 batch 接口），幂等键 = 队列项 id，部分失败按项处理（§2.3）。
+> - 套图锚定定义为**批次内两阶段、显式引用锚图资产**；「不带上下文」改写为「不带对话历史」（§2.3）。
+> - 多型号展开时归一参数；批量报价接口 + 进程内缓存；报价前先 provision lanehub key（§2.2、§10.1）。
+> - 队列与模板补服务端校验、大小限制、409 策略、变量 schema、槽位占位（§2.8、§8.5、§8.7）。
+> - 清理残留：图片变换/240/1920、`result_ids`、B2 验收口径、表数 12、工时 44–46 天、章节引用。
 > 相对 v5 的变化：
 > - 输入框新增**发送队列**：加入队列 → 改参数再加 → 全部发送为一个批次（§2.3）。多型号、电商套图都统一为「往队列加多项」。
 > - 队列**存后端、跨设备**：新增 `composer_queues` 表（§8.5）。
 > - **用户模板**：用户可把队列或批次保存为自己的模板，与案例库模板同一机制（§2.8、§8.7）。
 > 相对 v4 的变化：
-> - 电商不再是独立视图，改为输入框的「套图模板」能力，结果进对话流（§2.2、§2.4、§2.7）。
+> - 电商不再是独立视图，改为输入框的「套图模板」能力，结果进对话流（§2.2、§2.5、§2.8）。
 > - 输入框支持**多选型号**，一次发出多条请求，结果按型号并排展示（§2.2）。
 > - 缩略图改用 Cloudflare Worker + R2 绑定 + WebAssembly 编解码，不加服务器容器（§7.2-3）。
 > 相对 v3 的变化：
@@ -18,7 +24,7 @@
 > - 新增 §16 灰度、回滚、日志与限流。
 > 适用仓库：`ipzsk`（官网，Vercel）与 `ipzsk-api-gateway`（后端，腾讯云）
 > 相对 v2 的变化（按 2026-09-16 评审意见）：
-> - 创作视图改为**对话式**：每条消息就是一次独立生成请求，不携带上下文；对话历史保存在后端（§2.4、§8.5）。
+> - 创作视图改为**对话式**：每条消息就是一次独立生成请求，不携带对话历史；对话历史保存在后端（§2.5、§8.5）。
 > - 案例授权结论（§14）：awesome-gpt-image-2 仓库为 MIT，但 README 明确「不保证第三方内容可商用」；Punk-Skill 为 MIT 已授权。
 > - 用户媒体访问控制定为方案 A；R2 公开自定义域名；说明图片变换的用途（§7）。
 > - 型号与价格真源改为 lanehub（§10.3）：flare 已在 lanehub 登记，网关不再维护型号 JSON；报价改为透传 lanehub `/v1/quote`。
@@ -48,7 +54,7 @@
    - 签名 URL 按 6 小时时间片对齐，让浏览器缓存生效。
    - 缩略图由 Cloudflare Worker（R2 绑定 + jSquash wasm）生成两档 WebP，不占服务器资源。
    - 前端统一使用媒体组件：图片、视频、瀑布流、预览、上传。
-5. **数据**：在后端 `schema.sql` 按现有幂等方式增加到 v18–v21。新增 11 张表：用户角色、媒体资产、文件夹、文件夹项、收藏、生成记录、生成引用、会话、发送队列、用户模板、画布项目，以及案例库。所有外键类型与现有表一致（`uuid`）。
+5. **数据**：在后端 `schema.sql` 按现有幂等方式增加到 v18–v21。新增 12 张表：用户角色、媒体资产、文件夹、文件夹项、收藏、生成记录、生成引用、会话、发送队列、用户模板、画布项目、案例库。所有外键类型与现有表一致（`uuid`）。
 6. **权限**：用户体系统一用 better-auth。角色至少有 `user` 和 `admin`（admin 下再分 superadmin、operator、viewer）。管理中台放在官网 `/admin`，技术栈与设计系统和工作台一致，逐步替换现有的 `api.ipzsk.com/admin`。
 7. **交互**：所有写操作默认乐观更新。每个组件都要完整定义以下状态，不允许出现「看不出在干什么」的状态：
    - 悬停、按下、聚焦、选中、禁用（附原因）
@@ -116,7 +122,7 @@
    - 槽位数量和类型由当前型号声明，例如 GPT Image 2 最多 15 张。型号不支持参考图时隐藏添加按钮。
 2. **提示词**：随内容自动增高，最多约 8 行。附「增强」按钮（`Sparkles`），调用 `/api/me/image-prompt`。
 3. **类型切换**：「图片（`Image`）| 视频（`Clapperboard`）」分段按钮。切换时恢复该类型上次用的型号和参数。
-4. **型号选择**：下拉按钮（`ChevronDown`）。弹层列出名称、说明、计费单位，以及能力标签：参考图（`Images`）、时长（`Timer`）。弹层支持多选：多选后点「加入队列」，自动生成只有型号不同的 N 个队列项（§2.3）。
+4. **型号选择**：下拉按钮（`ChevronDown`）。弹层列出名称、说明、计费单位，以及能力标签：参考图（`Images`）、时长（`Timer`）。弹层支持多选：多选后点「加入队列」，自动生成 N 个队列项。**展开时**逐型号按目录的 `values` 归一参数：当前值不在该型号取值内的改为该型号默认值，并在队列项上高亮标注（如「2K→1K」）。取值原样使用目录返回（lanehub 的 flare 是 `1K/2K/4K` 大写），不做大小写转换。
 5. **参数小按钮**：比例（`RectangleHorizontal`）、清晰度（`Gauge`）、张数（`Layers`）、时长（`Timer`）。完全按型号的参数声明显示，型号没声明的不显示。
 6. **加入队列**（`ListPlus`）与**发送**（`ArrowUp`）：见 §2.3。发送按钮上标「约 N 点」（有队列时为总和，悬停看明细）；未登录时显示「登录后生成」（`LogIn`）。
 
@@ -130,7 +136,7 @@
 | 视频 | 有 | 图生视频。**目前所有视频型号都不支持**（见 §10.4）；型号不支持时，视频类型下隐藏添加按钮 |
 
 - **换型号后有残留素材**（新型号不支持参考图）：隐藏添加按钮，但保留已有槽位；素材变半透明，并提示「当前型号不使用参考图」，提交时不带。**不自动删除用户的素材。**
-- **报价请求**：参数变化后 300ms 防抖，按请求体哈希去重，避免每次点击都打 lanehub。
+- **报价请求**：参数变化后 300ms 防抖；`POST /api/me/media/quote` 接受数组（输入框 + 队列全部项一次报），网关按请求体指纹进程内缓存 10 分钟（对齐 lanehub `quote_id` TTL），限流按调用次数计。首次报价前网关先为用户 provision lanehub key（现有 `provisionCustomer` 只在首次生成时执行，需前移）。
 - **参数超出新型号范围**：改成该型号的默认值，对应的参数小按钮高亮 1.2 秒。
 - **快捷键**：Enter 换行，Cmd/Ctrl+Enter 提交，输入法组字时不触发。
 - **未登录**：点发送后保存草稿，跳转登录，回来后恢复。
@@ -139,7 +145,7 @@
 
 ### 2.3 发送队列（一批多条独立请求）
 
-**机制**：队列里的每一项 = 一条独立请求（提示词 + 参考图 + 型号 + 参数）。「全部发送」= 一个批次（`batch_id`），批次内各项仍然独立幂等、独立扣点、不带上下文。
+**机制**：队列里的每一项 = 一条独立请求（提示词 + 参考图 + 型号 + 参数），有持久化的 `item_id`（uuid）。「全部发送」= 一个批次（`batch_id`），批次内各项独立幂等、独立扣点、**不带对话历史**；批次内允许显式引用锚项的结果（见「锚定」）。
 
 ```text
 ╭──────────────────── 待发送队列 · 3 项 · 约 27 点 ────────────────────╮
@@ -154,14 +160,18 @@
 ╰──────────────────────────────────────────────────────────────────────╯
 ```
 
-- **发送**：队列为空时直接发当前输入框内容；队列非空时把当前输入框也作为最后一项一起发。
+- **发送**：队列为空时直接发当前输入框内容；队列非空时，如果输入框有提示词就把它作为最后一项一起发，输入框为空则只发队列。发送瞬间给输入框内容也分配一个 `item_id`。
 - **加入队列**：把当前内容存为一项，输入框内容**保留**，用户改参数后继续加。
 - **队列条**：每项高亮它与当前输入框的差异（如只有比例不同就加粗 16:9）；提示词相同时折叠，不同时该项展开显示；「编辑」回填输入框后「更新」；「复制」快速加一个变体；可拖动排序，编号跟着变。
 - **上限 12 项**；超出时提示并禁用「加入队列」。
-- **持久化**：队列存后端（§8.5 `composer_queues`），按用户一份，跨设备、跨会话保留；每次改动乐观更新并同步；发送成功后清空。未登录时存本地，登录后合并。
+- **提交方式（客户端逐项提交，没有批次接口）**：客户端对每项独立调用现有 `POST /api/me/images|videos/generations`，body 增加 `batch_id`、`batch_position`、`thread_id`、`anchor_record_id`（可选）；`Idempotency-Key = "q:" + item_id`。按后端并发上限（lanehub 每用户 3）由客户端排队发出。
+  - **部分失败**：收到 2xx（已受理）或 409（已受理过）的项从队列移除；4xx 校验失败（如参数不被型号支持、点数不足）的项**留在队列并标红**，附原因；5xx/网络错误的项留在队列，可重试（幂等键不变，不会重复扣点）。
+  - **前一批还在跑**：允许继续发送；同时进行中的记录上限 24，超出返回 `too_many_active`，发送按钮禁用并说明。
+- **锚定（套图模板）**：批次内两阶段。`items[i].anchor_of = item_id` 表示引用锚项。阶段 1 只提交无 `anchor_of` 的项；锚项 `succeeded` 且结果归档后，客户端把锚项结果的 `media_assets.id` 填进 `reference_asset_ids`，再提交阶段 2 的项。锚项失败 → 引用它的项标 `cancelled`（原因「锚图失败」），不扣点。锚引用在请求气泡里可见。（现有 `ImageGenPanel.tsx:587-659` 的主图链式逻辑即此，迁移时不再用 dataUrl，改用资产 id。）
+- **持久化**：队列存后端（§8.5 `composer_queues`），按用户一份，跨设备、跨会话保留；停手 1 秒后同步（不是每次改动），带 `revision`；服务端返回 409 时以服务端为准整份替换本地并提示「队列已在其他设备更新」，不做合并。未登录时存本地，登录后追加到服务端队列尾部，超过 12 项截断并提示。
 - **来源映射**：
   - 多选型号 → 自动展开为 N 项，只有型号不同。
-  - 电商套图模板 → 自动展开为每个输出规格一项（主图 1:1、详情 3:4、横幅 16:9 …），① 为锚图，其余项引用锚图（沿用锚定逻辑）；用户可删规格、改单项参数。
+  - 电商套图模板 → 自动展开为每个输出规格一项（主图 1:1、详情 3:4、横幅 16:9 …），① 为锚图，其余项 `anchor_of=①`；用户可删规格、改单项参数。模板输出规格 >12 的不允许入库（中台校验）。
   - 做同款、以此为参考、编辑后重发 → 只回填输入框，由用户决定发送还是加入队列。
 - **对话流展示**：一批 = 一张请求气泡 + 一张结果气泡。请求气泡列出 ①②③ 各项参数（提示词相同只显示一次）；结果气泡按编号顺序展示每项的状态、进度、扣点和操作，一项失败不影响其他；项内多张横排；右上角可切换「按序号 | 按型号分列」。
 
@@ -206,7 +216,10 @@
 - 左侧结果卡片：结果网格（图片或视频）、状态、实际扣点。
   - 排队中 / 生成中（进度或已等待时长）/ 完成 / 失败（中文原因、是否扣点、「重试」）/ 已取消。
   - 操作：再生成（`RefreshCw`，相同请求体、新幂等键）、以此为参考（`ImagePlus`）、放大预览（`Maximize2`）、下载（`Download`）、放到画布（`LayoutDashboard`）、存入素材（`FolderPlus`）、删除（`Trash2`，可撤销）。
-- **批次卡片**（队列批次，共用 `batch_id`）：一次发送只产生**一张**请求卡片和**一张**结果卡片，按队列编号顺序展示。
+- **批次卡片**（队列批次，共用 `batch_id`，按 `batch_position` 排序）：一次发送只产生**一张**请求卡片和**一张**结果卡片，按队列编号顺序展示。
+  - 批次气泡「编辑后重发」→ 回填**队列**（队列非空先确认覆盖）；单项「编辑后重发」→ 回填输入框。
+  - 单项「再生成」「重做此规格」→ 新记录，`batch_id=NULL`，`parent_record_id` 指回原项，作为新的一对消息出现；重做规格带原 `anchor_record_id`。
+  - 删除单项 = 软删该记录，批次气泡收缩；删除批次 = 软删同 `batch_id` 全部。`thread_id` 由客户端在提交时统一填同一个。
   - 多型号：结果卡片按型号分列，每列顶部是型号名和该列扣点，同一行是同一规格/序号，便于对比；列内单张可独立「再生成」「以此为参考」；卡片右上角有「选最佳」（`Star`），标记后该张排到最前并可一键存入素材。
   - 套图：结果卡片按规格分组（主图 / 详情 / 横幅），锚图带「锚」角标；单张可「重做此规格」，整套可「全部下载」「整套放到画布」。
   - 批次内每条请求仍是独立请求、独立状态、独立扣点；其中一条失败只影响该格。
@@ -260,7 +273,7 @@
   - 顶栏显示保存状态：已保存（`Check`）、保存中、离线（`CloudOff`）、冲突（`TriangleAlert`）。
 - **性能**：
   - 只渲染视口内节点（`onlyRenderVisibleElements`）。
-  - 缩放比例小于 0.5 时，图片节点只加载 240 宽缩略图。
+  - 缩放比例小于 0.5 时，图片节点只加载 w480 缩略图。
   - 视频节点不自动播放，悬停时才播放。
 
 ### 2.8 模板：案例库模板与用户模板
@@ -272,7 +285,10 @@
 | 案例库模板 | 中台 | `inspiration_cases.params.template` | 所有人 |
 | 用户模板 | 用户自己 | `user_templates`（§8.7） | 仅本人 |
 
-- **创建用户模板**：队列条「存为模板」（整个队列）或结果气泡「存为模板」（该批次）；填名称、可选封面（从结果里选一张）；提示词中可用 `{{商品名}}` 这类变量，应用时提示填写。
+- **创建用户模板**：队列条「存为模板」（整个队列）或结果气泡「存为模板」（该批次）；填名称、可选封面（从结果里选一张）。
+- **变量**：模板带 `variables: [{name, label, default, required}]`；提示词里只替换**已声明**的 `{{name}}`，未声明的字面保留，不做转义，不允许变量值再含 `{{`。
+- **参考槽位**：模板项的 `references` 是 `{slot:'商品图'}`（占位，应用时要求放入）或 `{asset_id}`（用户自己的资产）；案例库模板只允许 `slot`。
+- **校验**：保存时 `cover_id` 与所有 `asset_id` 必须属于本人；项数 1–12。
 - **应用**：灵感页新增「我的模板」分类；点「应用」把模板展开为队列项，参考槽位标出需要放什么（如「商品图」）。
 - **管理**：素材视图里「我的模板」列表，可重命名、改封面、删除、复制成新模板；模板只存资产引用，缺失时提示重新放入。
 - **电商**：不做独立视图。电商案例即带多项 `template` 的案例库模板；用户跑过一次后也能存成自己的模板。
@@ -392,7 +408,7 @@
 
 | 组件 | 职责 | 依赖（协议） |
 |---|---|---|
-| `MediaImage` | 按 `sizes` 生成 `srcset`（4 档宽度，通过 Cloudflare 图片变换）；占位；懒加载；前几张优先加载；失败重试 2 次后回退原图，再失败显示占位图标（`ImageOff`）；缓存命中不淡入 | 无 |
+| `MediaImage` | 按 `sizes` 在 w480 / w960 / orig 三档签名 URL 中选择；占位；懒加载；前几张优先加载；失败重试 2 次后回退原图，再失败显示占位图标（`ImageOff`）；缓存命中不淡入 | 无 |
 | `MediaVideo` | poster 占位；`preload="none"`，悬停播放、移开暂停归零；**全局同一时间只播放一个**；详情页 `preload="metadata"` + 控制条 | media-chrome（MIT） |
 | `MasonryGrid` | Pinterest 式瀑布流：按宽高比预先算高度、响应式列数、虚拟滚动、无限加载、键盘导航 | @virtuoso.dev/masonry（MIT）；备选 @tanstack/react-virtual 自己实现 |
 | `MediaLightbox` | 大图和视频预览：缩放、拖动、手势、键盘、预加载相邻 2 张、URL 深链接、下载 | yet-another-react-lightbox（MIT） |
@@ -403,8 +419,8 @@
 ### 5.2 占位与缩略图
 
 - **宽高**：后端在资产入库时写入 `width/height/duration_ms`。PNG、JPEG、WebP 解析文件头获得，MP4 解析 `moov` 获得，不引入依赖（§8.1）。
-- **占位**：第一期使用 Cloudflare 图片变换生成的 32px 模糊小图（`width=32,blur=20,format=webp`），作为 CSS 背景，同一 URL 永久缓存。之后可以升级为 ThumbHash（MIT）存进元数据。
-- **缩略图宽度固定 4 档**：240、480、960、1920。列表只用 480 及以下，详情用 960 或 1920，原图只用于下载。
+- **占位**：第一期用「宽高比占位 + 主色/中性色块」，加载后淡入。之后可以升级为 ThumbHash（MIT）存进元数据。
+- **档位固定 3 档**：w480、w960、orig（§7.2-3）。列表用 w480，详情用 w960，原图只用于下载与上游参考。
 
 ### 5.3 视频封面
 
@@ -530,7 +546,7 @@ CREATE TABLE IF NOT EXISTS user_roles (
   granted_at  timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, role)
 );
--- 没有记录 = 普通 user；developer 仍由 developer_profiles.status='approved' 推导
+-- 没有记录 = 普通 user；developer 仍由 developer_profiles.state='approved' 推导
 ```
 
 > 外键类型以现有 `users.id` 为准，实施时核对。
@@ -599,7 +615,10 @@ CREATE TABLE IF NOT EXISTS generation_records (
   user_id         uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   request_id      uuid UNIQUE REFERENCES requests(id),
   task_id         uuid UNIQUE REFERENCES media_tasks(id),
-  batch_id        uuid,                                -- 电商套图等一次多张时共用，聊天流按批次渲染一张卡
+  batch_id        uuid,                                -- 队列批次共用，聊天流按批次渲染一张卡
+  batch_position  int,
+  anchor_record_id uuid REFERENCES generation_records(id),   -- 套图锚项
+  parent_record_id uuid REFERENCES generation_records(id),   -- 再生成/重做的来源
   kind            text NOT NULL CHECK (kind IN ('image','video')),
   model           text NOT NULL,
   prompt          text NOT NULL,
@@ -608,7 +627,7 @@ CREATE TABLE IF NOT EXISTS generation_records (
   failure_code    text,
   charged_points  numeric(20,8),                       -- 结算后写入；未结算为 NULL，前端显示「结算中」
   thread_id       uuid REFERENCES generation_threads(id) ON DELETE SET NULL,
-  source          text NOT NULL DEFAULT 'studio' CHECK (source IN ('studio','ecommerce','canvas')),
+  source          text NOT NULL DEFAULT 'studio' CHECK (source IN ('studio','template','canvas')),
   source_case_id  text,                                -- 做同款来源
   canvas_node     jsonb,                               -- {project_id,node_id}，来自画布时写入
   created_at      timestamptz NOT NULL DEFAULT now(),
@@ -628,11 +647,13 @@ CREATE TABLE IF NOT EXISTS generation_references (   -- 替代 uuid[]，保证�
 
 CREATE TABLE IF NOT EXISTS composer_queues (        -- 发送队列，每用户一份，跨设备
   user_id    uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  items      jsonb NOT NULL DEFAULT '[]',            -- [{id,kind,model,prompt,params,reference_asset_ids,anchor}]
+  items      jsonb NOT NULL DEFAULT '[]',            -- [{item_id,kind,model,prompt,params,reference_asset_ids,anchor_of}]
   revision   int  NOT NULL DEFAULT 1,                -- 乐观并发，多设备编辑冲突时 409
   updated_at timestamptz NOT NULL DEFAULT now(),
-  CHECK (jsonb_array_length(items) <= 12)
+  CHECK (jsonb_array_length(items) <= 12),
+  CHECK (octet_length(items::text) <= 200000)
 );
+-- PUT 时服务端校验：model 在目录内、params 在 values 内、reference_asset_ids 属于本人且未删；读取时缺失资产标 missing。
 
 CREATE TABLE IF NOT EXISTS generation_threads (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -644,6 +665,7 @@ CREATE TABLE IF NOT EXISTS generation_threads (
 );
 CREATE INDEX IF NOT EXISTS generation_threads_user ON generation_threads (user_id, updated_at DESC) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS generation_records_active ON generation_records (user_id) WHERE status IN ('queued','running');
+CREATE INDEX IF NOT EXISTS generation_records_batch ON generation_records (user_id, batch_id, batch_position);
 ```
 
 - **会话**：记录只是按 `thread_id` 分组，生成请求不读取任何历史记录。缺省会话由**客户端**按本地日期决定并创建（服务端不猜时区）；`generation_threads` 表要先于 `generation_records` 创建。
@@ -697,7 +719,8 @@ CREATE TABLE IF NOT EXISTS user_templates (           -- 用户模板：一组�
   user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name       text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 60),
   cover_id   uuid REFERENCES media_assets(id),
-  items      jsonb NOT NULL,                          -- 与 composer_queues.items 同结构，提示词可含 {{变量}}
+  items      jsonb NOT NULL,                          -- 与 composer_queues.items 同结构；references 为 {slot}|{asset_id}
+  variables  jsonb NOT NULL DEFAULT '[]',             -- [{name,label,default,required}]
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   deleted_at timestamptz,
@@ -715,7 +738,7 @@ CREATE INDEX IF NOT EXISTS user_templates_user ON user_templates (user_id, updat
 ```text
 上传：浏览器 ─POST uploads→ 网关(media_assets pending) ─预签名 PUT→ R2 ─complete→ 网关(ready, 宽高)
 生成：浏览器 ─POST generations(资产id)→ 网关(requests + generation_records，不冻结) → lanehub(扣额度) → 上游
-      同步任务 → 网关(media_tasks) → 归档 R2(media_assets) → generation_records.result_ids → 结算
+      同步任务 → 网关(media_tasks) → 归档 R2(media_assets, task_id+result_index) → lanehub 回填 charged_points
 读取：浏览器 ─GET→ 网关(元数据 + 6 小时时间片签名 URL) ；媒体文件 ─GET→ R2 签名 URL(浏览器缓存 6 小时)
 ```
 
@@ -763,10 +786,10 @@ CREATE INDEX IF NOT EXISTS user_templates_user ON user_templates (user_id, updat
 | `GET /api/public/cases` | 公开 | 案例瀑布流（游标分页、分类、搜索） |
 | `GET /api/public/cases/:id` | 公开 | 案例详情和相似案例 |
 | `GET /api/me/media/models` | user | 网页用型号目录：参数声明、`unsupported`、参考素材能力（最多几张、首尾帧）、计费单位 |
-| `POST /api/me/media/quote` | user | 预计点数：透传 lanehub `/v1/quote`，叠加用户级折扣 |
+| `POST /api/me/media/quote` | user | 预计点数：接受数组，逐项透传 lanehub `/v1/quote`（用户自己的 key），按指纹进程内缓存 10 分钟 |
 | `GET/POST/PATCH/DELETE /api/me/threads` | user | 对话会话分组 |
 | `GET/PUT /api/me/queue` | user | 发送队列（PUT 带 revision，整份替换） |
-| `POST /api/me/generations/batch` | user | 提交一个批次：body 为队列项数组，服务端逐项创建独立请求并返回各自 id |
+| （无批次接口） | — | 批次由客户端逐项调用现有生成接口，body 带 `batch_id/batch_position/thread_id/anchor_record_id`，幂等键 `q:{item_id}` |
 | `GET/POST/PATCH/DELETE /api/me/templates` | user | 用户模板 |
 | `POST /api/me/uploads`、`POST /api/me/uploads/:id/complete` | user | 预签名直传 |
 | `GET /api/me/assets`、`PATCH/DELETE /api/me/assets/:id` | user | 素材列表、重命名、软删除 |
@@ -776,7 +799,7 @@ CREATE INDEX IF NOT EXISTS user_templates_user ON user_templates (user_id, updat
 | `GET/POST /api/me/canvas`、`GET/PUT/DELETE /api/me/canvas/:id` | user | 画布项目（带 revision） |
 | `/api/admin/*` | viewer/operator/admin | 管理中台 |
 
-- **现有生成接口**：`/api/me/images/generations`、`/api/videos/generations` 新增参数 `reference_asset_ids`，保留对 `image_urls` 的兼容。
+- **现有生成接口**：`/api/me/images/generations`、`/api/videos/generations` 新增参数 `reference_asset_ids`、`batch_id`、`batch_position`、`thread_id`、`anchor_record_id`，保留对 `image_urls` 的兼容。`references` 能力（每型号最多几张参考图、是否首尾帧）由网关维护的一张小表提供，lanehub 目录里没有这项声明。
 
 ### 10.2 契约
 
@@ -890,13 +913,13 @@ ipzsk/
 | 步 | 内容 | 估时 | 验收 |
 |---|---|---|---|
 | B1 | 迁移 v18–v19（角色、媒体资产、文件夹、audit actor）；`requireRole`；**CORS 扩展**；R2 客户端补预签名 PUT/HEAD/Range GET/DELETE/Copy；上传接口与配额；时间片签名 URL；`ipzsk-media-worker`（Cloudflare）；归档改新 key；**实测 lanehub 接受 R2 签名 URL** | 5 天 | 集成测试全部通过；上传 → 完成 → 缩略图 → 读取完整链路；同一时间片内两次列表返回相同 URL |
-| B2 | 网页型号目录接口（由 lanehub 目录派生）、报价透传 lanehub `/v1/quote`、生成接口支持资产 id 并转成 R2 签名 URL | 2 天 | 报价与实际冻结金额一致；flare 走 lanehub 能生成；参考图经 R2 URL 成功送达上游 |
+| B2 | 网页型号目录接口（由 lanehub 目录派生 + 网关 references 小表）、批量报价（指纹缓存、提前 provision）、生成接口支持资产 id 与批次字段 | 2.5 天 | quote 金额 == lanehub 实扣；flare 走 lanehub 能生成；参考图经 R2 URL 成功送达上游 |
 | B3 | v20：生成记录、收藏、发送队列、用户模板；`/api/me/generations`（含幂等键查询）、批次提交接口 | 3 天 | 记录状态与 `media_tasks` 一致；重复提交不重复记录 |
 | B4 | v21：画布项目（revision 冲突）、案例库表、三套案例导入（解析宽高）、`archived_images` 回填与复制、公开案例接口 | 4 天 | 全部案例和旧归档都有宽高与缩略图；冲突时返回 409 和最新版本 |
 | B5 | `/api/admin/*` 第一批（案例库、用户与角色、生成记录、会话） | 2.5 天 | 权限测试覆盖每个角色 × 每个接口；未授权返回 403 |
 | B6 | 契约导出脚本、契约测试 | 1 天 | 官网或网关任一边的接口漂移都会导致 CI 失败 |
 
-后端合计约 18 个工作日。每一步部署前都需要备份，并获得明确授权。
+后端合计约 18.5 个工作日。每一步部署前都需要备份，并获得明确授权。
 
 ### 13.2 前端（ipzsk）
 
@@ -912,7 +935,7 @@ ipzsk/
 | F8 | 替换 `/image`、`/video`；旧本地历史导入 | 1.5 天 | 旧 URL 正确跳转；旧历史可以一键导入 |
 | F9 | 其他页面迁移到 TS + Tailwind | 5–7 天 | 每页有冒烟测试；删除旧 JS/CSS |
 
-前端合计约 50–52 个工作日。依赖关系：F3 依赖 B2，F4 依赖 B4，F5 依赖 B1 和 B3，F6 的云端保存依赖 B4，F7 依赖 B5。F1、F2 可以和后端并行开始。
+前端合计约 44–46 个工作日（逐行相加）。依赖关系：F3 依赖 B2，F4 依赖 B4，F5 依赖 B1 和 B3，F6 的云端保存依赖 B4，F7 依赖 B5。F1、F2 可以和后端并行开始。
 
 ---
 
@@ -956,7 +979,9 @@ ipzsk/
 - **灰度开关**：`/studio` 先作为隐藏入口上线；替换 `/image`、`/video` 时通过 `vercel.json` 的 redirect 切换，回退只需改回 redirect。旧页面代码保留两周。
 - **数据库回滚**：schema 只增不减；回滚代码不回滚 schema，新表留空无害。
 - **日志与指标**（网关）：上传成功率与耗时、缩略图生成失败数、quote 与实扣差异（每日汇总）、签名 URL 401 次数（过期问题）、生成失败按错误码分布。
-- **限流**：上传每分钟 20 次、报价每分钟 60 次、生成沿用现有 rpm；超限返回 `rate_limited`。
+- **限流**：上传每分钟 20 次、报价每分钟 60 次（按调用计，数组算一次）、生成对 cookie 会话用户每分钟 30 次（现有 `rpm` 只对 token 路径生效，需补）、同时进行中记录 ≤24；轮询只允许 `GET /api/me/generations?status=active` 一条；超限返回 `rate_limited` / `too_many_active`。
+- **埋点**：`queue_add`、`queue_send`、`batch_partial_fail`、`template_apply`、`template_save`、`case_recreate`。
+- **旧数据**：旧 `/image` 的本地电商草稿不迁移；F8 只导入历史记录。
 - **无障碍测试**：状态矩阵示例页跑 axe；键盘走完提交、做同款、画布连线三条路径。
 - **国际化**：第一期只做中文；文案集中在一个模块，不散落在组件里。
 
@@ -970,7 +995,7 @@ ipzsk/
 - 画布：@xyflow/react https://github.com/xyflow/xyflow ；tldraw 许可 https://github.com/tldraw/tldraw/blob/main/LICENSE.md ；Jaaz 许可 https://github.com/11cafe/jaaz/blob/main/LICENSE
 - 瀑布流：https://virtuoso.dev/masonry/ ；CSS grid-lanes 现状 https://webkit.org/blog/17758/when-will-css-grid-lanes-arrive-how-long-until-we-can-use-it/
 - 占位：ThumbHash https://github.com/evanw/thumbhash ；Immich 缩略图优化 https://github.com/immich-app/immich/pull/15435 、https://github.com/immich-app/immich/pull/20773
-- Cloudflare：图片变换 https://developers.cloudflare.com/images/transform-images/transform-via-url/ ；价格 https://developers.cloudflare.com/images/pricing ；R2 自定义域名 https://developers.cloudflare.com/r2/buckets/public-buckets/ ；边缘令牌 https://developers.cloudflare.com/cache/interaction-cloudflare-products/waf-snippets/
+- Cloudflare：R2 自定义域名 https://developers.cloudflare.com/r2/buckets/public-buckets/ ；边缘令牌 https://developers.cloudflare.com/cache/interaction-cloudflare-products/waf-snippets/
 - 预览：https://yet-another-react-lightbox.com/plugins
 - 乐观更新：https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates
 - 交互参考：Midjourney https://docs.midjourney.com/hc/en-us/articles/33329460426765-Website-Overview ；Higgsfield https://higgsfield.ai/blog/higgsfield-chat-social-network ；Google Flow https://blog.google/innovation-and-ai/models-and-research/google-labs/flow-updates-february-2026/ ；Freepik Spaces https://www.freepik.com/ai/docs/introduction-to-spaces ；Lovart https://www.lovart.ai/blog/chatcanvas-vs-traditional-design-tools
