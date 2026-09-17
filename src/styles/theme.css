@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* IPZSK design tokens — single source for every new page (docs/studio-redesign.md §3.1). */
+@theme {
+  --color-paper: #f4f2eb;
+  --color-card: #fffefb;
+  --color-subtle: #ebe8de;
+  --color-line: #e3e4da;
+  --color-ink: #161916;
+  --color-muted: #767970;
+  --color-label: #4e651e;
+  --color-acid: #c9ff4a;
+  --color-acid-deep: #89bd13;
+  --color-danger: #a63c2f;
+  --color-warning: #9a6a12;
+  --color-success: #4e651e;
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-panel: 24px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  --ease-standard: cubic-bezier(.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 240ms;
+}
+
+@layer base {
+  html, body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); }
+  :focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+  }
+}

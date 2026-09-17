@@ -7,3 +7,4 @@ image-studio/tests
 image-studio/*.mjs
 image-studio/package*.json
 image-studio/upstream-package.json
+node_modules
