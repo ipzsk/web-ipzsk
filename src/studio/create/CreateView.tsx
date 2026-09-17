@@ -9,6 +9,7 @@ import {
 import { MediaLightbox, type MediaAsset } from '@/media'
 import { reducedMotion } from '@/media/types'
 import { queryClient } from '@/shared/query'
+import { COMPOSER_FILL_EVENT, dispatchStudioEvent } from '@/shared/events'
 import { GENERATION_SUBMIT_KEY, type PendingGeneration, type SubmitOutcome } from '../api/generation'
 import { recordKeys, recordsApi, useActiveGenerations, useThreadRecords, useThreads, type GenerationRecord, type Thread } from '../api/records'
 import { useComposer } from '../store'
@@ -216,7 +217,7 @@ function Stream({ threadId, acceptsUnfiled, waitingForThreads }: { threadId: str
           <div className="flex max-w-xl flex-wrap justify-center gap-2">
             {SUGGESTIONS.map(s => (
               <Button key={s} size="sm" variant="secondary" className="h-auto max-w-full whitespace-normal py-1.5 text-left font-normal"
-                onClick={() => window.dispatchEvent(new CustomEvent('ipzsk:composer-fill', { detail: { source: 'case', case_id: '', kind: 'image', model: null, prompt: s, params: {}, reference_urls: [] } }))}>
+                onClick={() => dispatchStudioEvent(COMPOSER_FILL_EVENT, { source: 'case', kind: 'image', model: null, prompt: s, params: {}, reference_urls: [] })}>
                 {s}
               </Button>
             ))}

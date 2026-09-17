@@ -2,7 +2,7 @@ import type { JSONContent } from '@tiptap/core'
 import { ApiError, request } from '@/shared/api'
 import type { GenerationParams, MediaKind } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
-import { isMock, mockDelay } from './catalog'
+import { isMock, mockDelay, mockFailRate } from './catalog'
 import type { Mention } from './queue'
 
 export const GENERATION_SUBMIT_KEY = ['generation', 'submit'] as const
@@ -39,7 +39,7 @@ export interface PendingGeneration {
 
 export type SubmitOutcome =
   | { status: 'accepted'; record_id?: string }
-  | { status: 'rejected' | 'retryable'; error: { code: string; message: string } }
+  | { status: 'rejected' | 'retryable'; error: { code: string; message: string; field?: string } }
 
 export class SubmitError extends Error {
   readonly outcome: Exclude<SubmitOutcome, { status: 'accepted' }>
@@ -52,7 +52,8 @@ const RETRYABLE_CODES = new Set(['rate_limited', 'too_many_active', 'billing_una
 export function classify(error: unknown): SubmitOutcome {
   if (!(error instanceof ApiError)) return { status: 'retryable', error: { code: 'network_error', message: '网络异常，请重试' } }
   if (error.status === 409 && error.code !== 'too_many_active') return { status: 'accepted' }
-  const e = { code: error.code, message: error.message }
+  const field = (error.body as { error?: { field?: unknown } } | null)?.error?.field
+  const e = { code: error.code, message: error.message, ...(typeof field === 'string' && { field }) }
   if (error.status === 0 || error.status >= 500 || error.status === 429 || RETRYABLE_CODES.has(error.code)) return { status: 'retryable', error: e }
   return { status: 'rejected', error: e }
 }
@@ -65,10 +66,12 @@ export async function submitGeneration(item: PendingGeneration): Promise<SubmitO
     thread_id: item.thread_id, anchor_record_id: item.anchor_record_id, mentions: item.mentions, prompt_doc: item.prompt_doc,
   }
   if (isMock) {
+    // QA hook: every mock request body, e.g. to assert 再生成 carries parent_record_id and no batch_id.
+    ;((globalThis as { __ipzskMockSubmits?: unknown[] }).__ipzskMockSubmits ??= []).push({ path: item.kind === 'video' ? '/api/me/videos/generations' : '/api/me/images/generations', body })
     await mockDelay(400 + Math.random() * 800)
-    const r = Math.random()
-    if (r < 0.1) return { status: 'rejected', error: { code: 'unsupported_param', message: `${item.model} 不支持当前参数组合` } }
-    if (r < 0.15) return { status: 'retryable', error: { code: 'network_error', message: '暂时无法连接服务，请检查网络后重试。' } }
+    const r = Math.random(), f = mockFailRate() // default 5% → 10% rejected (with a field, like the gateway), 5% retryable
+    if (r < f * 2) return classify(new ApiError('参数取值不被当前型号支持，请修改后重试。', { status: 400, code: 'invalid_param_value', body: { error: { code: 'invalid_param_value', field: Object.keys(item.params)[0] } } }))
+    if (r < f * 3) return { status: 'retryable', error: { code: 'network_error', message: '暂时无法连接服务，请检查网络后重试。' } }
     return { status: 'accepted', record_id: crypto.randomUUID() }
   }
   const path = item.kind === 'video' ? '/api/me/videos/generations' : '/api/me/images/generations'

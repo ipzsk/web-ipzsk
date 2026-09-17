@@ -9,6 +9,8 @@ export const isMock = (() => {
 })()
 
 export const mockDelay = (ms = 250) => new Promise(r => setTimeout(r, ms))
+/** localStorage['ipzsk.mock.failRate'] (e.g. '0' for deterministic QA runs); default 0.05. Shared by all studio mocks. */
+export const mockFailRate = () => { try { const v = localStorage.getItem('ipzsk.mock.failRate'); return v != null ? Number(v) : 0.05 } catch { return 0.05 } }
 
 const ratios16 = ['auto', '1:1', '3:2', '2:3', '4:3', '3:4', '4:5', '5:4', '16:9', '9:16', '21:9', '9:21', '2:1', '1:2', '3:1', '1:3']
 const n = { name: 'n', label: '张数', type: 'integer', min: 1, max: 4, default: 1 } as const

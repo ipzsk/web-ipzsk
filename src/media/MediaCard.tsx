@@ -58,12 +58,13 @@ export function MediaCard({ asset, title, overlay, state, priority, onOpen, sele
     <div
       ref={drag.setNodeRef}
       {...drag.listeners}
-      role="button"
+      // group, not button: the card holds its own buttons (select, overlay actions) and a button can't contain buttons.
+      // Enter opens / Space selects via onKeyDown; selection state is announced by the checkbox.
+      role="group"
       tabIndex={0}
       aria-label={title}
-      aria-pressed={onSelect ? !!selected : undefined}
       aria-disabled={disabled ? true : undefined}
-      aria-roledescription={dragItems ? '可拖拽卡片' : undefined}
+      aria-roledescription={dragItems ? '可拖拽卡片' : '卡片'}
       title={disabled}
       onClick={onClick}
       onKeyDown={onKeyDown}

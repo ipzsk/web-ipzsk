@@ -1,4 +1,5 @@
 import { toast } from '@/ui'
+import { CANVAS_ADD_EVENT, dispatchStudioEvent } from '@/shared/events'
 import type { MediaAsset } from '@/media'
 import { dispatchComposerFill, fillDetail, type CaseItem } from './lib'
 
@@ -11,6 +12,10 @@ export function fillComposer(c: CaseItem, promptOnly = false) {
   dispatchComposerFill(fillDetail(c, promptOnly))
   toast({ title: '已填入输入框', tone: 'success' })
 }
+
+/** 放到画布: URL-only image node + prompt text node (canvas receiver asks which project). */
+export const addCaseToCanvas = (c: CaseItem) =>
+  dispatchStudioEvent(CANVAS_ADD_EVENT, { source: 'case', case_id: c.id, image: { url: c.image.orig, width: c.image.width, height: c.image.height }, prompt: c.prompt })
 
 export async function copyPrompt(c: CaseItem) {
   try {

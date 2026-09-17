@@ -1,16 +1,18 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { NavLink, Outlet, Route, Routes, useLocation, useParams } from 'react-router'
 import { ArrowUp, Clapperboard, FolderOpen, Image, LayoutDashboard, LoaderCircle, MessagesSquare, Sparkles, type LucideIcon } from 'lucide-react'
-import { Badge, Button, OfflineBanner, SegmentedControl, cn, focusRing } from '@/ui'
+import { Badge, Button, OfflineBanner, SessionExpiredBanner, SegmentedControl, cn, focusRing } from '@/ui'
 import { StatesPage } from '@/ui/states-page'
 import { MediaDndProvider } from '@/media'
 import { useOnline, useUnauthorizedBroadcast } from '@/shared/query'
+import { loginUrl } from '@/shared/api'
 import { SiteHeader } from './SiteHeader'
 import { Composer } from './composer/Composer'
 import { InspirationView } from './inspiration/InspirationView'
 import { CreateView } from './create/CreateView'
 import { AssetsView } from './assets/AssetsView'
 import { CanvasView } from './canvas/CanvasView'
+import { useCanvasAddListener } from './canvas/CanvasAddReceiver'
 import { useActiveGenerationCount } from './api/records'
 import { SubjectsPanel } from './subjects/SubjectsPanel'
 import { SubjectEditorHost } from './subjects/SubjectEditor'
@@ -59,14 +61,16 @@ function Layout() {
   const { pathname } = useLocation()
   const viewKey = viewKeyOf(pathname)
   const online = useOnline()
-  useUnauthorizedBroadcast()
+  const sessionExpired = useUnauthorizedBroadcast()
   useScrollMemory(viewKey)
   const active = useActiveGenerationCount()
+  const canvasAdd = useCanvasAddListener()
   return (
     <MediaDndProvider>
     <div className="min-h-dvh">
       <div className="sticky top-0 z-40">
         {!online && <OfflineBanner />}
+        {sessionExpired && <SessionExpiredBanner loginHref={loginUrl()} />}
         <SiteHeader />
       </div>
       <div className="md:grid md:grid-cols-[208px_1fr]">
@@ -77,7 +81,7 @@ function Layout() {
             <LoaderCircle className="size-[18px]" />进行中<Badge tone={active ? 'ink' : 'outline'} className="ml-auto tabular-nums">{active}</Badge>
           </div>
         </aside>
-        <main className="min-w-0 px-4 pb-48 pt-6 md:px-8 max-md:pb-60">
+        <main className="min-w-0 px-4 pb-[calc(var(--composer-inset,0px)+32px)] pt-6 md:px-8 max-md:pb-[calc(var(--composer-inset,56px)+32px)]">
           <div key={viewKey} className="motion-safe:animate-fade-in"><Outlet /></div>
         </main>
       </div>
@@ -86,6 +90,7 @@ function Layout() {
         {views.map(v => <NavItem key={v.id} {...v} variant="tab" />)}
       </nav>
       <SubjectEditorHost />
+      {canvasAdd}
     </div>
     </MediaDndProvider>
   )

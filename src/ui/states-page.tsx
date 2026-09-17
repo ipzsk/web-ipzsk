@@ -101,7 +101,7 @@ export function StatesPage() {
               <div className={cn(menuItemClass, 'w-32')} data-highlighted=""><Copy className="size-4" />复制</div>,
               <div className={cn(menuItemClass, 'w-32')} data-highlighted=""><Copy className="size-4" />键盘高亮</div>,
               null,
-              <div className={cn(menuItemClass, 'w-32 pr-8')} aria-checked="true">已勾选<Check className="absolute right-2.5 size-4" /></div>,
+              <div role="menu" aria-label="示例菜单"><div role="menuitemcheckbox" className={cn(menuItemClass, 'w-32 pr-8')} aria-checked="true">已勾选<Check className="absolute right-2.5 size-4" /></div></div>,
               <div className={cn(menuItemClass, 'w-32')} data-disabled=""><Copy className="size-4" />不可用</div>,
               null, null,
             ]} />

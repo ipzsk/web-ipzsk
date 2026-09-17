@@ -10,6 +10,10 @@
 @custom-variant active (&:active, &[data-demo~="active"]);
 
 @theme {
+  /* a11y: §3.1's #767970 is 3.96:1 on paper / 4.39:1 on card (WCAG AA needs 4.5). #686b62 = 4.85 / 5.38 / 4.51 on subtle. */
+  --color-muted: #686b62;
+  /* #9a6a12 is 4.02:1 on its own 12% tint (warning badges / chips); #855a0d = 5.06 (4.5 on the 20% hover tint). */
+  --color-warning: #855a0d;
   --animate-fade-in: fade-in var(--duration-base) var(--ease-standard);
   --animate-spin-slow: spin 900ms linear infinite;
   @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }

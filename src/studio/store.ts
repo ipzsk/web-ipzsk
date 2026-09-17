@@ -72,3 +72,6 @@ export function readKindOnce(search: string) {
 }
 /** Test hook only. */
 export const __resetKindRead = () => { kindRead = false }
+
+// QA hook (dev only): lets browser tests read the composer state.
+if (import.meta.env.DEV && typeof window !== 'undefined') (window as { __ipzskComposer?: typeof useComposer }).__ipzskComposer = useComposer

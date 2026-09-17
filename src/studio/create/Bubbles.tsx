@@ -3,7 +3,7 @@ import {
   AtSign, Copy, Download, FolderPlus, ImagePlus, LayoutDashboard, LoaderCircle, Maximize2, MoreHorizontal, PencilLine, RefreshCw, Star, Trash2, TriangleAlert, UserPlus, type LucideIcon,
 } from 'lucide-react'
 import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, SegmentedControl, cn, focusRing, toast } from '@/ui'
-import { MediaImage, MediaVideo, type MediaAsset } from '@/media'
+import { MediaImage, MediaVideo, useMediaDraggable, type MediaAsset } from '@/media'
 import {
   addToCanvas, copyText, deleteBatch, deleteItem, fillFromItem, referenceFrom, regenerate, useStars,
 } from './actions'
@@ -133,6 +133,8 @@ function Status({ item, now }: { item: ItemView; now: number }) {
 function ResultTile({ asset, item, index, onPreview }: { asset: MediaAsset; item: ItemView; index: number; onPreview: () => void }) {
   const starred = useStars(s => s.ids.has(asset.id))
   const toggle = useStars(s => s.toggle)
+  // Drag into the composer slots / asset folders (keyboard alternative: 以此为参考). No drag attributes: the tile already holds buttons.
+  const drag = useMediaDraggable(`result:${item.item_id ?? item.record_id}:${asset.id}`, [asset])
   const ratio = asset.width && asset.height ? asset.width / asset.height : 1
   const stub = (t: string) => () => toast({ title: t, description: '即将开放' })
   const actions: { label: string; icon: LucideIcon; run?: () => void; href?: string }[] = [
@@ -140,12 +142,12 @@ function ResultTile({ asset, item, index, onPreview }: { asset: MediaAsset; item
     ...(asset.kind === 'image' ? [{ label: '以此为参考', icon: ImagePlus, run: () => referenceFrom(asset) }] : []),
     { label: '放大预览', icon: Maximize2, run: onPreview },
     { label: '下载', icon: Download, href: asset.urls.orig },
-    { label: '放到画布', icon: LayoutDashboard, run: () => addToCanvas([asset]) },
+    { label: '放到画布', icon: LayoutDashboard, run: () => addToCanvas(item, asset) },
     { label: '存入素材', icon: FolderPlus, run: stub('存入素材') },
     { label: '存为主体', icon: UserPlus, run: stub('存为主体') },
   ]
   return (
-    <figure className="group/tile relative shrink-0 overflow-hidden rounded-card bg-subtle" style={{ height: 'var(--tile-h)', width: `calc(var(--tile-h) * ${ratio})` }}>
+    <figure ref={drag.setNodeRef} {...drag.listeners} className={cn('group/tile relative shrink-0 cursor-grab overflow-hidden rounded-card bg-subtle', drag.isDragging && 'opacity-50')} style={{ height: 'var(--tile-h)', width: `calc(var(--tile-h) * ${ratio})` }}>
       <button type="button" aria-label={`放大预览第 ${index + 1} 张`} className="block h-full w-full cursor-zoom-in" onClick={onPreview}>
         {asset.kind === 'video'
           ? <MediaVideo asset={asset} label={`${item.model} 结果`} className="h-full w-full" focusable={false} />

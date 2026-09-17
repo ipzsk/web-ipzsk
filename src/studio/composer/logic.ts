@@ -65,7 +65,7 @@ export function referenceState(model: ModelSpec | undefined, count: number): Ref
 }
 
 /** Ids actually sent: none when the model ignores references (slots are kept, not deleted). */
-export const sentReferenceIds = (model: ModelSpec | undefined, slots: RefSlot[]) => referenceMax(model) > 0 ? slots.map(s => s.asset.id) : []
+export const sentReferenceIds = (model: ModelSpec | undefined, slots: RefSlot[]) => referenceMax(model) > 0 ? slots.filter(s => !s.url_only).map(s => s.asset.id) : []
 
 export function addManual(slots: RefSlot[], assets: MediaAsset[]): RefSlot[] {
   const next = slots.map(s => assets.some(a => a.id === s.asset.id) ? { ...s, manual: true } : s)
@@ -180,11 +180,14 @@ export function diffItem(item: QueueEntry, current: QueueEntry): ItemDiff {
   }
 }
 
-/** §2.3 发送: empty queue → composer only; otherwise queue (+ composer if it has a prompt). Red (4xx) items are skipped until edited. */
+/** Queue items that can go out now: not red (4xx), cancelled, waiting for an anchor, or pointing at a deleted asset. */
+export const isSendable = (i: QueueEntry) => !i.missing && i.state !== 'failed' && i.state !== 'cancelled' && i.state !== 'waiting'
+
+/** §2.3 发送: empty queue → composer only; otherwise queue (+ composer if it has a prompt). Red (4xx) / missing items are skipped until edited. */
 export function planSend(queue: QueueEntry[], composer: QueueEntry | null): QueueEntry[] {
   const hasPrompt = !!composer?.prompt.trim()
   if (!queue.length) return hasPrompt ? [composer!] : []
-  const sendable = queue.filter(i => i.state !== 'failed' && i.state !== 'cancelled' && i.state !== 'waiting')
+  const sendable = queue.filter(isSendable)
   return hasPrompt ? [...sendable, composer!] : sendable
 }
 

@@ -38,7 +38,7 @@ function Row({ item, index, current, models, points, submitting, editing, onRemo
       className={cn(
         'group flex items-start gap-1.5 rounded-[10px] px-1.5 py-1.5 text-[13px] hover:bg-subtle',
         isDragging && 'z-10 bg-card opacity-60 shadow-lg', editing && 'bg-acid/25 hover:bg-acid/30',
-        item.state === 'failed' && 'bg-danger/5 hover:bg-danger/8',
+        (item.state === 'failed' || item.missing) && 'bg-danger/5 hover:bg-danger/8',
       )}
     >
       <button type="button" {...attributes} {...listeners} aria-label={`拖动排序第 ${index + 1} 项`} className="mt-0.5 grid size-5 shrink-0 cursor-grab place-items-center rounded-[4px] text-muted outline-none focus-visible:outline-2 focus-visible:outline-ink active:cursor-grabbing max-md:hidden">
@@ -52,15 +52,18 @@ function Row({ item, index, current, models, points, submitting, editing, onRemo
             const c = changed.get(k)
             return c
               ? <span key={k} title="该型号不支持原取值，已改为默认值" className="rounded-[4px] bg-acid px-1 font-bold text-ink">{formatParam(k, c.from)}→{formatParam(k, c.to)}</span>
-              : <span key={k} className="contents">· <B on={d.params.has(k)}>{formatParam(k, v)}</B></span>
+              : item.state === 'failed' && item.error?.field === k
+                ? <span key={k} className="contents">· <span data-field-error={k} title={item.error.message} className="rounded-[4px] px-1 font-bold text-danger ring-1 ring-danger">{formatParam(k, v)}</span></span>
+                : <span key={k} className="contents">· <B on={d.params.has(k)}>{formatParam(k, v)}</B></span>
           })}
           {item.reference_asset_ids.length > 0 && <>· <B on={d.references}>{`${item.reference_asset_ids.length} 张参考图`}</B></>}
           {anchorIndex >= 0 && <Badge tone="outline" className="h-5 px-1.5"><Link2 className="size-3" />引用{circled(anchorIndex)}</Badge>}
           {points != null && <span className="ml-auto pl-2 text-xs text-muted tabular-nums">约 {points} 点</span>}
         </div>
         {d.prompt && <p className="mt-0.5 line-clamp-2 text-muted" title={item.prompt}>{item.prompt || '（无提示词）'}</p>}
-        {submitting ? <p className="mt-0.5 flex items-center gap-1 text-xs text-muted"><LoaderCircle className="size-3 motion-safe:animate-spin" />提交中</p>
-          : item.state === 'failed' ? <p role="alert" className="mt-0.5 flex items-center gap-1 text-xs text-danger"><AlertCircle className="size-3" />{item.error?.message ?? '提交失败'} · 编辑后重新发送</p>
+        {item.missing && !submitting ? <p role="alert" className="mt-0.5 flex items-center gap-1 text-xs text-danger"><AlertCircle className="size-3" />素材已删除 · 编辑移除失效的参考图后再发送</p>
+          : submitting ? <p className="mt-0.5 flex items-center gap-1 text-xs text-muted"><LoaderCircle className="size-3 motion-safe:animate-spin" />提交中</p>
+          : item.state === 'failed' ? <p role="alert" className="mt-0.5 flex items-center gap-1 text-xs text-danger"><AlertCircle className="size-3" />{(item.error?.message ?? '提交失败').replace(/。$/, '')}{item.error?.field && !(item.error.field in item.params) ? `（${item.error.field}）` : ''} · 编辑后重新发送</p>
           : item.state === 'retryable' ? <p className="mt-0.5 flex items-center gap-1 text-xs text-warning"><AlertCircle className="size-3" />{item.error?.message ?? '网络异常'} · <button type="button" className="inline-flex items-center gap-0.5 font-semibold underline-offset-2 hover:underline" onClick={() => void retryItem(item.item_id)}><RotateCw className="size-3" />重试</button></p>
           : item.state === 'waiting' ? <p className="mt-0.5 flex items-center gap-1 text-xs text-muted"><LoaderCircle className="size-3 motion-safe:animate-spin" />等待锚图生成完成</p>
           : item.state === 'cancelled' ? <p className="mt-0.5 text-xs text-danger">已取消 · {item.error?.message ?? '锚图失败'}，未扣点</p>

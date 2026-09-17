@@ -10,7 +10,7 @@ export interface Mention { type: 'subject' | 'reference'; id: string; name: stri
 export type ParamValue = GenerationParams[string]
 export interface ParamChange { name: string; from: ParamValue; to: ParamValue }
 /** A reference slot. `by` = uids of @ chips that introduced it; `manual` = user added it directly (§2.2). */
-export interface RefSlot { asset: MediaAsset; by: string[]; manual: boolean }
+export interface RefSlot { asset: MediaAsset; by: string[]; manual: boolean; /** URL without an asset id (case / canvas): displayed, never sent. */ url_only?: true }
 
 /**
  * composer_queues.items[] (§8.5) plus composer extras. Extras ride along in the same JSON
@@ -24,7 +24,10 @@ export interface QueueEntry extends QueueItem {
   changes?: ParamChange[]
   /** Local submit state. failed = 4xx (stays red), retryable = 5xx/network, waiting = anchor pending, cancelled = anchor failed. */
   state?: 'failed' | 'retryable' | 'waiting' | 'cancelled'
-  error?: { code: string; message: string }
+  /** `field` = the rejected parameter (gateway `error.field`), highlighted on the item. */
+  error?: { code: string; message: string; field?: string }
+  /** Set by the server on read: a referenced asset was deleted (§8.5). Not sendable until edited. */
+  missing?: boolean
 }
 
 export interface QueueDoc { items: QueueEntry[]; revision: number }
@@ -37,24 +40,59 @@ const readLocal = (key: string): QueueDoc => {
 }
 const writeLocal = (key: string, doc: QueueDoc) => { try { localStorage.setItem(key, JSON.stringify(doc)) } catch { /* quota / private mode */ } }
 
+/** Fields the gateway accepts in composer_queues.items (it rejects anything else with 400 unsupported_item_field). */
+const WIRE_FIELDS = ['item_id', 'kind', 'model', 'prompt', 'params', 'anchor_of', 'mentions', 'prompt_doc', 'reference_asset_ids'] as const
+export const toWire = (items: QueueEntry[]) => items.map(i => Object.fromEntries(WIRE_FIELDS.filter(k => i[k] !== undefined).map(k => [k, i[k]])))
+
+/**
+ * Client-only extras (slot thumbnails, local submit state) are cached per item_id on this device and merged back on read.
+ * ponytail: another device only sees reference ids (placeholder thumbnails); send an asset lookup if that matters.
+ */
+const EXTRAS_KEY = 'ipzsk.queue.extras'
+type Extras = Pick<QueueEntry, 'slots' | 'changes' | 'state' | 'error'>
+export function reviveQueue(items: (Omit<QueueEntry, 'slots' | 'mentions' | 'prompt_doc'> & Partial<QueueEntry>)[], extras: Record<string, Extras> = readExtras()): QueueEntry[] {
+  return items.map(i => {
+    const x = extras[i.item_id]
+    const stub = (id: string) => ({ asset: { id, kind: 'image' as const, status: 'ready' as const, width: null, height: null, duration_ms: null, urls: { orig: '' } }, by: [], manual: true })
+    const slots = i.slots ?? x?.slots?.filter(s => s.url_only || i.reference_asset_ids.includes(s.asset.id)) ?? i.reference_asset_ids.map(stub)
+    return {
+      ...i, mentions: i.mentions ?? [], prompt_doc: i.prompt_doc ?? null, slots,
+      ...(x && !i.state && { changes: x.changes, state: x.state === 'waiting' ? undefined : x.state, error: x.error }),
+      ...(i.state === 'waiting' && { state: undefined }), // reloaded page: nothing is in flight any more
+    }
+  })
+}
+const readExtras = (): Record<string, Extras> => { try { return JSON.parse(localStorage.getItem(EXTRAS_KEY) ?? '{}') } catch { return {} } }
+const writeExtras = (items: QueueEntry[]) => {
+  try { localStorage.setItem(EXTRAS_KEY, JSON.stringify(Object.fromEntries(items.map(i => [i.item_id, { slots: i.slots, changes: i.changes, state: i.state, error: i.error }])))) } catch { /* ignore */ }
+}
+
 export async function getQueue(): Promise<QueueDoc> {
-  if (isMock) { await mockDelay(150); return readLocal(MOCK_KEY) }
-  return request<QueueDoc>('/api/me/queue')
+  const doc = isMock ? (await mockDelay(150), readLocal(MOCK_KEY)) : await request<QueueDoc>('/api/me/queue')
+  return { items: reviveQueue(doc.items ?? []), revision: doc.revision ?? 0 }
+}
+
+/** The server copy carried by a 409 (`body.queue`), revived; null when the body doesn't have one. */
+export function conflictQueue(e: unknown): QueueDoc | null {
+  const q = e instanceof ApiError && e.status === 409 ? (e.body as { queue?: QueueDoc } | null)?.queue : null
+  return q && Array.isArray(q.items) ? { items: reviveQueue(q.items), revision: q.revision ?? 0 } : null
 }
 
 /**
- * PUT with revision. Throws ApiError status 409 when another device wrote first; caller then GETs and replaces.
+ * PUT with revision. Throws ApiError 409 with `body.queue` (server copy) when another device wrote first.
  * Mock: bump `revision` in localStorage['ipzsk.mock.queue'] to simulate another device.
  */
 export async function putQueue(items: QueueEntry[], revision: number): Promise<{ revision: number }> {
+  writeExtras(items)
+  const wire = toWire(items)
   if (isMock) {
     await mockDelay(150)
     const server = readLocal(MOCK_KEY)
-    if (server.revision !== revision) throw new ApiError('队列已在其他设备更新', { status: 409, code: 'revision_conflict' })
-    writeLocal(MOCK_KEY, { items, revision: revision + 1 })
+    if (server.revision !== revision) throw new ApiError('队列已在其他设备更新', { status: 409, code: 'queue_conflict', body: { error: { code: 'queue_conflict' }, queue: server } })
+    writeLocal(MOCK_KEY, { items: wire as unknown as QueueEntry[], revision: revision + 1 })
     return { revision: revision + 1 }
   }
-  return request<{ revision: number }>('/api/me/queue', { method: 'PUT', body: { items, revision } })
+  return request<{ revision: number }>('/api/me/queue', { method: 'PUT', body: { items: wire, revision } })
 }
 
 /** Signed-out queue lives in localStorage; appended to the server queue after login (§2.3). */

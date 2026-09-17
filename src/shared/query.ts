@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { QueryClient, useQuery } from '@tanstack/react-query'
 import { ApiError, UNAUTHORIZED_EVENT, currentUser, request, type Wallet } from './api'
 
@@ -26,13 +26,21 @@ export const useWallet = (enabled = true) => useQuery({
   },
 })
 
-/** Any 401 anywhere → mark signed out locally. setQueryData (not invalidate) so it can't loop. */
+/**
+ * Any 401 anywhere → mark signed out locally (setQueryData, not invalidate, so it can't loop).
+ * Returns true once a request of a previously signed-in session got 401, so the layout can show one 「重新登录」 banner for every view.
+ */
 export function useUnauthorizedBroadcast() {
+  const [expired, setExpired] = useState(false)
   useEffect(() => {
-    const onUnauthorized = () => { queryClient.setQueryData(qk.me, null); queryClient.setQueryData(qk.wallet, null) }
+    const onUnauthorized = () => {
+      if (queryClient.getQueryData(qk.me)) setExpired(true) // anonymous visitors on public views are not "expired"
+      queryClient.setQueryData(qk.me, null); queryClient.setQueryData(qk.wallet, null)
+    }
     window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
   }, [])
+  return expired
 }
 
 const subscribeOnline = (cb: () => void) => {

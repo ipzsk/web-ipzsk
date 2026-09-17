@@ -5,7 +5,7 @@ import { useCurrentUser, useWallet } from '@/shared/query'
 import { toast } from '@/ui'
 import { fetchModels, isMock, quote, type QuoteEntry } from '../api/catalog'
 import { listSubjects } from '../api/subjects'
-import { QUEUE_MAX, getQueue, localQueue, putQueue, type QueueEntry } from '../api/queue'
+import { QUEUE_MAX, conflictQueue, getQueue, localQueue, putQueue, reviveQueue, type QueueEntry } from '../api/queue'
 import { useComposer } from '../store'
 
 export const useModels = () => useQuery({ queryKey: ['media', 'models'], queryFn: fetchModels, staleTime: 10 * 60_000 })
@@ -55,11 +55,9 @@ export function useQueueSync(signedIn: boolean, pending: boolean) {
     let timer: ReturnType<typeof setTimeout> | undefined
     let alive = true
     const set = (items: QueueEntry[]) => { synced = JSON.stringify(items); useComposer.setState({ queue: items }) }
-    // Reloaded page: nothing is in flight any more.
-    const revive = (items: QueueEntry[]) => items.map(i => i.state === 'waiting' ? { ...i, state: undefined } : i)
 
     if (!signedIn) {
-      set(revive(localQueue.read()))
+      set(reviveQueue(localQueue.read()))
       const unsub = useComposer.subscribe(s => localQueue.write(s.queue))
       return unsub
     }
@@ -73,10 +71,11 @@ export function useQueueSync(signedIn: boolean, pending: boolean) {
         synced = json
       } catch (e) {
         if (!(e instanceof ApiError && e.status === 409)) return // offline etc.: next change retries
-        const server = await getQueue().catch(() => null)
+        // §2.3: server wins, whole-queue replace. The 409 body carries the server copy; older gateways without it → GET.
+        const server = conflictQueue(e) ?? await getQueue().catch(() => null)
         if (!alive || !server) return
         revision = server.revision
-        set(revive(server.items))
+        set(server.items)
         toast({ title: '队列已在其他设备更新', description: '已替换为最新的队列。' })
       }
     }
@@ -87,8 +86,8 @@ export function useQueueSync(signedIn: boolean, pending: boolean) {
       const local = localQueue.read()
       const merged = [...server.items, ...local]
       if (merged.length > QUEUE_MAX) toast({ title: `队列最多 ${QUEUE_MAX} 项`, description: `超出的 ${merged.length - QUEUE_MAX} 项已丢弃。` })
-      set(revive(server.items))
-      if (local.length) { localQueue.clear(); useComposer.setState({ queue: revive(merged.slice(0, QUEUE_MAX)) }) }
+      set(server.items)
+      if (local.length) { localQueue.clear(); useComposer.setState({ queue: reviveQueue(merged.slice(0, QUEUE_MAX)) }) }
     }).catch(() => { /* endpoint missing / offline: queue stays local to this tab */ })
 
     const unsub = useComposer.subscribe((s, prev) => {

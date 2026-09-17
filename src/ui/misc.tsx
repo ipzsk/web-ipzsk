@@ -1,7 +1,7 @@
 import { forwardRef, useId, type ComponentProps, type ReactNode } from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { Checkbox as C, ToggleGroup } from 'radix-ui'
-import { Check, WifiOff, type LucideIcon } from 'lucide-react'
+import { Check, LogIn, WifiOff, type LucideIcon } from 'lucide-react'
 import { cn } from './cn'
 import { Button, focusRing } from './button'
 import { Tooltip } from './tooltip'
@@ -146,6 +146,16 @@ export function ErrorState({ reason, action }: { reason: string; action?: { labe
     <div role="alert" className="flex flex-wrap items-center gap-3 rounded-card border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
       <span className="min-w-0 flex-1">{reason}</span>
       {action && <Button size="sm" onClick={action.onClick}>{action.label}</Button>}
+    </div>
+  )
+}
+
+/** 401 during a signed-in session: same slot as the offline bar, one place for every view. */
+export function SessionExpiredBanner({ loginHref }: { loginHref: string }) {
+  return (
+    <div role="alert" className="flex h-8 items-center justify-center gap-2 bg-danger text-xs text-card">
+      <LogIn className="size-4" />登录已失效，需要重新登录才能继续生成和保存
+      <a href={loginHref} className={cn('font-bold underline underline-offset-2', focusRing)}>重新登录</a>
     </div>
   )
 }

@@ -13,10 +13,11 @@ import type { QueueEntry } from '../api/queue'
 import { clearDraft, loadDraft, useComposer } from '../store'
 import { useAccount, useModels, useQueueSync, useQuote, useSubjects } from './hooks'
 import {
-  addManual, chipsOf, docFromText, expandModels, itemFromDraft, normalizeParams, planSend, queueRoom, quoteEntry, referenceState,
+  addManual, chipsOf, docFromText, expandModels, isSendable, itemFromDraft, normalizeParams, planSend, queueRoom, quoteEntry, referenceState, serializePrompt,
   subjectBlockReason, subjectVarLabel, subjectVarsOf,
 } from './logic'
-import { COMPOSER_FILL_EVENT, parseFill, planFill, type FillPlan } from './fill'
+import { COMPOSER_FILL_EVENT, onStudioEvent } from '@/shared/events'
+import { planFill, type FillDetail, type FillPlan } from './fill'
 import { ModelPicker, ParamChips } from './ModelControls'
 import { PromptEditor, focusComposer, insertSubjectMention, useEditorFlags } from './PromptEditor'
 import { QueueBar, useSubmittingIds } from './QueueBar'
@@ -81,30 +82,38 @@ function useComposerFill() {
   const [notice, setNotice] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<FillPlan | null>(null)
   useEffect(() => {
-    const onFill = async (e: Event) => {
-      const detail = parseFill((e as CustomEvent).detail)
-      if (!detail) return
+    const onFill = async (detail: FillDetail) => {
       const models = await queryClient.fetchQuery({ queryKey: ['media', 'models'], queryFn: fetchModels, staleTime: 10 * 60_000 }).catch(() => [])
       const s = useComposer.getState()
       const plan = planFill(detail, { models, kind: s.kind, memory: s.memory, slots: s.slots, queue: s.queue })
       setNotice(plan.notices.length ? plan.notices.join('；') : null)
-      if (plan.queue && s.queue.length) setConfirm(plan)
+      // A template replaces both the queue and the draft (fill.ts); ask first when either holds something.
+      const draftLost = plan.queue && plan.doc === null && !!serializePrompt(s.doc, s.slots).prompt
+      if (plan.queue && (s.queue.length || draftLost)) setConfirm(plan)
       else applyFill(plan)
     }
-    window.addEventListener(COMPOSER_FILL_EVENT, onFill)
-    return () => window.removeEventListener(COMPOSER_FILL_EVENT, onFill)
+    return onStudioEvent(COMPOSER_FILL_EVENT, d => void onFill(d), raw => console.error('[composer-fill] ignored invalid detail', raw))
   }, [])
   const dialog = (
     <Dialog open={!!confirm} onOpenChange={o => { if (!o) setConfirm(null) }}>
-      <DialogContent title="替换当前队列？" description={`队列里已有 ${useComposer.getState().queue.length} 项，将替换为新的 ${confirm?.queue?.length ?? 0} 项。正在提交的项不受影响。`}>
+      <DialogContent title="替换当前队列？" description={confirmText(confirm)}>
         <DialogFooter>
-          <Button onClick={() => setConfirm(null)}>保留原队列</Button>
+          <Button onClick={() => setConfirm(null)}>保留原内容</Button>
           <Button variant="primary" onClick={() => { if (confirm) applyFill(confirm); setConfirm(null) }}>替换</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
   return { notice, clearNotice: () => setNotice(null), dialog }
+}
+
+function confirmText(plan: FillPlan | null) {
+  const s = useComposer.getState()
+  const parts = [
+    s.queue.length ? `队列里的 ${s.queue.length} 项将替换为新的 ${plan?.queue?.length ?? 0} 项（正在提交的项不受影响）` : `将加入 ${plan?.queue?.length ?? 0} 项到队列`,
+    plan?.doc === null && serializePrompt(s.doc, s.slots).prompt ? '输入框里的提示词和参考图会被清空，避免随「发送」一起提交' : null,
+  ]
+  return parts.filter(Boolean).join('；') + '。'
 }
 
 /** {{主体:商品}} in the prompt → pick a subject (kind label match first) or create one. */
@@ -135,6 +144,28 @@ function SubjectVarPicker({ token, subjects }: { token: string; subjects: Subjec
       </PopoverContent>
     </Popover>
   )
+}
+
+/**
+ * Publishes how much of the viewport bottom the floating composer covers (incl. queue bar and, on mobile, the tab bar under it)
+ * as `--composer-inset` on <html>: views pad their content with it and toasts sit above it.
+ */
+function useComposerInset(hidden: boolean, expanded: boolean) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const root = document.documentElement.style
+    const el = ref.current
+    if (hidden || !el) { root.removeProperty('--composer-inset'); return }
+    if (expanded) return // mobile sheet is modal; keep the collapsed value
+    const update = () => root.setProperty('--composer-inset', `${Math.max(0, Math.round(window.innerHeight - el.getBoundingClientRect().top))}px`)
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    window.addEventListener('resize', update)
+    update()
+    return () => { ro.disconnect(); window.removeEventListener('resize', update) }
+  }, [hidden, expanded])
+  useEffect(() => () => { document.documentElement.style.removeProperty('--composer-inset') }, [])
+  return ref
 }
 
 // Owned by F3. Bottom floating composer shared by inspiration / create / assets views.
@@ -172,6 +203,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
     if (!done.length) return
     useComposer.setState(s => ({ slots: addManual(s.slots, done.map(u => u.asset!)) }))
     done.forEach(u => upload.remove(u.clientId))
+    void queryClient.invalidateQueries({ queryKey: ['assets', 'list'] }) // same library as the assets view
   }, [upload.items]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const acceptAssets = (items: MediaAsset[]): true | string => {
@@ -217,7 +249,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
   const blockReason = (items: QueueEntry[], includesComposer: boolean): string | null =>
     !online ? '网络已断开，恢复后再发送'
     : !model ? '型号加载中'
-    : !items.length ? (queue.length ? '队列里没有可发送的项（标红的项需要先编辑）' : '先输入提示词')
+    : !items.length ? (queue.some(i => i.missing) ? '队列里的项引用了已删除的素材，请编辑移除后再发送' : queue.length ? '队列里没有可发送的项（标红的项需要先编辑）' : '先输入提示词')
     : includesComposer && refs.over ? refs.message
     : subjectBlockReason(items, subjectIds)
 
@@ -234,7 +266,8 @@ export function Composer({ hidden }: { hidden: boolean }) {
     if (!account.signedIn) return saveDraftAndLogin()
     send(sendable, hasPrompt)
   }
-  const sendAll = () => send(queue.filter(i => !submitting.has(i.item_id) && !['failed', 'cancelled', 'waiting'].includes(i.state ?? '')), false)
+  const allSendable = queue.filter(i => !submitting.has(i.item_id) && isSendable(i))
+  const sendAll = () => send(allSendable, false)
 
   // ── queue ──
   const addReason = !model ? '型号加载中' : !hasPrompt ? '先输入提示词' : refs.over ? refs.message : subjectBlockReason([current], subjectIds) ?? queueRoom(queue.length, editingId ? 0 : 1)
@@ -269,8 +302,9 @@ export function Composer({ hidden }: { hidden: boolean }) {
 
   // ── mobile sheet ──
   const expanded = useEditorFlags(s => s.expanded)
+  const insetRef = useComposerInset(hidden, expanded)
   const setExpanded = (v: boolean) => useEditorFlags.setState({ expanded: v })
-  const sendLabel = total != null ? `约 ${total} 点` : null
+  const sendLabel = total != null && sendable.length ? `约 ${total} 点` : null
 
   const sendButton = account.pending
     ? <Button variant="primary" loading icon={<ArrowUp className="size-[18px]" />}>发送</Button>
@@ -293,7 +327,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
   return (
     <div hidden={hidden} className={cn('pointer-events-none fixed inset-x-0 bottom-4 z-30 px-4 max-md:bottom-[72px] md:left-52', expanded && 'max-md:bottom-0 max-md:z-50 max-md:px-0')}>
       {expanded && <div aria-hidden className="pointer-events-auto fixed inset-0 bg-ink/30 md:hidden" onClick={() => setExpanded(false)} />}
-      <div className="pointer-events-auto relative mx-auto max-w-4xl">
+      <div ref={insetRef} className="pointer-events-auto relative mx-auto max-w-4xl">
         {/* Mobile collapsed: one line → tap opens the bottom sheet. */}
         {!expanded && (
           <button
@@ -312,7 +346,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
             </div>
           )}
           <QueueBar current={current} models={new Map((models.data ?? []).map(m => [m.id, m]))} pointsById={pointsById} total={queueTotal}
-            onSendAll={account.signedIn ? sendAll : saveDraftAndLogin} sendReason={account.signedIn ? blockReason(queue, false) : null} sending={sending} />
+            onSendAll={account.signedIn ? sendAll : saveDraftAndLogin} sendReason={account.signedIn ? blockReason(allSendable, false) : null} sending={sending} />
           <DropTarget id="composer" accept={acceptAssets} onDrop={items => useComposer.setState(s => ({ slots: addManual(s.slots, items) }))} onFiles={onFiles} className="rounded-panel">
             <div className={cn('rounded-panel border border-line bg-card p-3 shadow-xl', editingId && 'border-ink')}>
               {editingId && (

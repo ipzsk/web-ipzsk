@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { toast } from '@/ui'
+import { CANVAS_ADD_EVENT, COMPOSER_FILL_EVENT, dispatchStudioEvent } from '@/shared/events'
 import type { MediaAsset } from '@/media'
 import { queryClient } from '@/shared/query'
 import type { QueueEntry } from '../api/queue'
@@ -8,40 +9,28 @@ import { retryItem, sender } from '../composer/send'
 import { useComposer } from '../store'
 import type { ItemView } from './lib'
 
-/*
- * Cross-view events (window CustomEvent; receivers never import this view).
- *
- * `ipzsk:composer-fill`
- *   { source: 'record', record_id, kind, model, prompt, prompt_doc, mentions, params, reference_assets: MediaAsset[] }
- *     → 编辑后重发 (single item): replace the composer draft with this request; never submits.
- *   { source: 'batch', items: RecordFill[] (same shape as above, without `source`) }
- *     → 批次编辑后重发: replace the queue with these items (the create view already confirmed overwriting a non-empty queue).
- *   { source: 'asset', reference_assets: MediaAsset[] }   (shape shared with the assets view)
- *     → 以此为参考: append to reference slots.
- * `ipzsk:canvas-add` { assets: MediaAsset[] } → 放到画布 (shape shared with the assets view).
- */
+// Cross-view events: shapes live in src/shared/events.ts.
 export type RecordFill = Pick<ItemView, 'record_id' | 'kind' | 'model' | 'prompt' | 'prompt_doc' | 'mentions' | 'params'> & { reference_assets: MediaAsset[] }
 
-const emit = (name: string, detail: unknown) => window.dispatchEvent(new CustomEvent(name, { detail }))
 const toFill = (i: ItemView): RecordFill => ({
   record_id: i.record_id, kind: i.kind, model: i.model, prompt: i.prompt, prompt_doc: i.prompt_doc, mentions: i.mentions, params: i.params, reference_assets: i.references,
 })
 
 export function fillFromItem(i: ItemView) {
-  emit('ipzsk:composer-fill', { source: 'record', ...toFill(i) })
+  dispatchStudioEvent(COMPOSER_FILL_EVENT, { source: 'record', ...toFill(i), record_id: i.record_id ?? '' })
   toast({ title: '已填入输入框', tone: 'success' })
 }
 export function fillQueue(items: ItemView[]) {
-  emit('ipzsk:composer-fill', { source: 'batch', items: items.map(toFill) })
+  dispatchStudioEvent(COMPOSER_FILL_EVENT, { source: 'batch', items: items.map(toFill) })
   toast({ title: `已回填队列 ${items.length} 项`, tone: 'success' })
 }
 export function referenceFrom(a: MediaAsset) {
-  emit('ipzsk:composer-fill', { source: 'asset', reference_assets: [a] })
-  toast({ title: '已加入参考图', tone: 'success' })
+  if (dispatchStudioEvent(COMPOSER_FILL_EVENT, { source: 'asset', reference_assets: [a] })) toast({ title: '已加入参考图', tone: 'success' })
 }
-export function addToCanvas(assets: MediaAsset[]) {
-  emit('ipzsk:canvas-add', { assets })
-  toast({ title: '已放到画布', tone: 'success' })
+/** 放到画布 of a result: prompt text → generation node with the record's results (canvas asks which project and toasts). */
+export function addToCanvas(i: ItemView, asset: MediaAsset) {
+  if (i.record_id && i.results.length) dispatchStudioEvent(CANVAS_ADD_EVENT, { source: 'record', record_id: i.record_id, results: i.results, prompt: i.prompt, model: i.model, params: i.params })
+  else dispatchStudioEvent(CANVAS_ADD_EVENT, { source: 'asset', assets: [asset] })
 }
 
 export async function copyText(text: string) {

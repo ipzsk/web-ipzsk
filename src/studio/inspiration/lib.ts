@@ -1,3 +1,4 @@
+import { COMPOSER_FILL_EVENT, dispatchStudioEvent, type ComposerFillDetail as SharedFillDetail } from '@/shared/events'
 /** Pure helpers for the 灵感 view (tested in lib.test.ts). */
 
 export type CaseTemplateItem = { key: string; label: string; description: string; count: number; references: { slot: string }[] }
@@ -107,37 +108,10 @@ export const takedownHref = (c: Pick<CaseItem, 'id' | 'title'>) =>
 
 /* ---------- 做同款 → composer ---------- */
 
-export const COMPOSER_FILL_EVENT = 'ipzsk:composer-fill'
+export { COMPOSER_FILL_EVENT } from '@/shared/events'
 
-/**
- * `window` CustomEvent `ipzsk:composer-fill` — the composer subscribes; the inspiration view never imports it.
- * Composer contract (§2.4 做同款): fill prompt/kind/model/params/references, focus the input, DO NOT submit;
- * if `model` is unavailable, swap to the kind's default model and show a one-time notice above the input.
- *
- * detail: {
- *   source: 'case'
- *   case_id: string
- *   kind: 'image' | 'video'
- *   model: string | null                  // null → keep the composer's current model (「只用提示词」)
- *   prompt: string
- *   params: Record<string, string|number|boolean>   // {} for 「只用提示词」
- *   reference_urls: string[]              // case reference images (none in the current manifest)
- *   template?: {                          // §2.8 multi-item case template → expand into queue items
- *     name: string
- *     items: { key, label, prompt, count, references: { slot: string }[] }[]   // prompt already composed
- *   }
- * }
- */
-export type ComposerFillDetail = {
-  source: 'case'
-  case_id: string
-  kind: 'image' | 'video'
-  model: string | null
-  prompt: string
-  params: Record<string, string | number | boolean>
-  reference_urls: string[]
-  template?: { name: string; items: { key: string; label: string; prompt: string; count: number; references: { slot: string }[] }[] }
-}
+/** 做同款 detail (shape documented in src/shared/events.ts, source 'case'). */
+export type ComposerFillDetail = Extract<SharedFillDetail, { source: 'case' }> & { case_id: string; kind: 'image' | 'video'; model: string | null; prompt: string; params: Record<string, string | number | boolean> }
 
 export function fillDetail(c: CaseItem, promptOnly = false): ComposerFillDetail {
   const base: ComposerFillDetail = { source: 'case', case_id: c.id, kind: 'image', model: null, prompt: c.prompt, params: {}, reference_urls: [] }
@@ -156,5 +130,5 @@ export function fillDetail(c: CaseItem, promptOnly = false): ComposerFillDetail 
 }
 
 export function dispatchComposerFill(detail: ComposerFillDetail) {
-  window.dispatchEvent(new CustomEvent(COMPOSER_FILL_EVENT, { detail }))
+  dispatchStudioEvent(COMPOSER_FILL_EVENT, detail)
 }

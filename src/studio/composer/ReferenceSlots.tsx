@@ -60,12 +60,12 @@ export function ReferenceSlots({ refs, upload, onFiles }: { refs: ReferenceState
 
   return (
     <div className="flex flex-wrap items-center gap-2 px-1 pb-2 pt-1.5">
+      {/* DndContext outside the <ul>: its live region (role=status) may not be a list child. */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ screenReaderInstructions: { draggable: '按空格拿起，用左右方向键移动，再按空格放下；Delete 移除' } }}>
       <ul aria-label="参考图" className="flex flex-wrap items-center gap-2">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ screenReaderInstructions: { draggable: '按空格拿起，用左右方向键移动，再按空格放下；Delete 移除' } }}>
           <SortableContext items={slots.map(s => s.asset.id)} strategy={horizontalListSortingStrategy}>
             {slots.map((s, i) => <Slot key={s.asset.id} slot={s} index={i} dim={!refs.supported} warn={refs.over && i >= refs.max} />)}
           </SortableContext>
-        </DndContext>
         {pending.map(u => (
           <li key={u.clientId} className="relative size-14 shrink-0 overflow-hidden rounded-[10px] border border-line bg-subtle">
             {u.previewUrl && <MediaImage urls={{ orig: u.previewUrl }} alt={u.name} hideBadge className="size-full opacity-60" />}
@@ -80,6 +80,7 @@ export function ReferenceSlots({ refs, upload, onFiles }: { refs: ReferenceState
           </li>
         ))}
       </ul>
+      </DndContext>
       {refs.supported && (
         <>
           <IconButton

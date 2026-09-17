@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent } from 'react'
-import { ChevronLeft, ChevronRight, Copy, ExternalLink, Flag, Heart, ImageOff, Layers, Type, WandSparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Copy, ExternalLink, Flag, Heart, ImageOff, Layers, LayoutDashboard, Type, WandSparkles } from 'lucide-react'
 import { Badge, Button, Dialog, DialogContent, EmptyState, IconButton, Skeleton, cn, focusRing } from '@/ui'
 import { MediaImage } from '@/media'
 import { toggleFavorite, useCase, useFavorites, useSimilar } from './api'
 import { copyrightLabel, takedownHref, type CaseItem } from './lib'
-import { copyPrompt, fillComposer } from './actions'
+import { addCaseToCanvas, copyPrompt, fillComposer } from './actions'
 
 type Props = {
   id: string | null
@@ -81,6 +81,7 @@ export function CaseDetail({ id, list, hasMore, loadMore, onClose, onNavigate }:
                 <div className="flex flex-wrap gap-2">
                   <Button variant="primary" icon={<WandSparkles />} onClick={() => act(false)}>做同款</Button>
                   <Button icon={<Type />} onClick={() => act(true)}>只用提示词</Button>
+                  <Button icon={<LayoutDashboard />} onClick={() => addCaseToCanvas(c)}>放到画布</Button>
                   <Button aria-pressed={fav} icon={<Heart className={cn(fav && 'fill-current')} />} onClick={() => toggleFavorite(c.id)}>{fav ? '已收藏' : '收藏'}</Button>
                 </div>
 

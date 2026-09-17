@@ -5,7 +5,7 @@ import { request } from '@/shared/api'
 import { queryClient } from '@/shared/query'
 import type { GenerationParams, MediaKind } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
-import { isMock, mockDelay } from './catalog'
+import { isMock, mockDelay, mockFailRate } from './catalog'
 import { GENERATION_SUBMIT_KEY, type PendingGeneration, type SubmitOutcome } from './generation'
 import type { Mention } from './queue'
 import { onAnchorFailed, onAnchorSucceeded, sender } from '../composer/send'
@@ -182,7 +182,7 @@ async function mockCreate(v: PendingGeneration & { parent_record_id?: string | n
     parent_record_id: v.parent_record_id ?? null, idempotency_key: `q:${v.item_id}`, kind: v.kind, model: v.model, prompt: v.prompt,
     prompt_doc: v.prompt_doc, mentions: v.mentions, params: v.params, source: 'studio', status: 'queued', failure_code: null,
     charged_points: null, references: v.references, results: [], created_at: now, updated_at: now,
-    _dur: 3000 + Math.random() * 5000, _fail: Math.random() < 0.1,
+    _dur: 3000 + Math.random() * 5000, _fail: Math.random() < mockFailRate() * 2,
   })
   await save()
 }

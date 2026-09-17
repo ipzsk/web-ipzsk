@@ -5,4 +5,4 @@ export { Popover, PopoverTrigger, PopoverContent, PopoverClose } from './popover
 export { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuLabel, menuItemClass } from './dropdown-menu'
 export { Dialog, DialogTrigger, DialogContent, DialogClose, DialogFooter } from './dialog'
 export { Toaster, toast } from './toast'
-export { Skeleton, Badge, Input, Textarea, Checkbox, SegmentedControl, EmptyState, ErrorState, OfflineBanner } from './misc'
+export { Skeleton, Badge, Input, Textarea, Checkbox, SegmentedControl, EmptyState, ErrorState, OfflineBanner, SessionExpiredBanner } from './misc'

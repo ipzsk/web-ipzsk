@@ -1,6 +1,8 @@
+import { CANVAS_ADD_EVENT, COMPOSER_FILL_EVENT, dispatchStudioEvent } from '@/shared/events'
 import { ApiError, request } from '@/shared/api'
 import type { CreateUploadReq, CreateUploadRes, MediaAsset, UploadApi } from '@/media'
 import { createMockApi } from './mock'
+import { isMock } from '../api/catalog'
 
 /*
  * §2.6 素材 adapters. Contracts: §10.1 + gateway B1 (uploads/assets) and B3 (folders/favorites, in progress).
@@ -49,11 +51,6 @@ const realApi: AssetsApi = {
   completeUpload: (id, signal) => request<MediaAsset>(`/api/me/uploads/${id}/complete`, { method: 'POST', body: {}, signal }),
 }
 
-/** Same switch as the composer: DEV and (`?mock` in the URL or localStorage['ipzsk.mock']==='1'). Read once per load. */
-export const isMock = (() => {
-  try { return import.meta.env.DEV && (new URLSearchParams(location.search).has('mock') || localStorage['ipzsk.mock'] === '1') } catch { return false }
-})()
-
 export const api: AssetsApi = isMock ? createMockApi() : realApi
 
 /* ---------- upload: Chinese errors + one retry on 409 upload_not_found (R2 eventual consistency) ---------- */
@@ -100,15 +97,7 @@ export function makeUploadApi(a: UploadApi, retryDelay = 1000): UploadApi {
 
 export const uploadApi = makeUploadApi(api)
 
-/* ---------- cross-view events (window CustomEvent; receivers never import this view) ---------- */
+/* ---------- cross-view events (shapes: src/shared/events.ts) ---------- */
 
-/**
- * `ipzsk:composer-fill` detail `{ source: 'asset', reference_assets: MediaAsset[] }`
- * → composer appends the assets to its reference slots (respecting the model's max), focuses the input, never submits.
- */
-export const fillComposerWithAssets = (assets: MediaAsset[]) =>
-  window.dispatchEvent(new CustomEvent('ipzsk:composer-fill', { detail: { source: 'asset', reference_assets: assets } }))
-
-/** `ipzsk:canvas-add` detail `{ assets: MediaAsset[] }` → canvas creates one image/video node per asset in the open project. */
-export const addAssetsToCanvas = (assets: MediaAsset[]) =>
-  window.dispatchEvent(new CustomEvent('ipzsk:canvas-add', { detail: { assets } }))
+export const fillComposerWithAssets = (assets: MediaAsset[]) => dispatchStudioEvent(COMPOSER_FILL_EVENT, { source: 'asset', reference_assets: assets })
+export const addAssetsToCanvas = (assets: MediaAsset[]) => dispatchStudioEvent(CANVAS_ADD_EVENT, { source: 'asset', assets })

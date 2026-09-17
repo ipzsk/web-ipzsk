@@ -76,7 +76,7 @@ async function downloadAssets(assets: MediaAsset[]) {
 }
 
 function fillAssets(assets: MediaAsset[]) {
-  fillComposerWithAssets(assets)
+  if (!fillComposerWithAssets(assets)) { toast({ title: '没有加入输入框', description: '所选素材还在处理中', tone: 'error' }); return }
   toast({ title: `已加入输入框`, description: `${assets.length} 张参考素材`, tone: 'success' })
 }
 
@@ -323,7 +323,8 @@ function AssetsPage() {
               {folderId && <FolderIcon className="size-5 shrink-0" aria-hidden />}{title}
             </h1>
             <Button size="sm" className="md:hidden" aria-label="文件夹" icon={<FolderOpen className="size-4" aria-hidden />} onClick={() => setSheet(true)}><span className="max-sm:sr-only">文件夹</span></Button>
-            {(assetTab || folderId) && (
+            {/* Always rendered; hidden (not removed) on tabs where it doesn't apply so the sticky header keeps its height. */}
+            <div className={cn(!(assetTab || folderId) && 'invisible')} inert={!(assetTab || folderId)} aria-hidden={!(assetTab || folderId)}>
               <SegmentedControl
                 label="视图"
                 value={mode}
@@ -331,7 +332,7 @@ function AssetsPage() {
                 options={[{ value: 'masonry', label: '瀑布流', icon: LayoutGrid }, { value: 'dense', label: '紧凑网格', icon: Grid3x3 }]}
                 className="max-sm:[&_button]:gap-0 max-sm:[&_button]:px-2 max-sm:[&_button]:text-[0px]"
               />
-            )}
+            </div>
             <Button
               variant="primary"
               size="sm"
@@ -354,13 +355,17 @@ function AssetsPage() {
                 ))}
               </div>
             )}
-            {(assetTab || folderId) && (
-              <div role="group" aria-label="类型" className={cn('flex gap-1', folderId && 'mr-auto')}>
-                {([['', '全部'], ['image', '图片'], ['video', '视频']] as const).map(([k, label]) => (
-                  <Chip key={k || 'any'} small on={kind === k} onClick={() => setParam({ kind: k || null, asset: null })}>{label}</Chip>
-                ))}
-              </div>
-            )}
+            <div
+              role="group"
+              aria-label="类型"
+              inert={!(assetTab || folderId)}
+              aria-hidden={!(assetTab || folderId)}
+              className={cn('flex gap-1', folderId && 'mr-auto', !(assetTab || folderId) && 'invisible')}
+            >
+              {([['', '全部'], ['image', '图片'], ['video', '视频']] as const).map(([k, label]) => (
+                <Chip key={k || 'any'} small on={kind === k} onClick={() => setParam({ kind: k || null, asset: null })}>{label}</Chip>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -382,6 +387,8 @@ function AssetsPage() {
             empty={empty}
           />
         )}
+        {/* Room for the fixed batch bar, so the last row can scroll clear of it. */}
+        {selectedAssets.length > 0 && <div aria-hidden className="h-16" />}
       </div>
 
       <BatchBar
@@ -390,7 +397,7 @@ function AssetsPage() {
         onMove={(f) => { fm.add.mutate({ folder: f, ids: selectedAssets.map((a) => a.id) }); sel.clear() }}
         onDownload={() => void downloadAssets(selectedAssets)}
         onFill={() => fillAssets(selectedAssets)}
-        onCanvas={() => addToCanvas(selectedAssets, navigate)}
+        onCanvas={() => addToCanvas(selectedAssets)}
         onDelete={() => deleteAssets(selectedAssets)}
         onClear={sel.clear}
       />
@@ -425,9 +432,9 @@ function AssetsPage() {
   )
 }
 
-function addToCanvas(assets: MediaAsset[], navigate: (to: string) => void) {
+/** The canvas receiver (mounted in App) asks which project and confirms with its own toast. */
+function addToCanvas(assets: MediaAsset[]) {
   addAssetsToCanvas(assets)
-  toast({ title: '已放到画布', description: `${assets.length} 项素材`, tone: 'success', action: { label: '去画布', onClick: () => navigate('/studio/canvas') } })
 }
 
 function Chip({ on, small, onClick, children }: { on: boolean; small?: boolean; onClick: () => void; children: ReactNode }) {
@@ -480,7 +487,7 @@ function AssetCell({ asset, priority, selected, selectionMode, onSelect, dragIte
             <OverlayButton label="预览" onClick={onOpen}><Eye aria-hidden /></OverlayButton>
             <OverlayButton label="下载" onClick={() => void downloadAssets(one)}><Download aria-hidden /></OverlayButton>
             <OverlayButton label="加入输入框" onClick={() => fillAssets(one)}><ImagePlus aria-hidden /></OverlayButton>
-            <OverlayButton label="放到画布" onClick={() => addToCanvas(one, navigate)}><LayoutDashboard aria-hidden /></OverlayButton>
+            <OverlayButton label="放到画布" onClick={() => addToCanvas(one)}><LayoutDashboard aria-hidden /></OverlayButton>
             <button type="button" aria-label={fav ? '取消收藏' : '收藏'} aria-pressed={fav} title={fav ? '取消收藏' : '收藏'} onClick={onFav} className={overlayBtn}>
               <Heart aria-hidden className={cn(fav && 'fill-current text-acid')} />
             </button>
@@ -509,7 +516,7 @@ function AssetCell({ asset, priority, selected, selectionMode, onSelect, dragIte
           <DropdownMenuItem onSelect={onOpen}><Eye aria-hidden />预览</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void downloadAssets(one)}><Download aria-hidden />下载</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => fillAssets(one)}><ImagePlus aria-hidden />加入输入框</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => addToCanvas(one, navigate)}><LayoutDashboard aria-hidden />放到画布</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => addToCanvas(one)}><LayoutDashboard aria-hidden />放到画布</DropdownMenuItem>
           <DropdownMenuItem onSelect={onFav}><Heart aria-hidden className={cn(fav && 'fill-current')} />{fav ? '取消收藏' : '收藏'}</DropdownMenuItem>
           {folders.length > 0 && <><DropdownMenuSeparator /><DropdownMenuLabel>移动到文件夹</DropdownMenuLabel></>}
           {folders.map((f) => (
@@ -633,8 +640,9 @@ export function BatchBar({ count, folders, onMove, onDownload, onFill, onCanvas,
   onCanvas: () => void; onDelete: () => void; onClear: () => void
 }) {
   if (!count) return null
+  // Stacks above the floating composer (--composer-inset, set by Composer) instead of covering its send button.
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 max-md:bottom-[72px] md:left-52">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--composer-inset,8px)+8px)] z-40 flex justify-center px-4 max-md:bottom-[calc(var(--composer-inset,64px)+8px)] md:left-52">
       <div role="toolbar" aria-label="批量操作" className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-panel border border-line bg-ink p-1.5 pl-4 text-card shadow-2xl motion-safe:animate-fade-in">
         <span className="shrink-0 pr-2 text-sm font-semibold tabular-nums" aria-live="polite">已选 {count} 项</span>
         <DropdownMenu>

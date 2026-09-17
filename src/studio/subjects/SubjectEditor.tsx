@@ -192,8 +192,8 @@ function Editor({ opts, close }: { opts: SubjectEditorOptions; close: () => void
             <span className="text-[13px] font-semibold">参考图</span>
             <span className="text-xs text-muted tabular-nums">{assets.length}/{ASSETS_MAX} · 拖动排序，星标设为封面</span>
           </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ screenReaderInstructions: { draggable: '按空格拿起，用方向键移动，再按空格放下' } }}>
           <ul aria-label="参考图" className="grid grid-cols-4 gap-2 max-sm:grid-cols-3">
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ screenReaderInstructions: { draggable: '按空格拿起，用方向键移动，再按空格放下' } }}>
               <SortableContext items={assets.map(a => a.id)} strategy={rectSortingStrategy}>
                 {assets.map((a, i) => (
                   <Tile
@@ -204,7 +204,6 @@ function Editor({ opts, close }: { opts: SubjectEditorOptions; close: () => void
                   />
                 ))}
               </SortableContext>
-            </DndContext>
             {pending.map(u => (
               <li key={u.clientId} className="relative aspect-square overflow-hidden rounded-[10px] border border-line bg-subtle">
                 {u.previewUrl && <MediaImage urls={{ orig: u.previewUrl }} alt={u.name} hideBadge className="size-full opacity-60" />}
@@ -217,12 +216,15 @@ function Editor({ opts, close }: { opts: SubjectEditorOptions; close: () => void
               </li>
             ))}
           </ul>
+          </DndContext>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" icon={<Upload className="size-4" />} disabled={full} disabledReason={fullReason} onClick={() => fileInput.current?.click()}>上传</Button>
             <Button size="sm" icon={<ImagePlus className="size-4" />} disabled={full} disabledReason={fullReason} onClick={() => setPickerOpen(true)}>从素材选择</Button>
             <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={e => { onFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} />
           </div>
-          {touched && errors.assets && <p className="text-xs text-danger">{errors.assets}</p>}
+          {/* Line always reserved: the error appears on blur, and on the bottom-anchored mobile sheet a growing form moves
+              the button under the pointer between pointerdown and click (the click was lost). */}
+          <p className="min-h-4 text-xs leading-4 text-danger">{touched && errors.assets}</p>
         </div>
 
         <Textarea label="备注（可选，不参与生成）" value={note} onChange={e => setNote(e.target.value)} error={errors.note} hint={`${[...note].length}/${NOTE_MAX}`} />
