@@ -6,3 +6,4 @@ export { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 export { Dialog, DialogTrigger, DialogContent, DialogClose, DialogFooter } from './dialog'
 export { Toaster, toast } from './toast'
 export { Skeleton, Badge, Input, Textarea, Checkbox, SegmentedControl, EmptyState, Sticker, type StickerName, ErrorState, IndeterminateBar, OfflineBanner, SessionExpiredBanner } from './misc'
+export { OptionsCombobox, comboKeyDown, type ComboOption, type ComboGroup, type OptionsComboboxProps } from './options-combobox'
