@@ -1,8 +1,8 @@
+import { useParams } from 'react-router'
+import { Editor } from './Editor'
+import { ProjectList } from './ProjectList'
+
 export function CanvasView() {
-  return (
-    <section>
-      <h1 className="text-2xl font-bold">画布</h1>
-      <p className="mt-2 text-sm text-muted">占位视图</p>
-    </section>
-  )
+  const { projectId } = useParams()
+  return projectId ? <Editor key={projectId} projectId={projectId} /> : <ProjectList />
 }
