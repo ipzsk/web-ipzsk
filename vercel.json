@@ -11,7 +11,7 @@
           "value": "ipzsk.com"
         }
       ],
-      "destination": "https://www.ipzsk.com/video",
+      "destination": "https://www.ipzsk.com/studio?kind=video",
       "permanent": false
     },
     {
@@ -247,27 +247,6 @@
       ]
     },
     {
-      "source": "/video(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://api.ipzsk.com; media-src https:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "no-referrer"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        }
-      ]
-    },
-    {
       "source": "/studio(.*)",
       "headers": [
         {
@@ -356,6 +335,48 @@
         {
           "key": "X-Robots-Tag",
           "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/workstation",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
         }
       ]
     },
