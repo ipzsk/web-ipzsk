@@ -3,17 +3,18 @@ import { applyEdgeChanges, applyNodeChanges, type Connection, type EdgeChange, t
 import { toast } from '@/ui'
 import { validateFile } from '@/media'
 import {
-  DEFAULT_SIZE, NODE_LABEL, alignGuides, assembleInputs, connectionError, copySelection, decideMode, deletionSet, fromDocument,
-  groupSelection, pasteClip, sizeOf, toDocument, ungroupSelection,
-  type CanvasEdge, type CanvasNode, type CanvasNodeData, type Clip, type NodeKind,
+  DEFAULT_SIZE, NODE_LABEL, absolutePosition, alignGuides, assembleInputs, connectionError, copySelection, decideMode, deletionSet, dropTarget, fromDocument,
+  groupSelection, nudge, pasteClip, reparent, selectionRoots, sizeOf, toDocument, ungroupSelection,
+  type AssetRef, type CanvasEdge, type CanvasNode, type CanvasNodeData, type Clip, type NodeKind,
 } from './graph'
 import { emptyHistory, record, redo, undo, type History } from './history'
-import { canvasRepo } from './repo'
+import { canvasRepo, mockServer, resolveConflict, syncDirty, type CanvasProjectSnapshot, type ConflictChoice } from './repo'
+import { buildCanvasAdd, type CanvasAddDetail } from './canvasAdd'
 import { defaultParams, findModel, mockGenerate, mockUpload, modelsFor, readImageSize, resolveUrl, seedResolved } from './mock'
 
 type Snap = { nodes: CanvasNode[]; edges: CanvasEdge[] }
 export type RunState = { status: 'running' | 'uploading' | 'failed'; progress: number; error?: string }
-export type SyncStatus = 'saved' | 'saving' | 'offline'
+export type SyncStatus = 'saved' | 'saving' | 'offline' | 'conflict'
 
 interface CanvasState extends Snap {
   projectId: string | null
@@ -25,11 +26,16 @@ interface CanvasState extends Snap {
   status: SyncStatus
   dragging: boolean
   guides: { vertical?: number; horizontal?: number }
+  /** Remote version that rejected our PUT (409). Local writes continue; sync pauses until resolved. */
+  conflict: CanvasProjectSnapshot | null
+  /** Group highlighted as the drop target while dragging. */
+  dropGroup: string | null
+  editedAt: number
 }
 
 const initial = (): Omit<CanvasState, 'projectId'> => ({
   title: '', missing: false, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 },
-  history: emptyHistory(), runs: {}, status: 'saved', dragging: false, guides: {},
+  history: emptyHistory(), runs: {}, status: 'saved', dragging: false, guides: {}, conflict: null, dropGroup: null, editedAt: 0,
 })
 
 export const useCanvas = create<CanvasState>(() => ({ projectId: null, ...initial() }))
@@ -55,27 +61,42 @@ function writeNow() {
   return pendingWrite
 }
 
+let editSeq = 0
+
 async function syncNow() {
   const id = get().projectId
-  if (!id) return
+  if (!id || get().status === 'conflict') return
+  const seq = editSeq
   await writeNow()
   const r = await canvasRepo.sync(id)
   if (get().projectId !== id) return
-  set({ status: r === 'synced' ? 'saved' : 'offline' })
+  if (typeof r === 'object') { set({ status: 'conflict', conflict: r.conflict }); return }
+  if (r === 'offline') { set({ status: 'offline' }); return }
+  // Newer edits arrived mid-request: their own timer will sync them.
+  if (seq === editSeq) set({ status: 'saved' })
 }
 
 /** Local write within ~100ms of a change; "sync" 1.5s after the last change (§2.7). */
 function markDirty(silent = false) {
   if (!get().projectId) return
-  if (!silent) set({ status: online() ? 'saving' : 'offline' })
+  const conflict = get().status === 'conflict'
+  if (!silent) { editSeq++; set({ editedAt: Date.now(), ...(conflict ? {} : { status: online() ? 'saving' : 'offline' }) }) }
   if (get().dragging) return
   clearTimeout(writeTimer)
   writeTimer = setTimeout(writeNow, 100)
+  if (conflict) return
   clearTimeout(syncTimer)
   syncTimer = setTimeout(syncNow, 1500)
 }
 
-if (typeof window !== 'undefined') window.addEventListener('online', () => { if (get().status === 'offline') markDirty() })
+// Offline queue: dirty projects (open or not) are pushed when the connection returns.
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    if (get().projectId && get().status === 'offline') markDirty()
+    void syncDirty(canvasRepo, get().projectId)
+  })
+  window.addEventListener('offline', () => { if (get().projectId && get().status === 'saving') set({ status: 'offline' }) })
+}
 
 export async function loadProject(id: string) {
   await flush()
@@ -85,12 +106,38 @@ export async function loadProject(id: string) {
   if (!p) { set({ missing: true }); return }
   const { nodes, edges, viewport } = fromDocument(p.document)
   set({ title: p.meta.title, nodes, edges, viewport })
+  if (p.meta.dirty) { set({ status: online() ? 'saving' : 'offline' }); clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, 300) }
 }
 
+/** Local write now; sync continues in the background (a conflict surfaces next time the project opens). */
 export async function flush() {
-  if (!get().projectId) return
+  const id = get().projectId
+  if (!id) return
   clearTimeout(syncTimer)
   await writeNow()
+  if (get().status !== 'conflict') void canvasRepo.sync(id)
+}
+
+/** Editor unmounted: drop the in-memory copy so nothing stale is written over later changes (e.g. 放到画布 into this project). */
+export async function closeProject(id: string) {
+  await flush()
+  if (get().projectId === id) set({ projectId: null, ...initial() })
+}
+
+export async function resolveConflictAction(choice: ConflictChoice): Promise<string | undefined> {
+  const { projectId: id, conflict } = get()
+  if (!id || !conflict) return undefined
+  await writeNow()
+  const copyId = await resolveConflict(canvasRepo, id, choice, conflict)
+  if (get().projectId !== id) return copyId
+  set({ conflict: null, status: 'saved' })
+  if (choice === 'mine') markDirty()
+  else {
+    const { nodes, edges } = fromDocument(conflict.document)
+    set({ nodes, edges, title: conflict.meta.title, history: emptyHistory() })
+  }
+  if (copyId) void canvasRepo.sync(copyId)
+  return copyId
 }
 
 export function setViewport(viewport: CanvasState['viewport']) {
@@ -107,11 +154,11 @@ export async function renameProject(title: string) {
 
 // ---------- history-aware mutations ----------
 
-export function mutate(recipe: (s: Snap) => Partial<Snap> | null | undefined, key?: string) {
+export function mutate(recipe: (s: Snap) => Partial<Snap> | null | undefined, key?: string, windowMs?: number) {
   const before = snap()
   const next = recipe(before)
   if (!next) return false
-  set({ ...next, history: record(get().history, before, key) })
+  set({ ...next, history: record(get().history, before, key, Date.now(), windowMs) })
   markDirty()
   return true
 }
@@ -171,9 +218,36 @@ export function endGesture() {
     const b = before.nodes[i]
     return !b || b.id !== n.id || b.position.x !== n.position.x || b.position.y !== n.position.y || b.width !== n.width || b.height !== n.height
   })
-  set({ dragging: false, guides: {}, history: moved ? history : { ...history, past: history.past.slice(0, -1) } })
-  if (moved) markDirty()
+  let next = nodes
+  const { dropGroup } = get()
+  if (dragIds.length) {
+    const toMove = selectionRoots(nodes, new Set(dragIds)).filter(n => (n.parentId ?? null) !== dropGroup).map(n => n.id)
+    if (toMove.length) next = reparent(nodes, toMove, dropGroup ?? undefined)
+  }
+  dragIds = []
+  const changed = moved || next !== nodes
+  set({ nodes: next, dragging: false, guides: {}, dropGroup: null, history: changed ? history : { ...history, past: history.past.slice(0, -1) } })
+  if (changed) markDirty()
 }
+
+let dragIds: string[] = []
+/** During a drag: find the group under the dragged node's centre (drag into / out of groups). */
+export function dragOver(primaryId: string, ids: string[]) {
+  dragIds = ids
+  const s = get()
+  const byId = new Map(s.nodes.map(n => [n.id, n]))
+  const n = byId.get(primaryId)
+  if (!n) return
+  const p = absolutePosition(n, byId), size = sizeOf(n)
+  const target = dropTarget(s.nodes, ids, { x: p.x + size.w / 2, y: p.y + size.h / 2 }) ?? null
+  const roots = selectionRoots(s.nodes, new Set(ids))
+  const highlight = roots.every(r => (r.parentId ?? null) === target) ? null : target
+  if (highlight !== s.dropGroup) set({ dropGroup: highlight })
+}
+
+/** Arrow keys: 1px / Shift 10px; a burst of presses (<300ms apart) is one undo step. */
+export const nudgeSelection = (dx: number, dy: number) =>
+  mutate(s => { const nodes = nudge(s.nodes, dx, dy); return nodes && { nodes } }, 'nudge', 300)
 
 export const checkConnection = (c: Connection | CanvasEdge) => connectionError(c, get().nodes, get().edges)
 
@@ -253,8 +327,9 @@ export function duplicate() {
 }
 
 export function group() {
-  if (!mutate(s => { const nodes = groupSelection(s.nodes, crypto.randomUUID()); return nodes && { nodes } }))
-    toast({ title: '先选中要编组的节点', description: '编组只包含未在其他编组里的节点' })
+  const r = groupSelection(get().nodes, crypto.randomUUID())
+  if (typeof r === 'string') { toast({ title: '无法编组', description: r }); return }
+  mutate(() => ({ nodes: r }))
 }
 export const ungroup = () => mutate(s => { const nodes = ungroupSelection(s.nodes); return nodes && { nodes } })
 
@@ -328,26 +403,67 @@ export const nodeLabel = (n: CanvasNode) => NODE_LABEL[n.type!]
 
 // ---------- interop ----------
 
-export interface ComposerFillDetail { source: 'canvas'; project_id: string; node_id: string; prompt: string; reference_urls: string[] }
+export interface ComposerFillDetail { source: 'canvas'; project_id: string; node_id: string; prompt: string; reference_urls: string[]; reference_asset_ids: string[] }
 /** 「加入输入框」: the composer (F3) listens for `ipzsk:composer-fill` with ComposerFillDetail. */
 export function sendToComposer(nodeId: string) {
   const s = get()
   const n = s.nodes.find(x => x.id === nodeId)
   if (!n || !s.projectId) return
   let prompt = ''
-  let refs: string[] = []
+  let assets: AssetRef[] = []
   if (n.type === 'gen-image' || n.type === 'gen-video') {
     const inputs = assembleInputs(nodeId, s.nodes, s.edges)
     prompt = inputs.prompt
-    refs = inputs.references.map(r => r.urls.orig)
+    assets = inputs.references
   } else if (n.type === 'text') prompt = n.data.text ?? ''
-  else if (n.data.asset) refs = [n.data.asset.urls.orig]
-  const detail: ComposerFillDetail = { source: 'canvas', project_id: s.projectId, node_id: nodeId, prompt, reference_urls: refs.map(resolveUrl) }
+  else if (n.data.asset) assets = [n.data.asset]
+  const refs = assets.map(a => a.urls.orig)
+  const detail: ComposerFillDetail = {
+    source: 'canvas', project_id: s.projectId, node_id: nodeId, prompt,
+    reference_urls: refs.map(resolveUrl), reference_asset_ids: assets.flatMap(a => (a.asset_id ? [a.asset_id] : [])),
+  }
   window.dispatchEvent(new CustomEvent('ipzsk:composer-fill', { detail }))
   toast({ title: '已加入输入框', description: refs.length ? `${refs.length} 张参考图${prompt ? ' + 提示词' : ''}` : '提示词已带入' })
 }
 
 export const saveToAssets = () => toast({ title: '存入素材即将开放', description: '素材库接口接入后可用（§2.6）' })
 
-// Dev-only hook for e2e/perf scripts.
-if (import.meta.env.DEV && typeof window !== 'undefined') Object.assign(window, { __ipzskCanvas: { useCanvas, addNodes, newNode } })
+// ---------- 放到画布 ----------
+
+let editorCenter: (() => XYPosition) | null = null
+/** The editor registers its viewport centre while mounted; null = no canvas open. */
+export const setEditorCenter = (fn: (() => XYPosition) | null) => { editorCenter = fn }
+
+/** Returns true when handled by the open editor (nodes added + selected, one undo step). */
+export function addToOpenCanvas(d: CanvasAddDetail) {
+  const center = editorCenter?.()
+  if (!center || !get().projectId) return false
+  const { nodes, edges } = buildCanvasAdd(d, center)
+  addNodes(nodes, edges)
+  return true
+}
+
+/** Appends into a (closed) project's stored document, around its saved viewport centre. */
+export async function addToProject(id: string, d: CanvasAddDetail) {
+  const p = await canvasRepo.get(id)
+  if (!p) throw new Error('project not found')
+  const v = p.document.viewport
+  // ponytail: assumes a ~1200×800 editor; exact once the project is opened and nodes are selected anyway.
+  const center = { x: (600 - v.x) / v.zoom, y: (400 - v.y) / v.zoom }
+  const built = buildCanvasAdd(d, center)
+  const nodes = built.nodes.map(({ selected: _s, ...n }) => n)
+  await canvasRepo.save(id, { ...p.document, nodes: [...p.document.nodes, ...nodes], edges: [...p.document.edges, ...built.edges] })
+  void canvasRepo.sync(id)
+  return p.meta.title
+}
+
+// Dev-only hooks for e2e/perf scripts; never in production bundles.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  Object.assign(window, {
+    __ipzskCanvas: {
+      useCanvas, addNodes, newNode,
+      simulateRemoteEdit: (id = get().projectId) => (id && mockServer ? mockServer.simulateRemoteEdit(id) : Promise.resolve(false)),
+      syncNow,
+    },
+  })
+}

@@ -100,7 +100,12 @@ export async function mockUpload(file: File, onProgress: (p: number) => void): P
 }
 
 const resolved = new Map<string, string>()
-/** Resolves `local:` urls to blob urls (cached for the page lifetime). */
+/**
+ * Resolves `local:` urls to blob urls (cached for the page lifetime); otherwise returns the cached `urls` payload.
+ * TODO(§7.2): signed URLs expire. When `asset.asset_id` is set, accept an injected resolver
+ * (e.g. `(ids) => GET /api/me/media/assets?ids=` from the media module) and refresh on load error / near expiry
+ * instead of trusting the cached payload.
+ */
 export function useAssetUrls(asset?: AssetRef): AssetRef['urls'] | undefined {
   const orig = asset?.urls.orig
   const local = orig?.startsWith('local:') ? orig.slice(6) : null

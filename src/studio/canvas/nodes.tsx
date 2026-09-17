@@ -231,7 +231,7 @@ export const GenNode = memo(function GenNode(p: SlimProps) {
       )}
       <div className="flex items-center gap-2 px-3 py-2">
         <span className="min-w-0 flex-1 truncate text-[11px] text-muted">
-          {p.data.lastMode ? `${MODE_LABEL[p.data.lastMode]} · ${results.length} ${kind === 'gen-video' ? '条' : '张'}` : '未运行'}
+          {p.data.lastMode ? `${MODE_LABEL[p.data.lastMode]} · ${results.length} ${kind === 'gen-video' ? '条' : '张'}` : results.length ? `已完成 · ${results.length} ${kind === 'gen-video' ? '条' : '张'}` : '未运行'}
         </span>
         <Button
           size="sm"
@@ -252,6 +252,7 @@ export const GenNode = memo(function GenNode(p: SlimProps) {
 
 export const GroupNode = memo(function GroupNode(p: SlimProps) {
   const [editing, setEditing] = useState(false)
+  const dropping = useCanvas(s => s.dropGroup === p.id)
   return (
     <>
       <NodeResizer
@@ -267,7 +268,9 @@ export const GroupNode = memo(function GroupNode(p: SlimProps) {
         className={cn(
           'h-full w-full rounded-panel border-2 border-dashed border-line bg-ink/[.025] transition-colors duration-(--duration-fast) hover:border-muted',
           p.selected && 'border-solid border-ink hover:border-ink',
+          dropping && 'border-acid-deep bg-acid/15 hover:border-acid-deep',
         )}
+        data-drop-target={dropping || undefined}
       >
         <div className="flex h-9 items-center gap-1.5 px-3 text-sm font-semibold">
           {editing ? (

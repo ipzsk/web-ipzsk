@@ -9,7 +9,7 @@ import { canvasRepo, type CanvasProjectMeta } from './repo'
 
 const KEY = ['canvas', 'projects']
 const rtf = new Intl.RelativeTimeFormat('zh-CN', { numeric: 'auto' })
-function ago(iso: string) {
+export function ago(iso: string) {
   const s = (new Date(iso).getTime() - Date.now()) / 1000
   if (s > -60) return '刚刚'
   if (s > -3600) return rtf.format(Math.round(s / 60), 'minute')
@@ -116,7 +116,7 @@ export function ProjectList() {
         <h1 className="flex-1 text-2xl font-bold">画布</h1>
         <Button variant="primary" icon={<Plus className="size-[18px]" />} loading={create.isPending} onClick={() => create.mutate()}>新建画布</Button>
       </div>
-      <p className="mt-1 text-sm text-muted">适合多步创作：参考图 → 生成 → 挑选 → 转视频，每一步来源可追溯。当前保存在本机浏览器。</p>
+      <p className="mt-1 text-sm text-muted">适合多步创作：参考图 → 生成 → 挑选 → 转视频，每一步来源可追溯。先存本机，联网后自动同步。</p>
       <div className="mt-6">
         {q.isPending ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">

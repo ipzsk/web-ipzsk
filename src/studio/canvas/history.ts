@@ -9,8 +9,8 @@ export const COALESCE_MS = 1000
 
 export const emptyHistory = <T>(): History<T> => ({ past: [], future: [], at: 0 })
 
-export function record<T>(h: History<T>, before: T, key?: string, now = Date.now()): History<T> {
-  if (key && key === h.key && now - h.at < COALESCE_MS) return { ...h, future: [], at: now }
+export function record<T>(h: History<T>, before: T, key?: string, now = Date.now(), windowMs = COALESCE_MS): History<T> {
+  if (key && key === h.key && now - h.at < windowMs) return { ...h, future: [], at: now }
   return { past: [...h.past, before].slice(-HISTORY_LIMIT), future: [], key, at: now }
 }
 

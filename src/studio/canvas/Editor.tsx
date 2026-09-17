@@ -1,22 +1,25 @@
 import '@xyflow/react/dist/base.css'
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
-import { Link } from 'react-router'
+import { useCallback, useContext, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { Link, UNSAFE_DataRouterContext, useBlocker, useNavigate } from 'react-router'
 import {
   Background, BackgroundVariant, MiniMap, Panel, ReactFlow, ReactFlowProvider, SelectionMode, ViewportPortal,
   useReactFlow, useStore, type FinalConnectionState, type XYPosition,
 } from '@xyflow/react'
 import {
-  ArrowLeft, Check, CloudOff, Group, ImagePlus, Keyboard, LoaderCircle, Maximize, Minus, MousePointerClick, Plus, Redo2, Undo2,
+  ArrowLeft, Check, CloudOff, Group, ImagePlus, Keyboard, LoaderCircle, Maximize, Minus, MousePointerClick, Plus, Redo2, TriangleAlert, Undo2,
 } from 'lucide-react'
-import { Button, Dialog, DialogContent, EmptyState, IconButton, cn, toast } from '@/ui'
+import { Button, Dialog, DialogContent, DialogFooter, EmptyState, IconButton, cn, toast } from '@/ui'
 import { DEFAULT_SIZE, handleId, kindsForDangling, parseHandle, type CanvasEdge, type NodeKind } from './graph'
 import { ADDABLE, NodeMenu } from './NodeMenu'
 import { NodePanel } from './NodePanel'
 import { nodeTypes } from './nodes'
 import {
-  addFiles, addNodes, beginGesture, checkConnection, connect, copy, deleteSelected, duplicate, endGesture, flush, group, loadProject,
-  newNode, onEdgesChange, onNodesChange, paste, redoAction, renameProject, selectAll, setLocked, setViewport, undoAction, ungroup, useCanvas,
+  addFiles, addNodes, beginGesture, checkConnection, closeProject, connect, copy, deleteSelected, dragOver, duplicate, endGesture, group, loadProject,
+  newNode, nudgeSelection, onEdgesChange, onNodesChange, paste, redoAction, renameProject, resolveConflictAction, selectAll, setEditorCenter, setLocked,
+  setViewport, undoAction, ungroup, useCanvas,
 } from './store'
+import { ago } from './ProjectList'
+import type { ConflictChoice } from './repo'
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 const MOD = isMac ? '⌘' : 'Ctrl'
@@ -33,6 +36,8 @@ const SHORTCUTS: [string, string][] = [
   [MOD + ' A', '全选'],
   [MOD + ' G / ' + MOD + ' ⇧ G', '编组 / 取消编组'],
   [MOD + ' ⇧ L', '锁定 / 解锁选中节点'],
+  ['方向键 / ⇧ + 方向键', '微移 1px / 10px'],
+  ['拖进 / 拖出编组', '加入或移出编组（最多嵌套 2 层）'],
   ['Delete / Backspace', '删除'],
   ['⇧ 1 / ' + MOD + ' 0', '适应视图 / 缩放到 100%'],
   ['?', '快捷键帮助'],
@@ -59,14 +64,114 @@ interface MenuState {
   from?: { nodeId: string; handle: string }
 }
 
-function SaveStatus() {
+function SaveStatus({ onConflict }: { onConflict: () => void }) {
   const status = useCanvas(s => s.status)
+  if (status === 'conflict') {
+    return (
+      <button type="button" aria-live="polite" onClick={onConflict} title="远端有更新，点击处理"
+        className="inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-full border border-warning/50 bg-warning/10 px-2.5 text-xs font-semibold text-warning hover:bg-warning/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+        <TriangleAlert className="size-4" />冲突
+      </button>
+    )
+  }
   const map = {
     saved: { icon: <Check className="size-4 text-success" />, text: '已保存' },
     saving: { icon: <LoaderCircle className="size-4 motion-safe:animate-spin-slow" />, text: '保存中' },
     offline: { icon: <CloudOff className="size-4 text-warning" />, text: '离线 · 已存本地' },
   }[status]
   return <span role="status" aria-live="polite" className="inline-flex items-center gap-1.5 text-xs text-muted whitespace-nowrap">{map.icon}{map.text}</span>
+}
+
+function Preview({ label, nodes, edges, at }: { label: string; nodes: number; edges: number; at: string }) {
+  return (
+    <div className="flex-1 rounded-card border border-line bg-paper p-3">
+      <p className="text-xs font-semibold text-muted">{label}</p>
+      <p className="mt-1 text-sm font-semibold tabular-nums">{nodes} 个节点 · {edges} 条连线</p>
+      <p className="mt-0.5 text-xs text-muted">{ago(at)}更新</p>
+    </div>
+  )
+}
+
+function ConflictDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const conflict = useCanvas(s => s.conflict)
+  const local = { nodes: useCanvas(s => s.nodes.length), edges: useCanvas(s => s.edges.length) }
+  const editedAt = useCanvas(s => s.editedAt)
+  const navigate = useNavigate()
+  const [busy, setBusy] = useState<ConflictChoice | null>(null)
+  if (!conflict) return null
+  const doc = conflict.document
+  const choose = async (c: ConflictChoice) => {
+    setBusy(c)
+    try {
+      const copyId = await resolveConflictAction(c)
+      onOpenChange(false)
+      if (c === 'remote') toast({ title: '已用远端版本覆盖本地' })
+      if (c === 'mine') toast({ title: '正在用你的版本覆盖远端' })
+      if (copyId) toast({ title: '已另存为副本，当前画布已更新为远端版本', tone: 'success', action: { label: '打开副本', onClick: () => navigate(`/studio/canvas/${copyId}`) } })
+    } catch {
+      toast({ title: '处理冲突失败', description: '浏览器存储不可用，请重试', tone: 'error' })
+    } finally { setBusy(null) }
+  }
+  return (
+    <Dialog open={open} onOpenChange={o => { if (!busy) onOpenChange(o) }}>
+      <DialogContent title="远端有更新" description="这个画布在其他设备或窗口里被改过。你的改动已存在本机，选择保留哪个版本；处理前不会同步。" className="max-w-lg">
+        <div className="flex gap-3 max-sm:flex-col">
+          <Preview label="我的（本机）" nodes={local.nodes} edges={local.edges} at={new Date(editedAt || Date.now()).toISOString()} />
+          <Preview label="远端" nodes={doc.nodes.length + doc.groups.length} edges={doc.edges.length} at={conflict.meta.updated_at} />
+        </div>
+        <DialogFooter className="flex-wrap">
+          <Button variant="ghost" loading={busy === 'copy'} disabled={!!busy} onClick={() => void choose('copy')}>另存为副本</Button>
+          <Button variant="secondary" loading={busy === 'remote'} disabled={!!busy} onClick={() => void choose('remote')}>用远端覆盖本地</Button>
+          <Button variant="primary" loading={busy === 'mine'} disabled={!!busy} onClick={() => void choose('mine')}>保留我的并覆盖远端</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function LeaveDialog({ open, onLeave, onStay }: { open: boolean; onLeave: () => void; onStay: () => void }) {
+  return (
+    <Dialog open={open} onOpenChange={o => { if (!o) onStay() }}>
+      <DialogContent title="改动还没同步到云端" description="改动已保存在本机浏览器，离开后联网时会自动同步。在其他设备上暂时看不到这些改动。">
+        <DialogFooter>
+          <Button variant="ghost" onClick={onLeave}>继续离开</Button>
+          <Button variant="primary" onClick={onStay} autoFocus>留下</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** §4.4 in-app leave guard. useBlocker needs a data router; with <BrowserRouter> we intercept in-app link clicks instead. */
+function LeaveGuard() {
+  const dirty = useCanvas(s => s.status !== 'saved')
+  const dataRouter = useContext(UNSAFE_DataRouterContext)
+  return dataRouter ? <BlockerGuard dirty={dirty} /> : <LinkGuard dirty={dirty} />
+}
+
+function BlockerGuard({ dirty }: { dirty: boolean }) {
+  const b = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname)
+  return <LeaveDialog open={b.state === 'blocked'} onLeave={() => b.proceed?.()} onStay={() => b.reset?.()} />
+}
+
+function LinkGuard({ dirty }: { dirty: boolean }) {
+  const navigate = useNavigate()
+  const [to, setTo] = useState<string | null>(null)
+  useEffect(() => {
+    if (!dirty) return
+    // ponytail: covers <Link>/<NavLink> clicks; browser back/forward can't be blocked without a data router (beforeunload covers reload/close).
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
+      if (!a || (a.target && a.target !== '_self') || a.origin !== location.origin || a.pathname === location.pathname) return
+      e.preventDefault()
+      e.stopPropagation()
+      setTo(a.pathname + a.search + a.hash)
+    }
+    document.addEventListener('click', onClick, true)
+    return () => document.removeEventListener('click', onClick, true)
+  }, [dirty])
+  return <LeaveDialog open={!!to} onLeave={() => { const t = to!; setTo(null); navigate(t) }} onStay={() => setTo(null)} />
 }
 
 function TitleInput() {
@@ -131,6 +236,18 @@ function Inner() {
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [help, setHelp] = useState(false)
   const [fileDrag, setFileDrag] = useState(false)
+  const [conflictOpen, setConflictOpen] = useState(false)
+  const hasConflict = useCanvas(s => !!s.conflict)
+  useEffect(() => { setConflictOpen(hasConflict) }, [hasConflict])
+
+  // 放到画布 lands at the viewport centre while this editor is mounted.
+  useEffect(() => {
+    setEditorCenter(() => {
+      const r = wrap.current!.getBoundingClientRect()
+      return rf.screenToFlowPosition({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
+    })
+    return () => setEditorCenter(null)
+  }, [rf])
 
   const openMenuAt = useCallback((clientX: number, clientY: number, extra?: Partial<MenuState>) => {
     const r = wrap.current!.getBoundingClientRect()
@@ -228,6 +345,11 @@ function Inner() {
       else if (e.key === '?' || (e.shiftKey && e.key === '/')) { e.preventDefault(); setHelp(true) }
       else if (e.key === '/') { e.preventDefault(); openMenuHere() }
       else if (e.key === 'Escape') setMenu(null)
+      else if (!mod && e.key.startsWith('Arrow')) {
+        const step = e.shiftKey ? 10 : 1
+        const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key]
+        if (d && nudgeSelection(d[0]!, d[1]!)) e.preventDefault()
+      }
     }
     const onPaste = (e: ClipboardEvent) => {
       if (editable(e.target)) return
@@ -252,7 +374,7 @@ function Inner() {
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-paper px-3">
         <Link to="/studio/canvas" aria-label="返回画布列表" title="返回画布列表" className="grid size-8 shrink-0 place-items-center rounded-control hover:bg-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><ArrowLeft className="size-[18px]" /></Link>
         <TitleInput />
-        <SaveStatus />
+        <SaveStatus onConflict={() => setConflictOpen(true)} />
         <span className="flex-1" />
         <IconButton size="icon-sm" label={`撤销 (${MOD} Z)`} disabled={!canUndo} disabledReason="没有可撤销的操作" onClick={undoAction}><Undo2 /></IconButton>
         <IconButton size="icon-sm" label={`重做 (${MOD} ⇧ Z)`} disabled={!canRedo} disabledReason="没有可重做的操作" onClick={redoAction}><Redo2 /></IconButton>
@@ -286,9 +408,12 @@ function Inner() {
           isValidConnection={c => !checkConnection(c)}
           onConnectEnd={onConnectEnd}
           onNodeDragStart={() => beginGesture('drag')}
+          onNodeDrag={(_, node, dragged) => dragOver(node.id, dragged.map(n => n.id))}
           onNodeDragStop={endGesture}
           onSelectionDragStart={() => beginGesture('drag')}
+          onSelectionDrag={(_, dragged) => { if (dragged[0]) dragOver(dragged[0].id, dragged.map(n => n.id)) }}
           onSelectionDragStop={endGesture}
+          disableKeyboardA11y
           defaultViewport={useCanvas.getState().viewport}
           onMoveEnd={(_, viewport) => setViewport(viewport)}
           onPaneClick={() => setMenu(null)}
@@ -350,6 +475,8 @@ function Inner() {
         />
       </div>
 
+      <ConflictDialog open={conflictOpen} onOpenChange={setConflictOpen} />
+      <LeaveGuard />
       <Dialog open={help} onOpenChange={setHelp}>
         <DialogContent title="快捷键与操作" description="框选为默认拖动行为；平移用空格 + 拖动、中键 / 右键拖动或滚轮。" className="max-w-lg">
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
@@ -373,12 +500,12 @@ export function Editor({ projectId }: { projectId: string }) {
 
   useEffect(() => {
     void loadProject(projectId)
-    return () => { void flush() }
+    return () => { void closeProject(projectId) }
   }, [projectId])
 
   // §4.4: warn before leaving while changes haven't synced.
   useEffect(() => {
-    if (status === 'saved') return
+    if (status === 'saved') return // includes 'conflict': unresolved local changes
     const h = (e: BeforeUnloadEvent) => { e.preventDefault() }
     window.addEventListener('beforeunload', h)
     return () => window.removeEventListener('beforeunload', h)

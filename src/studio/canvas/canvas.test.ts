@@ -4,7 +4,9 @@ import {
   type AssetRef, type CanvasEdge, type CanvasNode, type NodeKind,
 } from './graph'
 import { emptyHistory, record, redo, undo, HISTORY_LIMIT } from './history'
-import { createLocalRepo, type KV } from './repo'
+import { createLocalRepo, createMockServer, createSyncedRepo, resolveConflict, syncDirty, type KV } from './repo'
+import { buildCanvasAdd, parseCanvasAdd } from './canvasAdd'
+import { absolutePosition, dropTarget, nudge, reparent, sortParentsFirst } from './graph'
 
 const img = (id: string): AssetRef => ({ id, kind: 'image', width: 10, height: 10, urls: { orig: `https://x/${id}.png` } })
 const node = (id: string, type: NodeKind, data: CanvasNode['data'] = {}, position = { x: 0, y: 0 }): CanvasNode => ({ id, type, position, data })
@@ -121,7 +123,7 @@ describe('clipboard', () => {
 describe('group / ungroup', () => {
   it('round-trips absolute positions', () => {
     const nodes = [{ ...node('a', 'text', {}, { x: 100, y: 200 }), selected: true }, { ...node('b', 'text', {}, { x: 500, y: 260 }), selected: true }]
-    const g = groupSelection(nodes, 'G')!
+    const g = groupSelection(nodes, 'G') as CanvasNode[]
     expect(g[0]).toMatchObject({ id: 'G', type: 'group' })
     expect(g[1]!.parentId).toBe('G')
     const u = ungroupSelection(g.map(n => ({ ...n, selected: n.id === 'G' })))!
@@ -156,11 +158,12 @@ describe('inputs assembly & mode decision', () => {
   })
 })
 
+const memKV = (): KV => {
+  const m = new Map<string, unknown>()
+  return { get: async k => structuredClone(m.get(k)) as never, set: async (k, v) => { m.set(k, structuredClone(v)) }, del: async k => { m.delete(k) } }
+}
+
 describe('local repo', () => {
-  const memKV = (): KV => {
-    const m = new Map<string, unknown>()
-    return { get: async k => structuredClone(m.get(k)) as never, set: async (k, v) => { m.set(k, structuredClone(v)) }, del: async k => { m.delete(k) } }
-  }
   it('persists document round trip, rename, duplicate, remove/restore', async () => {
     const kv = memKV()
     const repo = createLocalRepo(kv, () => true)
@@ -192,5 +195,198 @@ describe('local repo', () => {
     expect((await again.list()).map(m => m.id).sort()).toEqual([p.id, copy.id].sort())
     expect(await again.sync(p.id)).toBe('synced')
     expect(await createLocalRepo(kv, () => false).sync(p.id)).toBe('offline')
+  })
+})
+
+describe('放到画布 detail', () => {
+  const media = (id: string, kind = 'image', status = 'ready') => ({ id, kind, status, width: 800, height: 600, duration_ms: null, urls: { w480: `https://s/${id}/480`, w960: `https://s/${id}/960`, orig: `https://s/${id}` } })
+  it('validates shapes defensively', () => {
+    expect(parseCanvasAdd(null)).toBeNull()
+    expect(parseCanvasAdd({ source: 'asset', assets: [] })).toBeNull()
+    expect(parseCanvasAdd({ source: 'asset', assets: [{ id: 1 }, media('p', 'image', 'pending')] })).toBeNull()
+    expect(parseCanvasAdd({ source: 'record', record_id: 'r', results: 'x' })).toBeNull()
+    expect(parseCanvasAdd({ source: 'case', case_id: 'c', image: {} })).toBeNull()
+    expect(parseCanvasAdd({ source: 'nope' })).toBeNull()
+    // legacy shape without `source` from the assets/create views
+    const legacy = parseCanvasAdd({ assets: [media('a'), { junk: true }] })
+    expect(legacy).toMatchObject({ source: 'asset', assets: [{ id: 'a', asset_id: 'a', urls: { orig: 'https://s/a' } }] })
+    expect(parseCanvasAdd({ source: 'case', case_id: 'c', image: { url: 'u', width: 'x', height: 5 }, prompt: 7 }))
+      .toEqual({ source: 'case', case_id: 'c', image: { url: 'u', width: null, height: 5 }, prompt: '' })
+  })
+  it('builds nodes per source around the centre', () => {
+    let i = 0
+    const id = () => `n${++i}`
+    const a = buildCanvasAdd(parseCanvasAdd({ source: 'asset', assets: [media('a'), media('v', 'video')] })!, { x: 0, y: 0 }, id)
+    expect(a.nodes.map(n => [n.type, n.data.asset?.asset_id, n.selected])).toEqual([['image', 'a', true], ['video', 'v', true]])
+    expect(a.nodes[0]!.position.x).toBe(-(240 + 40 + 280) / 2)
+    expect(a.edges).toEqual([])
+
+    const r = buildCanvasAdd(parseCanvasAdd({ source: 'record', record_id: 'rec', results: [media('x'), media('y')], prompt: '猫', model: 'gpt-image-2', params: { n: 2 } })!, { x: 0, y: 0 }, id)
+    expect(r.nodes.map(n => n.type)).toEqual(['text', 'gen-image'])
+    expect(r.nodes[0]!.data.text).toBe('猫')
+    expect(r.nodes[1]!.data).toMatchObject({ model: 'gpt-image-2', params: { n: 2 }, primary: 0, prompt: '', source: { record_id: 'rec' } })
+    expect(r.nodes[1]!.data.results!.map(x => x.asset_id)).toEqual(['x', 'y'])
+    expect(r.edges).toEqual([{ id: expect.any(String), source: r.nodes[0]!.id, sourceHandle: 'out-text', target: r.nodes[1]!.id, targetHandle: 'in-text' }])
+    expect(assembleInputs(r.nodes[1]!.id, r.nodes, r.edges).prompt).toBe('猫')
+
+    const c = buildCanvasAdd(parseCanvasAdd({ source: 'case', case_id: 'k', image: { url: 'https://c/1.jpg', width: 3, height: 4 }, prompt: '海报' })!, { x: 0, y: 0 }, id)
+    expect(c.nodes.map(n => n.type)).toEqual(['image', 'text'])
+    expect(c.nodes[0]!.data.asset).toMatchObject({ urls: { orig: 'https://c/1.jpg' } })
+    expect(c.nodes[0]!.data.asset!.asset_id).toBeUndefined()
+  })
+})
+
+describe('nested groups & reparenting', () => {
+  // G1 (100,100) ⊃ G2 (at 50,60 → abs 150,160) ⊃ a (10,40 → abs 160,200); b top-level
+  const base = (): CanvasNode[] => [
+    { ...node('G1', 'group', {}, { x: 100, y: 100 }), width: 600, height: 500 },
+    { ...node('G2', 'group', {}, { x: 50, y: 60 }), parentId: 'G1', width: 300, height: 300 },
+    { ...node('a', 'text', {}, { x: 10, y: 40 }), parentId: 'G2' },
+    node('b', 'text', {}, { x: 1000, y: 1000 }),
+  ]
+  const abs = (ns: CanvasNode[], id: string) => absolutePosition(ns.find(n => n.id === id)!, new Map(ns.map(n => [n.id, n])))
+
+  it('absolute position walks every ancestor', () => {
+    expect(abs(base(), 'a')).toEqual({ x: 160, y: 200 })
+  })
+  it('drag out of nested group to top level keeps absolute position', () => {
+    const out = reparent(base(), ['a'], undefined)
+    const a = out.find(n => n.id === 'a')!
+    expect(a.parentId).toBeUndefined()
+    expect(a.position).toEqual({ x: 160, y: 200 })
+  })
+  it('drag into a group: relative position, parents first, group grows to fit', () => {
+    const ns = base().map(n => (n.id === 'b' ? { ...n, position: { x: 680, y: 200 } } : n))
+    const out = reparent(ns, ['b'], 'G1')
+    expect(out.map(n => n.id).indexOf('G1')).toBeLessThan(out.map(n => n.id).indexOf('b'))
+    expect(abs(out, 'b')).toEqual({ x: 680, y: 200 })
+    const g1 = out.find(n => n.id === 'G1')!
+    expect(g1.width).toBeGreaterThanOrEqual(680 - 100 + 240 + 24)
+    // growing leftwards shifts the group and compensates its children
+    const left = reparent(base().map(n => (n.id === 'b' ? { ...n, position: { x: 90, y: 300 } } : n)), ['b'], 'G1')
+    expect(abs(left, 'a')).toEqual({ x: 160, y: 200 })
+    expect(abs(left, 'b')).toEqual({ x: 90, y: 300 })
+  })
+  it('drop target: deepest valid group; depth limit; never into itself', () => {
+    const ns = base()
+    expect(dropTarget(ns, ['b'], { x: 170, y: 210 })).toBe('G2')
+    expect(dropTarget(ns, ['b'], { x: 650, y: 550 })).toBe('G1')
+    expect(dropTarget(ns, ['b'], { x: 5000, y: 5000 })).toBeUndefined()
+    const withGroup = [...ns, { ...node('G3', 'group', {}, { x: 2000, y: 0 }), width: 100, height: 100 }]
+    // a group can go into G1 (level 2) but not into G2 (would be level 3)
+    expect(dropTarget(withGroup, ['G3'], { x: 170, y: 210 })).toBe('G1')
+    expect(dropTarget(ns, ['G1'], { x: 170, y: 210 })).toBeUndefined()
+  })
+  it('group selection respects depth; ungroup keeps absolute positions of nested children', () => {
+    const sel = base().map(n => ({ ...n, selected: n.id === 'a' }))
+    expect(groupSelection(sel, 'G4')).toMatch('嵌套')
+    expect(groupSelection(base().map(n => ({ ...n, selected: n.id === 'G2' })), 'G0')).toMatch('嵌套')
+    const withX = [...base(), { ...node('x', 'text', {}, { x: 400, y: 50 }), parentId: 'G1', selected: true }]
+    const g = groupSelection(withX, 'G0') as CanvasNode[]
+    expect(g.find(n => n.id === 'G0')!.parentId).toBe('G1')
+    expect(g.map(n => n.id).indexOf('G0')).toBeLessThan(g.map(n => n.id).indexOf('x'))
+    expect(abs(g, 'x')).toEqual({ x: 500, y: 150 })
+    const u = ungroupSelection(base().map(n => ({ ...n, selected: n.id === 'G1' || n.id === 'G2' })))!
+    expect(u.find(n => n.id === 'a')).toMatchObject({ position: { x: 160, y: 200 } })
+    expect(u.find(n => n.id === 'a')!.parentId).toBeUndefined()
+    const u2 = ungroupSelection(base().map(n => ({ ...n, selected: n.id === 'G2' })))!
+    expect(u2.find(n => n.id === 'a')).toMatchObject({ parentId: 'G1', position: { x: 60, y: 100 } })
+  })
+  it('sortParentsFirst', () => {
+    expect(sortParentsFirst([...base()].reverse()).map(n => n.id)).toEqual(['b', 'G1', 'G2', 'a'])
+  })
+})
+
+describe('nudge', () => {
+  it('moves unlocked selection roots; key bursts coalesce into one undo step', () => {
+    const ns: CanvasNode[] = [
+      { ...node('g', 'group', {}, { x: 0, y: 0 }), selected: true },
+      { ...node('c', 'text', {}, { x: 5, y: 5 }), parentId: 'g', selected: true },
+      { ...node('l', 'text', { locked: true }, { x: 9, y: 9 }), selected: true },
+    ]
+    const out = nudge(ns, 10, -1)!
+    expect(out.map(n => n.position)).toEqual([{ x: 10, y: -1 }, { x: 5, y: 5 }, { x: 9, y: 9 }])
+    expect(nudge(ns.map(n => ({ ...n, selected: false })), 1, 0)).toBeNull()
+    let h = emptyHistory<number>()
+    for (const t of [0, 50, 100, 350]) h = record(h, t, 'nudge', t, 300)
+    expect(h.past).toEqual([0])
+    h = record(h, 9, 'nudge', 700, 300) // 350ms gap → new step
+    expect(h.past).toEqual([0, 9])
+  })
+})
+
+describe('remote sync', () => {
+  const doc = (text: string) => toDocument([node('t', 'text', { text })], [], { x: 0, y: 0, zoom: 1 })
+  const setup = () => {
+    let online = true
+    const server = createMockServer(memKV(), () => online, 0)
+    const kv = memKV()
+    const repo = createSyncedRepo(createLocalRepo(kv, () => online), server.transport, () => online)
+    return { repo, server, kv, setOnline: (v: boolean) => { online = v } }
+  }
+
+  it('create → POST, edit → PUT with revision; remote edit → 409 conflict → each resolution', async () => {
+    const { repo, server, kv, setOnline } = setup()
+    const p = await repo.create('A')
+    await repo.save(p.id, doc('v1'))
+    expect(await repo.sync(p.id)).toBe('synced')
+    expect((await repo.get(p.id))!.meta).toMatchObject({ revision: 1, dirty: false })
+    await repo.save(p.id, doc('v2'))
+    expect(await repo.sync(p.id)).toBe('synced')
+    expect((await repo.get(p.id))!.meta.revision).toBe(2)
+
+    // concurrent edit elsewhere, then a local edit
+    await server.simulateRemoteEdit(p.id)
+    await repo.save(p.id, doc('mine'))
+    const r = await repo.sync(p.id)
+    expect(typeof r).toBe('object')
+    const remote = (r as { conflict: any }).conflict
+    expect(remote.meta.revision).toBe(3)
+    expect(remote.document.nodes).toHaveLength(2)
+
+    // 保留我的并覆盖远端
+    await resolveConflict(repo, p.id, 'mine', remote)
+    expect(await repo.sync(p.id)).toBe('synced')
+    const after = (await repo.get(p.id))!
+    expect(after.meta.revision).toBe(4)
+    expect(after.document.nodes[0]!.data.text).toBe('mine')
+
+    // 用远端覆盖本地
+    await server.simulateRemoteEdit(p.id)
+    await repo.save(p.id, doc('lost'))
+    const r2 = (await repo.sync(p.id)) as { conflict: any }
+    await resolveConflict(repo, p.id, 'remote', r2.conflict)
+    const local = (await repo.get(p.id))!
+    expect(local.meta).toMatchObject({ revision: 5, dirty: false })
+    expect(local.document.nodes.map(n => n.data.text)).toEqual(['mine', '另一台设备上的改动'])
+
+    // 另存为副本
+    await server.simulateRemoteEdit(p.id)
+    await repo.save(p.id, doc('copy me'))
+    const r3 = (await repo.sync(p.id)) as { conflict: any }
+    const copyId = (await resolveConflict(repo, p.id, 'copy', r3.conflict))!
+    expect((await repo.get(copyId))!.document.nodes[0]!.data.text).toBe('copy me')
+    expect((await repo.get(p.id))!.meta.revision).toBe(6)
+    expect(await repo.sync(copyId)).toBe('synced')
+
+    // another device (fresh local store) sees both
+    const other = createSyncedRepo(createLocalRepo(memKV(), () => true), server.transport, () => true)
+    expect((await other.list()).map(m => m.id).sort()).toEqual([p.id, copyId].sort())
+    void kv; void setOnline
+  })
+
+  it('offline edits queue as dirty and flush when back online', async () => {
+    const { repo, setOnline } = setup()
+    const a = await repo.create('A'), b = await repo.create('B')
+    setOnline(false)
+    await repo.save(a.id, doc('offline a'))
+    await repo.save(b.id, doc('offline b'))
+    expect(await repo.sync(a.id)).toBe('offline')
+    expect((await repo.list()).every(m => m.dirty)).toBe(true)
+    setOnline(true)
+    const res = await syncDirty(repo, a.id)
+    expect(res).toEqual({ [b.id]: 'synced' })
+    expect(await syncDirty(repo)).toEqual({ [a.id]: 'synced' })
+    expect((await repo.list()).some(m => m.dirty)).toBe(false)
   })
 })
