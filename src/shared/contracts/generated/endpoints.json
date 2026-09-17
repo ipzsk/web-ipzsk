@@ -1,0 +1,3738 @@
+{
+  "_source": {
+    "repo": "ipzsk-api-gateway",
+    "commit": "dde33e4-dirty"
+  },
+  "auth_kinds": {
+    "bearer": {
+      "common_errors": [
+        "invalid_api_token",
+        "rate_limited"
+      ],
+      "description": "Authorization: Bearer ipz_…"
+    },
+    "cookie": {
+      "common_errors": [
+        "customer_login_required",
+        "origin_denied",
+        "rate_limited",
+        "forbidden_role",
+        "admin_session_expired"
+      ],
+      "description": "better-auth customer session cookie required (bearer tokens rejected with customer_login_required); roles → user_roles + session < 12h"
+    },
+    "cookie_or_bearer": {
+      "common_errors": [
+        "invalid_api_token",
+        "origin_denied",
+        "plugin_scope_denied",
+        "rate_limited"
+      ],
+      "description": "customer session cookie, or Bearer ipz_ token (plugin tokens denied)"
+    },
+    "public": {
+      "common_errors": [
+        "rate_limited"
+      ],
+      "description": "no credentials"
+    }
+  },
+  "endpoints": [
+    {
+      "auth": "public",
+      "errors": [
+        "captcha_unavailable",
+        "origin_denied",
+        "rate_limited"
+      ],
+      "method": "POST",
+      "path": "/api/account/captcha"
+    },
+    {
+      "auth": "public",
+      "errors": [
+        "captcha_unavailable",
+        "origin_denied",
+        "rate_limited"
+      ],
+      "method": "POST",
+      "path": "/api/account/captcha/verify"
+    },
+    {
+      "auth": "public",
+      "errors": [],
+      "method": "GET",
+      "path": "/api/account/status"
+    },
+    {
+      "auth": "public",
+      "errors": [],
+      "method": "POST",
+      "path": "/api/auth/email-otp/request-password-reset"
+    },
+    {
+      "auth": "public",
+      "errors": [],
+      "method": "POST",
+      "path": "/api/auth/email-otp/reset-password"
+    },
+    {
+      "auth": "public",
+      "errors": [],
+      "method": "POST",
+      "path": "/api/auth/email-otp/send-verification-otp"
+    },
+    {
+      "auth": "public",
+      "errors": [],
+      "method": "POST",
+      "path": "/api/auth/email-otp/verify-email"
+    },
+    {
+      "auth": "public",
+      "errors": [],
+      "method": "GET",
+      "path": "/api/auth/get-session"
+    },
+    {
+      "auth": "public",
+      "errors": [],
+      "method": "POST",
+      "path": "/api/auth/sign-in/email"
+    },
+    {
+      "auth": "public",
+      "errors": [],
+      "method": "POST",
+      "path": "/api/auth/sign-out"
+    },
+    {
+      "auth": "public",
+      "errors": [],
+      "method": "POST",
+      "path": "/api/auth/sign-up/email"
+    },
+    {
+      "auth": "public",
+      "errors": [],
+      "method": "GET",
+      "path": "/api/desktop/download/:platform"
+    },
+    {
+      "auth": "public",
+      "errors": [],
+      "method": "GET",
+      "path": "/api/desktop/version"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "folder_not_found",
+        "invalid_cursor",
+        "invalid_id",
+        "invalid_kind",
+        "invalid_source",
+        "media_storage_unavailable"
+      ],
+      "method": "GET",
+      "path": "/api/me/assets",
+      "query": "AssetListQuery",
+      "response": "Page<MediaAsset>"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "asset_not_found",
+        "invalid_id"
+      ],
+      "method": "DELETE",
+      "path": "/api/me/assets/:id",
+      "response": "Empty"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "invalid_cursor"
+      ],
+      "method": "GET",
+      "path": "/api/me/canvas",
+      "query": [
+        "cursor"
+      ],
+      "response": "Page<CanvasProjectSummary>"
+    },
+    {
+      "auth": "cookie",
+      "body": "CanvasCreate",
+      "body_shape": "{ id?: Uuid title?: string document: CanvasDocument }",
+      "errors": [
+        "canvas_asset_forbidden",
+        "canvas_not_found",
+        "canvas_too_large",
+        "customer_login_required",
+        "invalid_canvas_document",
+        "invalid_id",
+        "invalid_request",
+        "invalid_title",
+        "too_many_canvas_edges",
+        "too_many_canvas_nodes"
+      ],
+      "method": "POST",
+      "path": "/api/me/canvas",
+      "response": "CanvasProject"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "canvas_not_found",
+        "customer_login_required"
+      ],
+      "method": "DELETE",
+      "path": "/api/me/canvas/:id",
+      "response": "Empty"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "canvas_not_found",
+        "customer_login_required"
+      ],
+      "method": "GET",
+      "path": "/api/me/canvas/:id",
+      "response": "CanvasProject"
+    },
+    {
+      "auth": "cookie",
+      "body": "CanvasPut",
+      "body_shape": "{ title?: string document: CanvasDocument revision: number }",
+      "conflict": "CanvasConflict",
+      "errors": [
+        "canvas_asset_forbidden",
+        "canvas_conflict",
+        "canvas_not_found",
+        "canvas_too_large",
+        "customer_login_required",
+        "invalid_canvas_document",
+        "invalid_request",
+        "invalid_revision",
+        "invalid_title",
+        "too_many_canvas_edges",
+        "too_many_canvas_nodes"
+      ],
+      "method": "PUT",
+      "path": "/api/me/canvas/:id",
+      "response": "CanvasProject"
+    },
+    {
+      "auth": "cookie",
+      "body": "CanvasThumbPost",
+      "body_shape": "{ asset_id: Uuid | null }",
+      "errors": [
+        "canvas_asset_forbidden",
+        "canvas_not_found",
+        "customer_login_required",
+        "invalid_request"
+      ],
+      "method": "POST",
+      "path": "/api/me/canvas/:id/thumb",
+      "response": "CanvasProjectSummary"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "anchor_not_succeeded",
+        "audio_file_required",
+        "audio_prompt_too_long",
+        "audio_too_large",
+        "billing_requires_priced_media",
+        "billing_requires_priced_text_and_output_limit",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "customer_login_required",
+        "email_login_required",
+        "idempotency_conflict",
+        "image_file_required",
+        "image_upload_too_large",
+        "insufficient_balance",
+        "invalid_anthropic_beta",
+        "invalid_anthropic_version",
+        "invalid_api_token",
+        "invalid_audio_field",
+        "invalid_audio_language",
+        "invalid_audio_response_format",
+        "invalid_audio_temperature",
+        "invalid_audio_upload",
+        "invalid_batch_id",
+        "invalid_batch_position",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_idempotency_key",
+        "invalid_image_field",
+        "invalid_image_upload",
+        "invalid_input",
+        "invalid_mentions",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_plugin_token",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference_asset_ids",
+        "invalid_reference_images",
+        "invalid_reference_upload",
+        "invalid_request",
+        "invalid_source",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "media_uses_task_polling",
+        "missing_tier",
+        "model_not_media",
+        "only_n_one_supported",
+        "plugin_disabled",
+        "plugin_model_denied",
+        "plugin_token_denied",
+        "record_not_found",
+        "reference_asset_not_found",
+        "reference_images_too_large",
+        "reference_upload_failed",
+        "reference_upload_unavailable",
+        "request_already_received",
+        "request_not_found",
+        "thread_not_found",
+        "too_many_active",
+        "too_many_reference_images",
+        "too_many_references",
+        "unknown_model",
+        "unknown_tier",
+        "unsupported_audio_format",
+        "unsupported_image_format",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model",
+        "unsupported_protocol",
+        "use_stateless_responses",
+        "workspace_quote_required"
+      ],
+      "method": "POST",
+      "path": "/api/me/chat/completions"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "account_disabled",
+        "credit_reference_required",
+        "customer_login_required",
+        "desktop_access_revoked",
+        "desktop_models_unavailable",
+        "invalid_credit_amount",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision"
+      ],
+      "method": "POST",
+      "path": "/api/me/desktop/bootstrap"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [],
+      "method": "GET",
+      "path": "/api/me/developer"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "developer_application_exists",
+        "invalid_plugin"
+      ],
+      "method": "POST",
+      "path": "/api/me/developer/apply"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [],
+      "method": "GET",
+      "path": "/api/me/developer/plugins"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "invalid_github_repository",
+        "invalid_package_name",
+        "invalid_plugin",
+        "invalid_plugin_slug"
+      ],
+      "method": "POST",
+      "path": "/api/me/developer/plugins"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "invalid_id",
+        "plugin_not_found"
+      ],
+      "method": "GET",
+      "path": "/api/me/developer/plugins/:id/releases"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "asset_digest_mismatch",
+        "asset_size_mismatch",
+        "developer_approval_required",
+        "github_fetch_failed",
+        "invalid_asset_redirect",
+        "invalid_github_asset",
+        "invalid_github_release",
+        "invalid_id",
+        "invalid_plugin_archive",
+        "invalid_release_url",
+        "package_identity_mismatch",
+        "plugin_not_found",
+        "release_not_public",
+        "release_tag_must_be_version",
+        "release_too_large",
+        "select_one_tgz_asset"
+      ],
+      "method": "POST",
+      "path": "/api/me/developer/plugins/:id/releases"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "invalid_id",
+        "plugin_not_found",
+        "release_not_withdrawable"
+      ],
+      "method": "POST",
+      "path": "/api/me/developer/plugins/:id/releases/:releaseId/withdraw"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "invalid_id",
+        "invalid_plugin",
+        "plugin_not_found",
+        "published_metadata_locked"
+      ],
+      "method": "POST",
+      "path": "/api/me/developer/plugins/:id/settings"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [],
+      "method": "GET",
+      "path": "/api/me/developer/settlements"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "invalid_date",
+        "invalid_date_range",
+        "invalid_id"
+      ],
+      "method": "GET",
+      "path": "/api/me/developer/usage"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "invalid_cursor",
+        "invalid_favorite_type"
+      ],
+      "method": "GET",
+      "path": "/api/me/favorites",
+      "query": [
+        "type",
+        "cursor"
+      ],
+      "response": "Page<Favorite>"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "invalid_favorite_type"
+      ],
+      "method": "DELETE",
+      "path": "/api/me/favorites/:type/:id",
+      "response": "Empty"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "asset_not_found",
+        "case_not_found",
+        "customer_login_required",
+        "invalid_favorite_type"
+      ],
+      "method": "PUT",
+      "path": "/api/me/favorites/:type/:id",
+      "response": "Empty"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required"
+      ],
+      "method": "GET",
+      "path": "/api/me/folders",
+      "response": "FolderList"
+    },
+    {
+      "auth": "cookie",
+      "body": "FolderCreate",
+      "body_shape": "{ name: string position?: number }",
+      "errors": [
+        "customer_login_required",
+        "invalid_name",
+        "invalid_position",
+        "invalid_request"
+      ],
+      "method": "POST",
+      "path": "/api/me/folders",
+      "response": "Folder"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "folder_not_found"
+      ],
+      "method": "DELETE",
+      "path": "/api/me/folders/:id",
+      "response": "Empty"
+    },
+    {
+      "auth": "cookie",
+      "body": "FolderPatch",
+      "body_shape": "{ name?: string position?: number }",
+      "errors": [
+        "customer_login_required",
+        "folder_not_found",
+        "invalid_name",
+        "invalid_position",
+        "invalid_request"
+      ],
+      "method": "PATCH",
+      "path": "/api/me/folders/:id",
+      "response": "Folder"
+    },
+    {
+      "auth": "cookie",
+      "body": "FolderItemsPut",
+      "body_shape": "{ asset_ids: Uuid[] }",
+      "errors": [
+        "asset_not_owned",
+        "customer_login_required",
+        "folder_not_found",
+        "invalid_asset_ids",
+        "invalid_request"
+      ],
+      "method": "PUT",
+      "path": "/api/me/folders/:id/items",
+      "response": "FolderItemsResult"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "folder_not_found"
+      ],
+      "method": "DELETE",
+      "path": "/api/me/folders/:id/items/:assetId",
+      "response": "Empty"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "invalid_batch_id"
+      ],
+      "method": "DELETE",
+      "path": "/api/me/generations",
+      "query": [
+        "batch_id"
+      ],
+      "response": "DeletedCount"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "invalid_batch_id",
+        "invalid_cursor",
+        "invalid_idempotency_key",
+        "invalid_status",
+        "invalid_thread"
+      ],
+      "method": "GET",
+      "path": "/api/me/generations",
+      "query": "GenerationListQuery",
+      "response": "Page<GenerationRecord>"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "generation_not_found"
+      ],
+      "method": "DELETE",
+      "path": "/api/me/generations/:id",
+      "response": "Empty"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "generation_not_found"
+      ],
+      "method": "GET",
+      "path": "/api/me/generations/:id",
+      "response": "GenerationRecord"
+    },
+    {
+      "auth": "cookie",
+      "body": "GenerationPatch",
+      "body_shape": "{ thread_id: Uuid | null }",
+      "errors": [
+        "customer_login_required",
+        "generation_not_found",
+        "invalid_request",
+        "invalid_thread_id",
+        "thread_not_found"
+      ],
+      "method": "PATCH",
+      "path": "/api/me/generations/:id",
+      "response": "GenerationRecord"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "anchor_not_succeeded",
+        "audio_file_required",
+        "audio_prompt_too_long",
+        "audio_too_large",
+        "billing_requires_priced_media",
+        "billing_requires_priced_text_and_output_limit",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "customer_login_required",
+        "email_login_required",
+        "idempotency_conflict",
+        "image_file_required",
+        "image_upload_too_large",
+        "insufficient_balance",
+        "invalid_anthropic_beta",
+        "invalid_anthropic_version",
+        "invalid_api_token",
+        "invalid_audio_field",
+        "invalid_audio_language",
+        "invalid_audio_response_format",
+        "invalid_audio_temperature",
+        "invalid_audio_upload",
+        "invalid_batch_id",
+        "invalid_batch_position",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_idempotency_key",
+        "invalid_image_field",
+        "invalid_image_upload",
+        "invalid_input",
+        "invalid_mentions",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_plugin_token",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference_asset_ids",
+        "invalid_reference_images",
+        "invalid_reference_upload",
+        "invalid_request",
+        "invalid_source",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "media_uses_task_polling",
+        "missing_tier",
+        "model_not_media",
+        "only_n_one_supported",
+        "plugin_disabled",
+        "plugin_model_denied",
+        "plugin_token_denied",
+        "record_not_found",
+        "reference_asset_not_found",
+        "reference_images_too_large",
+        "reference_upload_failed",
+        "reference_upload_unavailable",
+        "request_already_received",
+        "request_not_found",
+        "thread_not_found",
+        "too_many_active",
+        "too_many_reference_images",
+        "too_many_references",
+        "unknown_model",
+        "unknown_tier",
+        "unsupported_audio_format",
+        "unsupported_image_format",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model",
+        "unsupported_protocol",
+        "use_stateless_responses",
+        "workspace_quote_required"
+      ],
+      "method": "POST",
+      "path": "/api/me/image-prompt"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "image_storage_unavailable",
+        "invalid_offset"
+      ],
+      "method": "GET",
+      "path": "/api/me/images"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "body": "GenerationBody",
+      "body_shape": "{ model: string prompt?: string reference_asset_ids?: Uuid[] image_urls?: string[] batch_id?: Uuid | null batch_position?: number | null thread_id?: Uuid | null anchor_record_id?: Uuid | null parent_record_id?: Uuid | null mentions?: Mention[] prompt_doc?: Record<string, unknown> | null source?: \"studio\" | \"template\" | \"canvas\" [extra: string]: unknown }",
+      "errors": [
+        "anchor_not_succeeded",
+        "audio_file_required",
+        "audio_prompt_too_long",
+        "audio_too_large",
+        "billing_requires_priced_media",
+        "billing_requires_priced_text_and_output_limit",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "customer_login_required",
+        "email_login_required",
+        "idempotency_conflict",
+        "image_file_required",
+        "image_upload_too_large",
+        "insufficient_balance",
+        "invalid_anthropic_beta",
+        "invalid_anthropic_version",
+        "invalid_api_token",
+        "invalid_audio_field",
+        "invalid_audio_language",
+        "invalid_audio_response_format",
+        "invalid_audio_temperature",
+        "invalid_audio_upload",
+        "invalid_batch_id",
+        "invalid_batch_position",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_idempotency_key",
+        "invalid_image_field",
+        "invalid_image_upload",
+        "invalid_input",
+        "invalid_mentions",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_plugin_token",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference_asset_ids",
+        "invalid_reference_images",
+        "invalid_reference_upload",
+        "invalid_request",
+        "invalid_source",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "media_uses_task_polling",
+        "missing_tier",
+        "model_not_media",
+        "only_n_one_supported",
+        "plugin_disabled",
+        "plugin_model_denied",
+        "plugin_token_denied",
+        "record_not_found",
+        "reference_asset_not_found",
+        "reference_images_too_large",
+        "reference_upload_failed",
+        "reference_upload_unavailable",
+        "request_already_received",
+        "request_not_found",
+        "thread_not_found",
+        "too_many_active",
+        "too_many_reference_images",
+        "too_many_references",
+        "unknown_model",
+        "unknown_tier",
+        "unsupported_audio_format",
+        "unsupported_image_format",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model",
+        "unsupported_protocol",
+        "use_stateless_responses",
+        "workspace_quote_required"
+      ],
+      "headers": [
+        "Idempotency-Key"
+      ],
+      "method": "POST",
+      "path": "/api/me/images/generations",
+      "response": "UpstreamPassthrough"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "catalog_unavailable"
+      ],
+      "method": "GET",
+      "path": "/api/me/media/models",
+      "response": "ModelCatalog"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "body": "QuoteRequest",
+      "body_shape": "{ items: GenerationBody[] }",
+      "errors": [
+        "conflicting_parameter",
+        "credit_reference_required",
+        "invalid_credit_amount",
+        "invalid_item",
+        "invalid_items",
+        "invalid_quote_response",
+        "invalid_reference_asset_ids",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "quote_requires_lanehub",
+        "reference_asset_not_found",
+        "too_many_references"
+      ],
+      "method": "POST",
+      "path": "/api/me/media/quote",
+      "response": "QuoteResponse"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "invalid_response_ids"
+      ],
+      "method": "POST",
+      "path": "/api/me/message-billing"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [],
+      "method": "GET",
+      "path": "/api/me/plugin-market"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [],
+      "method": "GET",
+      "path": "/api/me/profile"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required"
+      ],
+      "method": "GET",
+      "path": "/api/me/queue",
+      "response": "Queue"
+    },
+    {
+      "auth": "cookie",
+      "body": "QueuePut",
+      "body_shape": "{ items: QueueItem[] revision: number }",
+      "conflict": "QueueConflict",
+      "errors": [
+        "catalog_unavailable",
+        "customer_login_required",
+        "invalid_anchor",
+        "invalid_item",
+        "invalid_item_id",
+        "invalid_items",
+        "invalid_kind",
+        "invalid_mentions",
+        "invalid_param_value",
+        "invalid_params",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference",
+        "invalid_request",
+        "invalid_revision",
+        "items_too_large",
+        "queue_conflict",
+        "reference_asset_not_found",
+        "too_many_references",
+        "unknown_model",
+        "unsupported_item_field"
+      ],
+      "method": "PUT",
+      "path": "/api/me/queue",
+      "response": "Queue"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "invalid_id",
+        "request_not_found"
+      ],
+      "method": "GET",
+      "path": "/api/me/requests/:id"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [],
+      "method": "GET",
+      "path": "/api/me/roles",
+      "response": "RolesResponse"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "invalid_cursor"
+      ],
+      "method": "GET",
+      "path": "/api/me/subjects",
+      "query": [
+        "cursor"
+      ],
+      "response": "Page<Subject>"
+    },
+    {
+      "auth": "cookie",
+      "body": "SubjectCreate",
+      "body_shape": "{ name: string kind?: SubjectKind note?: string | null asset_ids?: Uuid[] cover_id?: Uuid | null }",
+      "errors": [
+        "customer_login_required",
+        "invalid_asset_ids",
+        "invalid_cover",
+        "invalid_kind",
+        "invalid_name",
+        "invalid_note",
+        "invalid_request",
+        "reference_asset_not_found",
+        "subject_not_found"
+      ],
+      "method": "POST",
+      "path": "/api/me/subjects",
+      "response": "Subject"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "subject_not_found"
+      ],
+      "method": "DELETE",
+      "path": "/api/me/subjects/:id",
+      "response": "Empty"
+    },
+    {
+      "auth": "cookie",
+      "body": "SubjectPatch",
+      "body_shape": "{ name?: string kind?: SubjectKind note?: string | null cover_id?: Uuid | null }",
+      "errors": [
+        "customer_login_required",
+        "invalid_cover",
+        "invalid_kind",
+        "invalid_name",
+        "invalid_note",
+        "invalid_request",
+        "subject_not_found"
+      ],
+      "method": "PATCH",
+      "path": "/api/me/subjects/:id",
+      "response": "Subject"
+    },
+    {
+      "auth": "cookie",
+      "body": "SubjectAssetsPut",
+      "body_shape": "{ asset_ids: Uuid[] cover_id?: Uuid | null }",
+      "errors": [
+        "customer_login_required",
+        "invalid_asset_ids",
+        "invalid_cover",
+        "invalid_request",
+        "reference_asset_not_found",
+        "subject_not_found"
+      ],
+      "method": "PUT",
+      "path": "/api/me/subjects/:id/assets",
+      "response": "Subject"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "insufficient_balance",
+        "invalid_id",
+        "request_not_found",
+        "task_not_found",
+        "unsupported_content_type"
+      ],
+      "method": "GET",
+      "path": "/api/me/tasks/:id"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "image_download_failed",
+        "image_not_found",
+        "invalid_id",
+        "invalid_image_host",
+        "invalid_image_url",
+        "media_too_large"
+      ],
+      "method": "GET",
+      "path": "/api/me/tasks/:id/image/:index"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "invalid_cursor"
+      ],
+      "method": "GET",
+      "path": "/api/me/templates",
+      "query": [
+        "cursor"
+      ],
+      "response": "Page<UserTemplate>"
+    },
+    {
+      "auth": "cookie",
+      "body": "UserTemplateCreate",
+      "body_shape": "{ name: string cover_id?: Uuid | null items: TemplateItem[] variables?: TemplateVariable[] }",
+      "errors": [
+        "catalog_unavailable",
+        "customer_login_required",
+        "invalid_anchor",
+        "invalid_cover",
+        "invalid_item",
+        "invalid_item_id",
+        "invalid_items",
+        "invalid_kind",
+        "invalid_mentions",
+        "invalid_name",
+        "invalid_param_value",
+        "invalid_params",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference",
+        "invalid_request",
+        "invalid_variables",
+        "items_too_large",
+        "reference_asset_not_found",
+        "too_many_references",
+        "unknown_model",
+        "unsupported_item_field"
+      ],
+      "method": "POST",
+      "path": "/api/me/templates",
+      "response": "UserTemplate"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "template_not_found"
+      ],
+      "method": "DELETE",
+      "path": "/api/me/templates/:id",
+      "response": "Empty"
+    },
+    {
+      "auth": "cookie",
+      "body": "UserTemplatePatch",
+      "body_shape": "{ name?: string cover_id?: Uuid | null items?: TemplateItem[] variables?: TemplateVariable[] }",
+      "errors": [
+        "catalog_unavailable",
+        "customer_login_required",
+        "invalid_anchor",
+        "invalid_cover",
+        "invalid_item",
+        "invalid_item_id",
+        "invalid_items",
+        "invalid_kind",
+        "invalid_mentions",
+        "invalid_name",
+        "invalid_param_value",
+        "invalid_params",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference",
+        "invalid_request",
+        "invalid_variables",
+        "items_too_large",
+        "reference_asset_not_found",
+        "template_not_found",
+        "too_many_references",
+        "unknown_model",
+        "unsupported_item_field"
+      ],
+      "method": "PATCH",
+      "path": "/api/me/templates/:id",
+      "response": "UserTemplate"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "invalid_cursor"
+      ],
+      "method": "GET",
+      "path": "/api/me/threads",
+      "query": [
+        "cursor"
+      ],
+      "response": "Page<Thread>"
+    },
+    {
+      "auth": "cookie",
+      "body": "ThreadCreate",
+      "body_shape": "{ id?: Uuid title?: string }",
+      "errors": [
+        "customer_login_required",
+        "invalid_id",
+        "invalid_request",
+        "invalid_title"
+      ],
+      "method": "POST",
+      "path": "/api/me/threads",
+      "response": "Thread"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "thread_not_found"
+      ],
+      "method": "DELETE",
+      "path": "/api/me/threads/:id",
+      "response": "Empty"
+    },
+    {
+      "auth": "cookie",
+      "body": "ThreadPatch",
+      "body_shape": "{ title: string }",
+      "errors": [
+        "customer_login_required",
+        "invalid_request",
+        "invalid_title",
+        "thread_not_found"
+      ],
+      "method": "PATCH",
+      "path": "/api/me/threads/:id",
+      "response": "Thread"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "account_disabled",
+        "customer_login_required",
+        "email_login_required",
+        "invalid_expiry",
+        "key_limit_reached",
+        "not_found"
+      ],
+      "method": "POST",
+      "path": "/api/me/token"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [],
+      "method": "GET",
+      "path": "/api/me/tokens"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [],
+      "method": "POST",
+      "path": "/api/me/tokens"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [],
+      "method": "POST",
+      "path": "/api/me/tokens/:id/revoke"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "body": "UploadRequest",
+      "body_shape": "{ kind: MediaKind content_type: \"image/png\" | \"image/jpeg\" | \"image/webp\" | \"video/mp4\" bytes: number }",
+      "errors": [
+        "file_too_large",
+        "invalid_bytes",
+        "media_storage_unavailable",
+        "storage_quota_exceeded",
+        "unsupported_media_type"
+      ],
+      "method": "POST",
+      "path": "/api/me/uploads",
+      "response": "UploadTicket"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "asset_not_found",
+        "invalid_id",
+        "media_storage_unavailable",
+        "upload_not_found",
+        "upload_not_pending",
+        "upload_size_mismatch",
+        "upload_type_mismatch"
+      ],
+      "method": "POST",
+      "path": "/api/me/uploads/:id/complete",
+      "response": "MediaAsset"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [],
+      "method": "GET",
+      "path": "/api/me/usage"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "body": "GenerationBody",
+      "body_shape": "{ model: string prompt?: string reference_asset_ids?: Uuid[] image_urls?: string[] batch_id?: Uuid | null batch_position?: number | null thread_id?: Uuid | null anchor_record_id?: Uuid | null parent_record_id?: Uuid | null mentions?: Mention[] prompt_doc?: Record<string, unknown> | null source?: \"studio\" | \"template\" | \"canvas\" [extra: string]: unknown }",
+      "errors": [
+        "anchor_not_succeeded",
+        "audio_file_required",
+        "audio_prompt_too_long",
+        "audio_too_large",
+        "billing_requires_priced_media",
+        "billing_requires_priced_text_and_output_limit",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "customer_login_required",
+        "email_login_required",
+        "idempotency_conflict",
+        "image_file_required",
+        "image_upload_too_large",
+        "insufficient_balance",
+        "invalid_anthropic_beta",
+        "invalid_anthropic_version",
+        "invalid_api_token",
+        "invalid_audio_field",
+        "invalid_audio_language",
+        "invalid_audio_response_format",
+        "invalid_audio_temperature",
+        "invalid_audio_upload",
+        "invalid_batch_id",
+        "invalid_batch_position",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_idempotency_key",
+        "invalid_image_field",
+        "invalid_image_upload",
+        "invalid_input",
+        "invalid_mentions",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_plugin_token",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference_asset_ids",
+        "invalid_reference_images",
+        "invalid_reference_upload",
+        "invalid_request",
+        "invalid_source",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "media_uses_task_polling",
+        "missing_tier",
+        "model_not_media",
+        "only_n_one_supported",
+        "plugin_disabled",
+        "plugin_model_denied",
+        "plugin_token_denied",
+        "record_not_found",
+        "reference_asset_not_found",
+        "reference_images_too_large",
+        "reference_upload_failed",
+        "reference_upload_unavailable",
+        "request_already_received",
+        "request_not_found",
+        "thread_not_found",
+        "too_many_active",
+        "too_many_reference_images",
+        "too_many_references",
+        "unknown_model",
+        "unknown_tier",
+        "unsupported_audio_format",
+        "unsupported_image_format",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model",
+        "unsupported_protocol",
+        "use_stateless_responses",
+        "workspace_quote_required"
+      ],
+      "headers": [
+        "Idempotency-Key"
+      ],
+      "method": "POST",
+      "path": "/api/me/videos/generations",
+      "response": "UpstreamPassthrough"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "credit_reference_required",
+        "invalid_api_token",
+        "invalid_credit_amount",
+        "invalid_voucher",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "not_found",
+        "voucher_unavailable"
+      ],
+      "method": "POST",
+      "path": "/api/me/vouchers/redeem"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "credit_reference_required",
+        "invalid_credit_amount",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision"
+      ],
+      "method": "GET",
+      "path": "/api/me/wallet"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "account_disabled",
+        "credit_reference_required",
+        "customer_login_required",
+        "invalid_credit_amount",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "web_access_revoked"
+      ],
+      "method": "POST",
+      "path": "/api/me/web/session-key"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "email_login_required"
+      ],
+      "method": "GET",
+      "path": "/api/me/workspace"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "email_login_required",
+        "invalid_revision",
+        "invalid_workspace",
+        "workspace_conflict",
+        "workspace_full"
+      ],
+      "method": "POST",
+      "path": "/api/me/workspace"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "anchor_not_succeeded",
+        "audio_file_required",
+        "audio_prompt_too_long",
+        "audio_too_large",
+        "billing_requires_priced_media",
+        "billing_requires_priced_text_and_output_limit",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "customer_login_required",
+        "email_login_required",
+        "idempotency_conflict",
+        "image_file_required",
+        "image_upload_too_large",
+        "insufficient_balance",
+        "invalid_anthropic_beta",
+        "invalid_anthropic_version",
+        "invalid_api_token",
+        "invalid_audio_field",
+        "invalid_audio_language",
+        "invalid_audio_response_format",
+        "invalid_audio_temperature",
+        "invalid_audio_upload",
+        "invalid_batch_id",
+        "invalid_batch_position",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_idempotency_key",
+        "invalid_image_field",
+        "invalid_image_upload",
+        "invalid_input",
+        "invalid_mentions",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_plugin_token",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference_asset_ids",
+        "invalid_reference_images",
+        "invalid_reference_upload",
+        "invalid_request",
+        "invalid_source",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "media_uses_task_polling",
+        "missing_tier",
+        "model_not_media",
+        "only_n_one_supported",
+        "plugin_disabled",
+        "plugin_model_denied",
+        "plugin_token_denied",
+        "record_not_found",
+        "reference_asset_not_found",
+        "reference_images_too_large",
+        "reference_upload_failed",
+        "reference_upload_unavailable",
+        "request_already_received",
+        "request_not_found",
+        "thread_not_found",
+        "too_many_active",
+        "too_many_reference_images",
+        "too_many_references",
+        "unknown_model",
+        "unknown_tier",
+        "unsupported_audio_format",
+        "unsupported_image_format",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model",
+        "unsupported_protocol",
+        "use_stateless_responses",
+        "workspace_quote_required"
+      ],
+      "method": "POST",
+      "path": "/api/me/workspace/chat"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "email_login_required"
+      ],
+      "method": "GET",
+      "path": "/api/me/workspace/models"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "billing_unavailable",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "email_login_required",
+        "insufficient_balance",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_request",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "model_not_media",
+        "only_n_one_supported",
+        "unknown_model",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model"
+      ],
+      "method": "POST",
+      "path": "/api/me/workspace/quote"
+    },
+    {
+      "auth": "public",
+      "errors": [
+        "media_storage_unavailable"
+      ],
+      "method": "GET",
+      "path": "/api/public/case-categories",
+      "response": "CaseCategories"
+    },
+    {
+      "auth": "public",
+      "errors": [
+        "invalid_category",
+        "invalid_cursor",
+        "invalid_limit",
+        "invalid_query",
+        "media_storage_unavailable"
+      ],
+      "method": "GET",
+      "path": "/api/public/cases",
+      "query": "CaseListQuery",
+      "response": "Page<InspirationCase>"
+    },
+    {
+      "auth": "public",
+      "errors": [
+        "case_not_found",
+        "media_storage_unavailable"
+      ],
+      "method": "GET",
+      "path": "/api/public/cases/:id",
+      "response": "InspirationCaseDetail"
+    },
+    {
+      "auth": "bearer",
+      "errors": [
+        "anchor_not_succeeded",
+        "audio_file_required",
+        "audio_prompt_too_long",
+        "audio_too_large",
+        "billing_requires_priced_media",
+        "billing_requires_priced_text_and_output_limit",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "customer_login_required",
+        "email_login_required",
+        "idempotency_conflict",
+        "image_file_required",
+        "image_upload_too_large",
+        "insufficient_balance",
+        "invalid_anthropic_beta",
+        "invalid_anthropic_version",
+        "invalid_api_token",
+        "invalid_audio_field",
+        "invalid_audio_language",
+        "invalid_audio_response_format",
+        "invalid_audio_temperature",
+        "invalid_audio_upload",
+        "invalid_batch_id",
+        "invalid_batch_position",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_idempotency_key",
+        "invalid_image_field",
+        "invalid_image_upload",
+        "invalid_input",
+        "invalid_mentions",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_plugin_token",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference_asset_ids",
+        "invalid_reference_images",
+        "invalid_reference_upload",
+        "invalid_request",
+        "invalid_source",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "media_uses_task_polling",
+        "missing_tier",
+        "model_not_media",
+        "only_n_one_supported",
+        "plugin_disabled",
+        "plugin_model_denied",
+        "plugin_token_denied",
+        "record_not_found",
+        "reference_asset_not_found",
+        "reference_images_too_large",
+        "reference_upload_failed",
+        "reference_upload_unavailable",
+        "request_already_received",
+        "request_not_found",
+        "thread_not_found",
+        "too_many_active",
+        "too_many_reference_images",
+        "too_many_references",
+        "unknown_model",
+        "unknown_tier",
+        "unsupported_audio_format",
+        "unsupported_image_format",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model",
+        "unsupported_protocol",
+        "use_stateless_responses",
+        "workspace_quote_required"
+      ],
+      "method": "POST",
+      "path": "/api/videos/generations"
+    },
+    {
+      "auth": "bearer",
+      "errors": [
+        "insufficient_balance",
+        "invalid_id",
+        "request_not_found",
+        "task_not_found",
+        "unsupported_content_type"
+      ],
+      "method": "GET",
+      "path": "/api/videos/tasks"
+    },
+    {
+      "auth": "bearer",
+      "errors": [
+        "anchor_not_succeeded",
+        "audio_file_required",
+        "audio_prompt_too_long",
+        "audio_too_large",
+        "billing_requires_priced_media",
+        "billing_requires_priced_text_and_output_limit",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "customer_login_required",
+        "email_login_required",
+        "idempotency_conflict",
+        "image_file_required",
+        "image_upload_too_large",
+        "insufficient_balance",
+        "invalid_anthropic_beta",
+        "invalid_anthropic_version",
+        "invalid_api_token",
+        "invalid_audio_field",
+        "invalid_audio_language",
+        "invalid_audio_response_format",
+        "invalid_audio_temperature",
+        "invalid_audio_upload",
+        "invalid_batch_id",
+        "invalid_batch_position",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_idempotency_key",
+        "invalid_image_field",
+        "invalid_image_upload",
+        "invalid_input",
+        "invalid_mentions",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_plugin_token",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference_asset_ids",
+        "invalid_reference_images",
+        "invalid_reference_upload",
+        "invalid_request",
+        "invalid_source",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "media_uses_task_polling",
+        "missing_tier",
+        "model_not_media",
+        "only_n_one_supported",
+        "plugin_disabled",
+        "plugin_model_denied",
+        "plugin_token_denied",
+        "record_not_found",
+        "reference_asset_not_found",
+        "reference_images_too_large",
+        "reference_upload_failed",
+        "reference_upload_unavailable",
+        "request_already_received",
+        "request_not_found",
+        "thread_not_found",
+        "too_many_active",
+        "too_many_reference_images",
+        "too_many_references",
+        "unknown_model",
+        "unknown_tier",
+        "unsupported_audio_format",
+        "unsupported_image_format",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model",
+        "unsupported_protocol",
+        "use_stateless_responses",
+        "workspace_quote_required"
+      ],
+      "method": "POST",
+      "path": "/v1/audio/transcriptions"
+    },
+    {
+      "auth": "bearer",
+      "errors": [
+        "anchor_not_succeeded",
+        "audio_file_required",
+        "audio_prompt_too_long",
+        "audio_too_large",
+        "billing_requires_priced_media",
+        "billing_requires_priced_text_and_output_limit",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "customer_login_required",
+        "email_login_required",
+        "idempotency_conflict",
+        "image_file_required",
+        "image_upload_too_large",
+        "insufficient_balance",
+        "invalid_anthropic_beta",
+        "invalid_anthropic_version",
+        "invalid_api_token",
+        "invalid_audio_field",
+        "invalid_audio_language",
+        "invalid_audio_response_format",
+        "invalid_audio_temperature",
+        "invalid_audio_upload",
+        "invalid_batch_id",
+        "invalid_batch_position",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_idempotency_key",
+        "invalid_image_field",
+        "invalid_image_upload",
+        "invalid_input",
+        "invalid_mentions",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_plugin_token",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference_asset_ids",
+        "invalid_reference_images",
+        "invalid_reference_upload",
+        "invalid_request",
+        "invalid_source",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "media_uses_task_polling",
+        "missing_tier",
+        "model_not_media",
+        "only_n_one_supported",
+        "plugin_disabled",
+        "plugin_model_denied",
+        "plugin_token_denied",
+        "record_not_found",
+        "reference_asset_not_found",
+        "reference_images_too_large",
+        "reference_upload_failed",
+        "reference_upload_unavailable",
+        "request_already_received",
+        "request_not_found",
+        "thread_not_found",
+        "too_many_active",
+        "too_many_reference_images",
+        "too_many_references",
+        "unknown_model",
+        "unknown_tier",
+        "unsupported_audio_format",
+        "unsupported_image_format",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model",
+        "unsupported_protocol",
+        "use_stateless_responses",
+        "workspace_quote_required"
+      ],
+      "method": "POST",
+      "path": "/v1/chat/completions"
+    },
+    {
+      "auth": "bearer",
+      "errors": [
+        "anchor_not_succeeded",
+        "audio_file_required",
+        "audio_prompt_too_long",
+        "audio_too_large",
+        "billing_requires_priced_media",
+        "billing_requires_priced_text_and_output_limit",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "customer_login_required",
+        "email_login_required",
+        "idempotency_conflict",
+        "image_file_required",
+        "image_upload_too_large",
+        "insufficient_balance",
+        "invalid_anthropic_beta",
+        "invalid_anthropic_version",
+        "invalid_api_token",
+        "invalid_audio_field",
+        "invalid_audio_language",
+        "invalid_audio_response_format",
+        "invalid_audio_temperature",
+        "invalid_audio_upload",
+        "invalid_batch_id",
+        "invalid_batch_position",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_idempotency_key",
+        "invalid_image_field",
+        "invalid_image_upload",
+        "invalid_input",
+        "invalid_mentions",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_plugin_token",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference_asset_ids",
+        "invalid_reference_images",
+        "invalid_reference_upload",
+        "invalid_request",
+        "invalid_source",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "media_uses_task_polling",
+        "missing_tier",
+        "model_not_media",
+        "only_n_one_supported",
+        "plugin_disabled",
+        "plugin_model_denied",
+        "plugin_token_denied",
+        "record_not_found",
+        "reference_asset_not_found",
+        "reference_images_too_large",
+        "reference_upload_failed",
+        "reference_upload_unavailable",
+        "request_already_received",
+        "request_not_found",
+        "thread_not_found",
+        "too_many_active",
+        "too_many_reference_images",
+        "too_many_references",
+        "unknown_model",
+        "unknown_tier",
+        "unsupported_audio_format",
+        "unsupported_image_format",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model",
+        "unsupported_protocol",
+        "use_stateless_responses",
+        "workspace_quote_required"
+      ],
+      "method": "POST",
+      "path": "/v1/images/edits"
+    },
+    {
+      "auth": "bearer",
+      "errors": [
+        "anchor_not_succeeded",
+        "audio_file_required",
+        "audio_prompt_too_long",
+        "audio_too_large",
+        "billing_requires_priced_media",
+        "billing_requires_priced_text_and_output_limit",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "customer_login_required",
+        "email_login_required",
+        "idempotency_conflict",
+        "image_file_required",
+        "image_upload_too_large",
+        "insufficient_balance",
+        "invalid_anthropic_beta",
+        "invalid_anthropic_version",
+        "invalid_api_token",
+        "invalid_audio_field",
+        "invalid_audio_language",
+        "invalid_audio_response_format",
+        "invalid_audio_temperature",
+        "invalid_audio_upload",
+        "invalid_batch_id",
+        "invalid_batch_position",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_idempotency_key",
+        "invalid_image_field",
+        "invalid_image_upload",
+        "invalid_input",
+        "invalid_mentions",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_plugin_token",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference_asset_ids",
+        "invalid_reference_images",
+        "invalid_reference_upload",
+        "invalid_request",
+        "invalid_source",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "media_uses_task_polling",
+        "missing_tier",
+        "model_not_media",
+        "only_n_one_supported",
+        "plugin_disabled",
+        "plugin_model_denied",
+        "plugin_token_denied",
+        "record_not_found",
+        "reference_asset_not_found",
+        "reference_images_too_large",
+        "reference_upload_failed",
+        "reference_upload_unavailable",
+        "request_already_received",
+        "request_not_found",
+        "thread_not_found",
+        "too_many_active",
+        "too_many_reference_images",
+        "too_many_references",
+        "unknown_model",
+        "unknown_tier",
+        "unsupported_audio_format",
+        "unsupported_image_format",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model",
+        "unsupported_protocol",
+        "use_stateless_responses",
+        "workspace_quote_required"
+      ],
+      "method": "POST",
+      "path": "/v1/images/generations"
+    },
+    {
+      "auth": "bearer",
+      "errors": [
+        "anchor_not_succeeded",
+        "audio_file_required",
+        "audio_prompt_too_long",
+        "audio_too_large",
+        "billing_requires_priced_media",
+        "billing_requires_priced_text_and_output_limit",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "customer_login_required",
+        "email_login_required",
+        "idempotency_conflict",
+        "image_file_required",
+        "image_upload_too_large",
+        "insufficient_balance",
+        "invalid_anthropic_beta",
+        "invalid_anthropic_version",
+        "invalid_api_token",
+        "invalid_audio_field",
+        "invalid_audio_language",
+        "invalid_audio_response_format",
+        "invalid_audio_temperature",
+        "invalid_audio_upload",
+        "invalid_batch_id",
+        "invalid_batch_position",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_idempotency_key",
+        "invalid_image_field",
+        "invalid_image_upload",
+        "invalid_input",
+        "invalid_mentions",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_plugin_token",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference_asset_ids",
+        "invalid_reference_images",
+        "invalid_reference_upload",
+        "invalid_request",
+        "invalid_source",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "media_uses_task_polling",
+        "missing_tier",
+        "model_not_media",
+        "only_n_one_supported",
+        "plugin_disabled",
+        "plugin_model_denied",
+        "plugin_token_denied",
+        "record_not_found",
+        "reference_asset_not_found",
+        "reference_images_too_large",
+        "reference_upload_failed",
+        "reference_upload_unavailable",
+        "request_already_received",
+        "request_not_found",
+        "thread_not_found",
+        "too_many_active",
+        "too_many_reference_images",
+        "too_many_references",
+        "unknown_model",
+        "unknown_tier",
+        "unsupported_audio_format",
+        "unsupported_image_format",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model",
+        "unsupported_protocol",
+        "use_stateless_responses",
+        "workspace_quote_required"
+      ],
+      "method": "POST",
+      "path": "/v1/messages"
+    },
+    {
+      "auth": "bearer",
+      "errors": [],
+      "method": "GET",
+      "path": "/v1/models"
+    },
+    {
+      "auth": "bearer",
+      "errors": [
+        "anchor_not_succeeded",
+        "audio_file_required",
+        "audio_prompt_too_long",
+        "audio_too_large",
+        "billing_requires_priced_media",
+        "billing_requires_priced_text_and_output_limit",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "customer_login_required",
+        "email_login_required",
+        "idempotency_conflict",
+        "image_file_required",
+        "image_upload_too_large",
+        "insufficient_balance",
+        "invalid_anthropic_beta",
+        "invalid_anthropic_version",
+        "invalid_api_token",
+        "invalid_audio_field",
+        "invalid_audio_language",
+        "invalid_audio_response_format",
+        "invalid_audio_temperature",
+        "invalid_audio_upload",
+        "invalid_batch_id",
+        "invalid_batch_position",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_idempotency_key",
+        "invalid_image_field",
+        "invalid_image_upload",
+        "invalid_input",
+        "invalid_mentions",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_plugin_token",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference_asset_ids",
+        "invalid_reference_images",
+        "invalid_reference_upload",
+        "invalid_request",
+        "invalid_source",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "media_uses_task_polling",
+        "missing_tier",
+        "model_not_media",
+        "only_n_one_supported",
+        "plugin_disabled",
+        "plugin_model_denied",
+        "plugin_token_denied",
+        "record_not_found",
+        "reference_asset_not_found",
+        "reference_images_too_large",
+        "reference_upload_failed",
+        "reference_upload_unavailable",
+        "request_already_received",
+        "request_not_found",
+        "thread_not_found",
+        "too_many_active",
+        "too_many_reference_images",
+        "too_many_references",
+        "unknown_model",
+        "unknown_tier",
+        "unsupported_audio_format",
+        "unsupported_image_format",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model",
+        "unsupported_protocol",
+        "use_stateless_responses",
+        "workspace_quote_required"
+      ],
+      "method": "POST",
+      "path": "/v1/responses"
+    },
+    {
+      "auth": "bearer",
+      "errors": [
+        "insufficient_balance",
+        "invalid_id",
+        "request_not_found",
+        "task_not_found",
+        "unsupported_content_type"
+      ],
+      "method": "GET",
+      "path": "/v1/tasks/:id"
+    },
+    {
+      "auth": "bearer",
+      "errors": [
+        "image_download_failed",
+        "image_not_found",
+        "invalid_id",
+        "invalid_image_host",
+        "invalid_image_url",
+        "media_too_large"
+      ],
+      "method": "GET",
+      "path": "/v1/tasks/:id/image/:index"
+    },
+    {
+      "auth": "bearer",
+      "errors": [
+        "anchor_not_succeeded",
+        "audio_file_required",
+        "audio_prompt_too_long",
+        "audio_too_large",
+        "billing_requires_priced_media",
+        "billing_requires_priced_text_and_output_limit",
+        "conflicting_parameter",
+        "credit_reference_required",
+        "customer_login_required",
+        "email_login_required",
+        "idempotency_conflict",
+        "image_file_required",
+        "image_upload_too_large",
+        "insufficient_balance",
+        "invalid_anthropic_beta",
+        "invalid_anthropic_version",
+        "invalid_api_token",
+        "invalid_audio_field",
+        "invalid_audio_language",
+        "invalid_audio_response_format",
+        "invalid_audio_temperature",
+        "invalid_audio_upload",
+        "invalid_batch_id",
+        "invalid_batch_position",
+        "invalid_boolean",
+        "invalid_credit_amount",
+        "invalid_date",
+        "invalid_id",
+        "invalid_idempotency_key",
+        "invalid_image_field",
+        "invalid_image_upload",
+        "invalid_input",
+        "invalid_mentions",
+        "invalid_message_role",
+        "invalid_messages",
+        "invalid_number",
+        "invalid_plugin_token",
+        "invalid_prompt",
+        "invalid_prompt_doc",
+        "invalid_reference_asset_ids",
+        "invalid_reference_images",
+        "invalid_reference_upload",
+        "invalid_request",
+        "invalid_source",
+        "invalid_status",
+        "invalid_text",
+        "invalid_workspace_prompt",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "media_storage_unavailable",
+        "media_uses_task_polling",
+        "missing_tier",
+        "model_not_media",
+        "only_n_one_supported",
+        "plugin_disabled",
+        "plugin_model_denied",
+        "plugin_token_denied",
+        "record_not_found",
+        "reference_asset_not_found",
+        "reference_images_too_large",
+        "reference_upload_failed",
+        "reference_upload_unavailable",
+        "request_already_received",
+        "request_not_found",
+        "thread_not_found",
+        "too_many_active",
+        "too_many_reference_images",
+        "too_many_references",
+        "unknown_model",
+        "unknown_tier",
+        "unsupported_audio_format",
+        "unsupported_image_format",
+        "unsupported_parameter",
+        "unsupported_parameter_for_model",
+        "unsupported_protocol",
+        "use_stateless_responses",
+        "workspace_quote_required"
+      ],
+      "method": "POST",
+      "path": "/v1/videos/generations"
+    }
+  ],
+  "errors": [
+    {
+      "code": "account_disabled",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "admin_login_required",
+      "status": [
+        401
+      ]
+    },
+    {
+      "code": "admin_permission_denied",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "admin_session_expired",
+      "status": [
+        401
+      ]
+    },
+    {
+      "code": "already_exists",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "anchor_not_succeeded",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "asset_digest_mismatch",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "asset_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "asset_not_owned",
+      "status": [
+        422
+      ]
+    },
+    {
+      "code": "asset_size_mismatch",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "audio_file_required",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "audio_prompt_too_long",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "audio_too_large",
+      "status": [
+        413
+      ]
+    },
+    {
+      "code": "batch_already_assigned",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "batch_conflict",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "batch_expired",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "billing_not_pending",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "billing_not_settled",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "billing_requires_priced_media",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "billing_requires_priced_text_and_output_limit",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "billing_unavailable",
+      "status": [
+        503
+      ]
+    },
+    {
+      "code": "cannot_disable_self",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "canvas_asset_forbidden",
+      "status": [
+        422
+      ]
+    },
+    {
+      "code": "canvas_conflict",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "canvas_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "canvas_too_large",
+      "status": [
+        413
+      ]
+    },
+    {
+      "code": "captcha_invalid",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "captcha_required",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "captcha_unavailable",
+      "status": [
+        503
+      ]
+    },
+    {
+      "code": "case_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "catalog_unavailable",
+      "status": [
+        503
+      ]
+    },
+    {
+      "code": "charge_exceeds_hold",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "charge_not_ready",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "conflicting_parameter",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "credentials_must_not_be_stored",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "credit_reference_required",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "customer_login_required",
+      "status": [
+        401,
+        403
+      ]
+    },
+    {
+      "code": "desktop_access_revoked",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "desktop_models_unavailable",
+      "status": [
+        503
+      ]
+    },
+    {
+      "code": "developer_application_exists",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "developer_approval_required",
+      "status": [
+        400,
+        403
+      ]
+    },
+    {
+      "code": "developer_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "email_account_link_ambiguous",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "email_delivery_failed",
+      "status": [
+        503
+      ]
+    },
+    {
+      "code": "email_login_required",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "email_service_unavailable",
+      "status": [
+        503
+      ]
+    },
+    {
+      "code": "email_verification_required",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "export_required",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "file_too_large",
+      "status": [
+        413
+      ]
+    },
+    {
+      "code": "folder_name_taken",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "folder_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "forbidden_role",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "generation_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "github_fetch_failed",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "idempotency_conflict",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "image_download_failed",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "image_file_required",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "image_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "image_storage_unavailable",
+      "status": [
+        503
+      ]
+    },
+    {
+      "code": "image_upload_too_large",
+      "status": [
+        413
+      ]
+    },
+    {
+      "code": "insufficient_balance",
+      "status": [
+        402,
+        409
+      ]
+    },
+    {
+      "code": "internal_error",
+      "status": [
+        500
+      ]
+    },
+    {
+      "code": "invalid_administrator",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_amount",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_anchor",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_anthropic_beta",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_anthropic_version",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_api_token",
+      "status": [
+        401
+      ]
+    },
+    {
+      "code": "invalid_asset_ids",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_asset_redirect",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "invalid_audio_field",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_audio_language",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_audio_response_format",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_audio_temperature",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_audio_upload",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_base_url",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_batch_id",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_batch_position",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_billing_policy",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_boolean",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_bytes",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_canvas_document",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_captcha_request",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_category",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_charge",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_cover",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_credential_path",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_credit_amount",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_cursor",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_date",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_date_range",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_denomination",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_email",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_expiry",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_export_format",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_favorite_type",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_github_asset",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "invalid_github_release",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "invalid_github_repository",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_id",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_idempotency_key",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_image_field",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_image_host",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "invalid_image_upload",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_image_url",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "invalid_input",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_item",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_item_id",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_items",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_kind",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_limit",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_mentions",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_message_role",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_messages",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_models",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_name",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_note",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_number",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_offset",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_package_name",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_param_value",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_params",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_password",
+      "status": [
+        401
+      ]
+    },
+    {
+      "code": "invalid_plugin",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_plugin_archive",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_plugin_slug",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_plugin_token",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_position",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_price",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_prompt",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_prompt_doc",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_provider_type",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_query",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_quote_response",
+      "status": []
+    },
+    {
+      "code": "invalid_reason",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_reference",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_reference_asset_ids",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_reference_images",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_reference_upload",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "invalid_release_state",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_release_url",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_request",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_resolution",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_response_ids",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_revenue_share",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_review_state",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_revision",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_role",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_runtime_config",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_skill_ref",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_source",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_status",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_template",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_text",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_thread",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_thread_id",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_title",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_upstream_key",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_variables",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_voucher",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_voucher_state",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_workspace",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_workspace_prompt",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "items_too_large",
+      "status": [
+        413
+      ]
+    },
+    {
+      "code": "key_already_exists",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "key_limit_reached",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "lanehub_api_failed",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "lanehub_token_create_failed",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "lanehub_usd_rate_unavailable",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "lanehub_user_create_failed",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "lanehub_username_collision",
+      "status": [
+        500
+      ]
+    },
+    {
+      "code": "media_storage_unavailable",
+      "status": [
+        503
+      ]
+    },
+    {
+      "code": "media_too_large",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "media_uses_task_polling",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "missing_tier",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "model_not_media",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "no_available_channel",
+      "status": [
+        503
+      ]
+    },
+    {
+      "code": "no_available_vouchers",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "only_n_one_supported",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "origin_denied",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "package_identity_mismatch",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "password_too_short",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "plugin_disabled",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "plugin_model_denied",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "plugin_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "plugin_scope_denied",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "plugin_token_denied",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "published_metadata_locked",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "queue_conflict",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "queue_full",
+      "status": [
+        429
+      ]
+    },
+    {
+      "code": "queue_timeout",
+      "status": [
+        429
+      ]
+    },
+    {
+      "code": "quote_requires_lanehub",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "rate_limit_capacity",
+      "status": [
+        429
+      ]
+    },
+    {
+      "code": "rate_limited",
+      "status": [
+        429
+      ]
+    },
+    {
+      "code": "record_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "reference_asset_not_found",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "reference_images_too_large",
+      "status": [
+        413
+      ]
+    },
+    {
+      "code": "reference_upload_failed",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "reference_upload_unavailable",
+      "status": [
+        503
+      ]
+    },
+    {
+      "code": "refund_exceeds_charge",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "release_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "release_not_public",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "release_not_withdrawable",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "release_tag_must_be_version",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "release_too_large",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "request_already_received",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "request_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "select_one_tgz_asset",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "settlement_already_paid",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "settlement_not_draft",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "settlement_not_frozen",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "skill_already_owned",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "storage_quota_exceeded",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "subject_name_taken",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "subject_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "task_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "template_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "thread_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "too_many_active",
+      "status": [
+        429
+      ]
+    },
+    {
+      "code": "too_many_canvas_edges",
+      "status": [
+        413
+      ]
+    },
+    {
+      "code": "too_many_canvas_nodes",
+      "status": [
+        413
+      ]
+    },
+    {
+      "code": "too_many_reference_images",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "too_many_references",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "unknown_model",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "unknown_tier",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "unsupported_audio_format",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "unsupported_auth_operation",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "unsupported_content_type",
+      "status": [
+        415
+      ]
+    },
+    {
+      "code": "unsupported_image_format",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "unsupported_item_field",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "unsupported_media_type",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "unsupported_parameter",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "unsupported_parameter_for_model",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "unsupported_protocol",
+      "status": [
+        404
+      ]
+    },
+    {
+      "code": "upload_not_found",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "upload_not_pending",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "upload_size_mismatch",
+      "status": [
+        422
+      ]
+    },
+    {
+      "code": "upload_type_mismatch",
+      "status": [
+        422
+      ]
+    },
+    {
+      "code": "use_stateless_responses",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "voucher_not_unused",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "voucher_service_unavailable",
+      "status": [
+        503
+      ]
+    },
+    {
+      "code": "voucher_unavailable",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "web_access_revoked",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "workspace_conflict",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "workspace_full",
+      "status": [
+        413
+      ]
+    },
+    {
+      "code": "workspace_quote_required",
+      "status": [
+        400
+      ]
+    }
+  ],
+  "note": "Generated by ipzsk-api-gateway scripts/export-contracts.mjs. Do not edit. auth/errors are static inferences from handler source; response/body names refer to ipzsk-api.d.ts."
+}
