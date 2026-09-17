@@ -212,9 +212,10 @@ export interface ApiError {
 export interface ApiErrorBody {
   error: ApiError
 }
+export type AssetKind = "image" | "video" | "audio"
 export interface AssetListQuery {
   cursor?: string
-  kind?: MediaKind
+  kind?: AssetKind
   source?: "upload" | "generation" | "poster"
   folder?: Uuid
 }
@@ -241,6 +242,38 @@ export interface AuditQuery {
   to?: string
   cursor?: string
   limit?: number // integer 1..100
+}
+export interface AvatarCapability {
+  source: ("library" | "photo")[]
+  voice: ("script" | "audio")[]
+  script: {
+    max: number // integer 1..
+    voice_required: boolean
+  }
+  captions: boolean
+  background: ("color" | "image")[]
+  engine: string
+}
+export interface AvatarItem {
+  id: string
+  name: string
+  type: "avatar" | "talking_photo"
+  avatar_type: string | null
+  gender: string | null
+  preview_image_url: string | null
+  preview_video_url: string | null
+  default_voice_id: string | null
+  engines: string[]
+}
+export interface AvatarList {
+  items: AvatarItem[]
+}
+export interface AvatarRef {
+  provider: "heygen"
+  avatar_id: string
+  name?: string | null
+  preview_image_url?: string | null
+  preview_video_url?: string | null
 }
 export type BulkStatusItem = {
   id: string
@@ -420,6 +453,14 @@ export interface GenerationBody {
   mentions?: Mention[] // max 20 items
   prompt_doc?: Record<string, unknown> | null
   source?: "studio" | "template" | "canvas"
+  avatar_id?: string
+  photo_asset_id?: Uuid
+  script?: string
+  voice_id?: string
+  audio_asset_id?: Uuid
+  captions?: boolean
+  background_color?: string
+  background_asset_id?: Uuid
   [extra: string]: unknown
 }
 export interface GenerationCancel {
@@ -500,7 +541,7 @@ export interface InspirationCaseDetail {
 }
 export interface MediaAsset {
   id: Uuid
-  kind: MediaKind
+  kind: AssetKind
   source: "upload" | "generation" | "case" | "poster"
   status: "pending" | "ready" | "failed" | "deleted"
   width: number | null // integer 0..
@@ -524,6 +565,7 @@ export interface MissingAsset {
 export interface ModelCatalog {
   models: ModelSpec[]
 }
+export type ModelMode = "avatar" | "talking_photo" | "cinematic_avatar" | "studio"
 export interface ModelReferences {
   maxImages: number // integer 0..
   firstFrame?: boolean
@@ -540,6 +582,8 @@ export interface ModelSpec {
   params: ParamSpec[]
   references: ModelReferences
   unsupported: Record<string, string>
+  mode?: ModelMode
+  avatar?: AvatarCapability
 }
 export interface ParamSpec {
   field: string
@@ -587,6 +631,9 @@ export interface QuoteOk {
   amount_cny: Decimal
   quote_id: string | null
   expires_at: IsoTime
+  amount_kind?: string
+  estimated_seconds?: number
+  estimate_basis?: "audio_duration" | "script"
 }
 export interface QuoteRequest {
   items: GenerationBody[] // max 12 items
@@ -609,6 +656,7 @@ export interface Subject {
   name: string
   kind: SubjectKind
   note: string | null
+  external_ref: AvatarRef | null
   cover_id: Uuid | null
   cover: RecordAsset | null
   assets: RecordAsset[] // max 8 items
@@ -623,14 +671,16 @@ export interface SubjectCreate {
   name: string
   kind?: SubjectKind
   note?: string | null
+  external_ref?: AvatarRef | null
   asset_ids?: Uuid[] // max 8 items
   cover_id?: Uuid | null
 }
-export type SubjectKind = "person" | "character" | "product" | "object" | "scene"
+export type SubjectKind = "person" | "character" | "product" | "object" | "scene" | "avatar"
 export interface SubjectPatch {
   name?: string
   kind?: SubjectKind
   note?: string | null
+  external_ref?: AvatarRef | null
   cover_id?: Uuid | null
 }
 export interface TemplateItem {
@@ -670,8 +720,8 @@ export interface ThreadPatch {
 }
 export type ThumbState = "none" | "queued" | "running" | "done" | "skipped" | "failed"
 export interface UploadRequest {
-  kind: MediaKind
-  content_type: "image/png" | "image/jpeg" | "image/webp" | "video/mp4"
+  kind: AssetKind
+  content_type: "image/png" | "image/jpeg" | "image/webp" | "video/mp4" | "audio/mpeg" | "audio/wav" | "audio/x-wav"
   bytes: number // integer 1..
 }
 export interface UploadTicket {
@@ -710,6 +760,18 @@ export interface UserTemplatePatch {
   items?: TemplateItem[] // max 12 items
   variables?: TemplateVariable[] // max 20 items
 }
+export interface VoiceItem {
+  id: string
+  name: string
+  language: string | null
+  gender: string | null
+  preview_audio_url: string | null
+  support_pause: boolean | null
+  type: string | null
+}
+export interface VoiceList {
+  items: VoiceItem[]
+}
 
 /** Typed endpoints (only routes with a routeMeta entry). */
 export interface Endpoints {
@@ -736,6 +798,7 @@ export interface Endpoints {
   "PUT /api/admin/users/:id/roles/:role": { body: never; response: RolesResponse }
   "GET /api/me/assets": { body: never; response: Page<MediaAsset> }
   "DELETE /api/me/assets/:id": { body: never; response: void }
+  "GET /api/me/avatars": { body: never; response: AvatarList }
   "GET /api/me/canvas": { body: never; response: Page<CanvasProjectSummary> }
   "POST /api/me/canvas": { body: CanvasCreate; response: CanvasProject }
   "DELETE /api/me/canvas/:id": { body: never; response: void }
@@ -778,6 +841,7 @@ export interface Endpoints {
   "POST /api/me/uploads": { body: UploadRequest; response: UploadTicket }
   "POST /api/me/uploads/:id/complete": { body: never; response: MediaAsset }
   "POST /api/me/videos/generations": { body: GenerationBody; response: UpstreamPassthrough }
+  "GET /api/me/voices": { body: never; response: VoiceList }
   "GET /api/public/case-categories": { body: never; response: CaseCategories }
   "GET /api/public/cases": { body: never; response: Page<InspirationCase> }
   "GET /api/public/cases/:id": { body: never; response: InspirationCaseDetail }

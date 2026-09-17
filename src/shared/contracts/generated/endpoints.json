@@ -592,6 +592,23 @@
       "response": "Empty"
     },
     {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "avatar_catalog_unavailable",
+        "avatar_catalog_upstream_error",
+        "credit_reference_required",
+        "invalid_credit_amount",
+        "invalid_language",
+        "invalid_voice_type",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision"
+      ],
+      "method": "GET",
+      "path": "/api/me/avatars",
+      "response": "AvatarList"
+    },
+    {
       "auth": "cookie",
       "errors": [
         "customer_login_required",
@@ -684,11 +701,23 @@
       "auth": "cookie_or_bearer",
       "errors": [
         "anchor_not_succeeded",
+        "audio_asset_not_found",
+        "audio_duration_unknown",
         "audio_file_required",
         "audio_prompt_too_long",
         "audio_too_large",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
         "billing_requires_priced_media",
         "billing_requires_priced_text_and_output_limit",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
         "customer_login_required",
@@ -705,9 +734,12 @@
         "invalid_audio_response_format",
         "invalid_audio_temperature",
         "invalid_audio_upload",
+        "invalid_avatar_id",
+        "invalid_background_color",
         "invalid_batch_id",
         "invalid_batch_position",
         "invalid_boolean",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_date",
         "invalid_id",
@@ -726,9 +758,11 @@
         "invalid_reference_images",
         "invalid_reference_upload",
         "invalid_request",
+        "invalid_script",
         "invalid_source",
         "invalid_status",
         "invalid_text",
+        "invalid_voice_id",
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
@@ -748,6 +782,7 @@
         "reference_upload_unavailable",
         "request_already_received",
         "request_not_found",
+        "script_too_long",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -760,6 +795,7 @@
         "unsupported_parameter_for_model",
         "unsupported_protocol",
         "use_stateless_responses",
+        "voice_id_required",
         "workspace_quote_required"
       ],
       "method": "POST",
@@ -1059,11 +1095,23 @@
       "auth": "cookie_or_bearer",
       "errors": [
         "anchor_not_succeeded",
+        "audio_asset_not_found",
+        "audio_duration_unknown",
         "audio_file_required",
         "audio_prompt_too_long",
         "audio_too_large",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
         "billing_requires_priced_media",
         "billing_requires_priced_text_and_output_limit",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
         "customer_login_required",
@@ -1080,9 +1128,12 @@
         "invalid_audio_response_format",
         "invalid_audio_temperature",
         "invalid_audio_upload",
+        "invalid_avatar_id",
+        "invalid_background_color",
         "invalid_batch_id",
         "invalid_batch_position",
         "invalid_boolean",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_date",
         "invalid_id",
@@ -1101,9 +1152,11 @@
         "invalid_reference_images",
         "invalid_reference_upload",
         "invalid_request",
+        "invalid_script",
         "invalid_source",
         "invalid_status",
         "invalid_text",
+        "invalid_voice_id",
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
@@ -1123,6 +1176,7 @@
         "reference_upload_unavailable",
         "request_already_received",
         "request_not_found",
+        "script_too_long",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -1135,6 +1189,7 @@
         "unsupported_parameter_for_model",
         "unsupported_protocol",
         "use_stateless_responses",
+        "voice_id_required",
         "workspace_quote_required"
       ],
       "method": "POST",
@@ -1152,14 +1207,26 @@
     {
       "auth": "cookie_or_bearer",
       "body": "GenerationBody",
-      "body_shape": "{ model: string prompt?: string reference_asset_ids?: Uuid[] image_urls?: string[] batch_id?: Uuid | null batch_position?: number | null thread_id?: Uuid | null anchor_record_id?: Uuid | null parent_record_id?: Uuid | null mentions?: Mention[] prompt_doc?: Record<string, unknown> | null source?: \"studio\" | \"template\" | \"canvas\" [extra: string]: unknown }",
+      "body_shape": "{ model: string prompt?: string reference_asset_ids?: Uuid[] image_urls?: string[] batch_id?: Uuid | null batch_position?: number | null thread_id?: Uuid | null anchor_record_id?: Uuid | null parent_record_id?: Uuid | null mentions?: Mention[] prompt_doc?: Record<string, unknown> | null source?: \"studio\" | \"template\" | \"canvas\" avatar_id?: string photo_asset_id?: Uuid script?: string voice_id?: string audio_asset_id?: Uuid captions?: boolean background_color?: string background_asset_id?: Uuid [extra: string]: unknown }",
       "errors": [
         "anchor_not_succeeded",
+        "audio_asset_not_found",
+        "audio_duration_unknown",
         "audio_file_required",
         "audio_prompt_too_long",
         "audio_too_large",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
         "billing_requires_priced_media",
         "billing_requires_priced_text_and_output_limit",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
         "customer_login_required",
@@ -1176,9 +1243,12 @@
         "invalid_audio_response_format",
         "invalid_audio_temperature",
         "invalid_audio_upload",
+        "invalid_avatar_id",
+        "invalid_background_color",
         "invalid_batch_id",
         "invalid_batch_position",
         "invalid_boolean",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_date",
         "invalid_id",
@@ -1197,9 +1267,11 @@
         "invalid_reference_images",
         "invalid_reference_upload",
         "invalid_request",
+        "invalid_script",
         "invalid_source",
         "invalid_status",
         "invalid_text",
+        "invalid_voice_id",
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
@@ -1219,6 +1291,7 @@
         "reference_upload_unavailable",
         "request_already_received",
         "request_not_found",
+        "script_too_long",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -1231,6 +1304,7 @@
         "unsupported_parameter_for_model",
         "unsupported_protocol",
         "use_stateless_responses",
+        "voice_id_required",
         "workspace_quote_required"
       ],
       "headers": [
@@ -1254,20 +1328,40 @@
       "body": "QuoteRequest",
       "body_shape": "{ items: GenerationBody[] }",
       "errors": [
+        "audio_asset_not_found",
+        "audio_duration_unknown",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
+        "invalid_avatar_id",
+        "invalid_background_color",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_item",
         "invalid_items",
         "invalid_quote_response",
         "invalid_reference_asset_ids",
+        "invalid_script",
+        "invalid_voice_id",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "quote_requires_lanehub",
         "reference_asset_not_found",
-        "too_many_references"
+        "script_too_long",
+        "too_many_references",
+        "unsupported_parameter",
+        "voice_id_required"
       ],
       "method": "POST",
       "path": "/api/me/media/quote",
@@ -1366,11 +1460,14 @@
     {
       "auth": "cookie",
       "body": "SubjectCreate",
-      "body_shape": "{ name: string kind?: SubjectKind note?: string | null asset_ids?: Uuid[] cover_id?: Uuid | null }",
+      "body_shape": "{ name: string kind?: SubjectKind note?: string | null external_ref?: AvatarRef | null asset_ids?: Uuid[] cover_id?: Uuid | null }",
       "errors": [
+        "avatar_photo_unsupported_type",
+        "avatar_source_conflict",
         "customer_login_required",
         "invalid_asset_ids",
         "invalid_cover",
+        "invalid_external_ref",
         "invalid_kind",
         "invalid_name",
         "invalid_note",
@@ -1395,10 +1492,12 @@
     {
       "auth": "cookie",
       "body": "SubjectPatch",
-      "body_shape": "{ name?: string kind?: SubjectKind note?: string | null cover_id?: Uuid | null }",
+      "body_shape": "{ name?: string kind?: SubjectKind note?: string | null external_ref?: AvatarRef | null cover_id?: Uuid | null }",
       "errors": [
+        "avatar_source_conflict",
         "customer_login_required",
         "invalid_cover",
+        "invalid_external_ref",
         "invalid_kind",
         "invalid_name",
         "invalid_note",
@@ -1414,6 +1513,8 @@
       "body": "SubjectAssetsPut",
       "body_shape": "{ asset_ids: Uuid[] cover_id?: Uuid | null }",
       "errors": [
+        "avatar_photo_unsupported_type",
+        "avatar_source_conflict",
         "customer_login_required",
         "invalid_asset_ids",
         "invalid_cover",
@@ -1623,7 +1724,7 @@
     {
       "auth": "cookie_or_bearer",
       "body": "UploadRequest",
-      "body_shape": "{ kind: MediaKind content_type: \"image/png\" | \"image/jpeg\" | \"image/webp\" | \"video/mp4\" bytes: number }",
+      "body_shape": "{ kind: AssetKind content_type: \"image/png\" | \"image/jpeg\" | \"image/webp\" | \"video/mp4\" | \"audio/mpeg\" | \"audio/wav\" | \"audio/x-wav\" bytes: number }",
       "errors": [
         "file_too_large",
         "invalid_bytes",
@@ -1639,6 +1740,9 @@
       "auth": "cookie_or_bearer",
       "errors": [
         "asset_not_found",
+        "audio_too_long",
+        "audio_too_short",
+        "audio_unreadable",
         "invalid_id",
         "media_storage_unavailable",
         "upload_not_found",
@@ -1659,14 +1763,26 @@
     {
       "auth": "cookie_or_bearer",
       "body": "GenerationBody",
-      "body_shape": "{ model: string prompt?: string reference_asset_ids?: Uuid[] image_urls?: string[] batch_id?: Uuid | null batch_position?: number | null thread_id?: Uuid | null anchor_record_id?: Uuid | null parent_record_id?: Uuid | null mentions?: Mention[] prompt_doc?: Record<string, unknown> | null source?: \"studio\" | \"template\" | \"canvas\" [extra: string]: unknown }",
+      "body_shape": "{ model: string prompt?: string reference_asset_ids?: Uuid[] image_urls?: string[] batch_id?: Uuid | null batch_position?: number | null thread_id?: Uuid | null anchor_record_id?: Uuid | null parent_record_id?: Uuid | null mentions?: Mention[] prompt_doc?: Record<string, unknown> | null source?: \"studio\" | \"template\" | \"canvas\" avatar_id?: string photo_asset_id?: Uuid script?: string voice_id?: string audio_asset_id?: Uuid captions?: boolean background_color?: string background_asset_id?: Uuid [extra: string]: unknown }",
       "errors": [
         "anchor_not_succeeded",
+        "audio_asset_not_found",
+        "audio_duration_unknown",
         "audio_file_required",
         "audio_prompt_too_long",
         "audio_too_large",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
         "billing_requires_priced_media",
         "billing_requires_priced_text_and_output_limit",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
         "customer_login_required",
@@ -1683,9 +1799,12 @@
         "invalid_audio_response_format",
         "invalid_audio_temperature",
         "invalid_audio_upload",
+        "invalid_avatar_id",
+        "invalid_background_color",
         "invalid_batch_id",
         "invalid_batch_position",
         "invalid_boolean",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_date",
         "invalid_id",
@@ -1704,9 +1823,11 @@
         "invalid_reference_images",
         "invalid_reference_upload",
         "invalid_request",
+        "invalid_script",
         "invalid_source",
         "invalid_status",
         "invalid_text",
+        "invalid_voice_id",
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
@@ -1726,6 +1847,7 @@
         "reference_upload_unavailable",
         "request_already_received",
         "request_not_found",
+        "script_too_long",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -1738,6 +1860,7 @@
         "unsupported_parameter_for_model",
         "unsupported_protocol",
         "use_stateless_responses",
+        "voice_id_required",
         "workspace_quote_required"
       ],
       "headers": [
@@ -1746,6 +1869,27 @@
       "method": "POST",
       "path": "/api/me/videos/generations",
       "response": "UpstreamPassthrough"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "avatar_catalog_unavailable",
+        "avatar_catalog_upstream_error",
+        "credit_reference_required",
+        "invalid_credit_amount",
+        "invalid_language",
+        "invalid_voice_type",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision"
+      ],
+      "method": "GET",
+      "path": "/api/me/voices",
+      "query": [
+        "language",
+        "type"
+      ],
+      "response": "VoiceList"
     },
     {
       "auth": "cookie_or_bearer",
@@ -1814,11 +1958,23 @@
       "auth": "cookie_or_bearer",
       "errors": [
         "anchor_not_succeeded",
+        "audio_asset_not_found",
+        "audio_duration_unknown",
         "audio_file_required",
         "audio_prompt_too_long",
         "audio_too_large",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
         "billing_requires_priced_media",
         "billing_requires_priced_text_and_output_limit",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
         "customer_login_required",
@@ -1835,9 +1991,12 @@
         "invalid_audio_response_format",
         "invalid_audio_temperature",
         "invalid_audio_upload",
+        "invalid_avatar_id",
+        "invalid_background_color",
         "invalid_batch_id",
         "invalid_batch_position",
         "invalid_boolean",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_date",
         "invalid_id",
@@ -1856,9 +2015,11 @@
         "invalid_reference_images",
         "invalid_reference_upload",
         "invalid_request",
+        "invalid_script",
         "invalid_source",
         "invalid_status",
         "invalid_text",
+        "invalid_voice_id",
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
@@ -1878,6 +2039,7 @@
         "reference_upload_unavailable",
         "request_already_received",
         "request_not_found",
+        "script_too_long",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -1890,6 +2052,7 @@
         "unsupported_parameter_for_model",
         "unsupported_protocol",
         "use_stateless_responses",
+        "voice_id_required",
         "workspace_quote_required"
       ],
       "method": "POST",
@@ -1971,11 +2134,23 @@
       "auth": "bearer",
       "errors": [
         "anchor_not_succeeded",
+        "audio_asset_not_found",
+        "audio_duration_unknown",
         "audio_file_required",
         "audio_prompt_too_long",
         "audio_too_large",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
         "billing_requires_priced_media",
         "billing_requires_priced_text_and_output_limit",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
         "customer_login_required",
@@ -1992,9 +2167,12 @@
         "invalid_audio_response_format",
         "invalid_audio_temperature",
         "invalid_audio_upload",
+        "invalid_avatar_id",
+        "invalid_background_color",
         "invalid_batch_id",
         "invalid_batch_position",
         "invalid_boolean",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_date",
         "invalid_id",
@@ -2013,9 +2191,11 @@
         "invalid_reference_images",
         "invalid_reference_upload",
         "invalid_request",
+        "invalid_script",
         "invalid_source",
         "invalid_status",
         "invalid_text",
+        "invalid_voice_id",
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
@@ -2035,6 +2215,7 @@
         "reference_upload_unavailable",
         "request_already_received",
         "request_not_found",
+        "script_too_long",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2047,6 +2228,7 @@
         "unsupported_parameter_for_model",
         "unsupported_protocol",
         "use_stateless_responses",
+        "voice_id_required",
         "workspace_quote_required"
       ],
       "method": "POST",
@@ -2068,11 +2250,23 @@
       "auth": "bearer",
       "errors": [
         "anchor_not_succeeded",
+        "audio_asset_not_found",
+        "audio_duration_unknown",
         "audio_file_required",
         "audio_prompt_too_long",
         "audio_too_large",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
         "billing_requires_priced_media",
         "billing_requires_priced_text_and_output_limit",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
         "customer_login_required",
@@ -2089,9 +2283,12 @@
         "invalid_audio_response_format",
         "invalid_audio_temperature",
         "invalid_audio_upload",
+        "invalid_avatar_id",
+        "invalid_background_color",
         "invalid_batch_id",
         "invalid_batch_position",
         "invalid_boolean",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_date",
         "invalid_id",
@@ -2110,9 +2307,11 @@
         "invalid_reference_images",
         "invalid_reference_upload",
         "invalid_request",
+        "invalid_script",
         "invalid_source",
         "invalid_status",
         "invalid_text",
+        "invalid_voice_id",
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
@@ -2132,6 +2331,7 @@
         "reference_upload_unavailable",
         "request_already_received",
         "request_not_found",
+        "script_too_long",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2144,6 +2344,7 @@
         "unsupported_parameter_for_model",
         "unsupported_protocol",
         "use_stateless_responses",
+        "voice_id_required",
         "workspace_quote_required"
       ],
       "method": "POST",
@@ -2153,11 +2354,23 @@
       "auth": "bearer",
       "errors": [
         "anchor_not_succeeded",
+        "audio_asset_not_found",
+        "audio_duration_unknown",
         "audio_file_required",
         "audio_prompt_too_long",
         "audio_too_large",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
         "billing_requires_priced_media",
         "billing_requires_priced_text_and_output_limit",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
         "customer_login_required",
@@ -2174,9 +2387,12 @@
         "invalid_audio_response_format",
         "invalid_audio_temperature",
         "invalid_audio_upload",
+        "invalid_avatar_id",
+        "invalid_background_color",
         "invalid_batch_id",
         "invalid_batch_position",
         "invalid_boolean",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_date",
         "invalid_id",
@@ -2195,9 +2411,11 @@
         "invalid_reference_images",
         "invalid_reference_upload",
         "invalid_request",
+        "invalid_script",
         "invalid_source",
         "invalid_status",
         "invalid_text",
+        "invalid_voice_id",
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
@@ -2217,6 +2435,7 @@
         "reference_upload_unavailable",
         "request_already_received",
         "request_not_found",
+        "script_too_long",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2229,6 +2448,7 @@
         "unsupported_parameter_for_model",
         "unsupported_protocol",
         "use_stateless_responses",
+        "voice_id_required",
         "workspace_quote_required"
       ],
       "method": "POST",
@@ -2238,11 +2458,23 @@
       "auth": "bearer",
       "errors": [
         "anchor_not_succeeded",
+        "audio_asset_not_found",
+        "audio_duration_unknown",
         "audio_file_required",
         "audio_prompt_too_long",
         "audio_too_large",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
         "billing_requires_priced_media",
         "billing_requires_priced_text_and_output_limit",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
         "customer_login_required",
@@ -2259,9 +2491,12 @@
         "invalid_audio_response_format",
         "invalid_audio_temperature",
         "invalid_audio_upload",
+        "invalid_avatar_id",
+        "invalid_background_color",
         "invalid_batch_id",
         "invalid_batch_position",
         "invalid_boolean",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_date",
         "invalid_id",
@@ -2280,9 +2515,11 @@
         "invalid_reference_images",
         "invalid_reference_upload",
         "invalid_request",
+        "invalid_script",
         "invalid_source",
         "invalid_status",
         "invalid_text",
+        "invalid_voice_id",
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
@@ -2302,6 +2539,7 @@
         "reference_upload_unavailable",
         "request_already_received",
         "request_not_found",
+        "script_too_long",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2314,6 +2552,7 @@
         "unsupported_parameter_for_model",
         "unsupported_protocol",
         "use_stateless_responses",
+        "voice_id_required",
         "workspace_quote_required"
       ],
       "method": "POST",
@@ -2323,11 +2562,23 @@
       "auth": "bearer",
       "errors": [
         "anchor_not_succeeded",
+        "audio_asset_not_found",
+        "audio_duration_unknown",
         "audio_file_required",
         "audio_prompt_too_long",
         "audio_too_large",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
         "billing_requires_priced_media",
         "billing_requires_priced_text_and_output_limit",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
         "customer_login_required",
@@ -2344,9 +2595,12 @@
         "invalid_audio_response_format",
         "invalid_audio_temperature",
         "invalid_audio_upload",
+        "invalid_avatar_id",
+        "invalid_background_color",
         "invalid_batch_id",
         "invalid_batch_position",
         "invalid_boolean",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_date",
         "invalid_id",
@@ -2365,9 +2619,11 @@
         "invalid_reference_images",
         "invalid_reference_upload",
         "invalid_request",
+        "invalid_script",
         "invalid_source",
         "invalid_status",
         "invalid_text",
+        "invalid_voice_id",
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
@@ -2387,6 +2643,7 @@
         "reference_upload_unavailable",
         "request_already_received",
         "request_not_found",
+        "script_too_long",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2399,6 +2656,7 @@
         "unsupported_parameter_for_model",
         "unsupported_protocol",
         "use_stateless_responses",
+        "voice_id_required",
         "workspace_quote_required"
       ],
       "method": "POST",
@@ -2408,11 +2666,23 @@
       "auth": "bearer",
       "errors": [
         "anchor_not_succeeded",
+        "audio_asset_not_found",
+        "audio_duration_unknown",
         "audio_file_required",
         "audio_prompt_too_long",
         "audio_too_large",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
         "billing_requires_priced_media",
         "billing_requires_priced_text_and_output_limit",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
         "customer_login_required",
@@ -2429,9 +2699,12 @@
         "invalid_audio_response_format",
         "invalid_audio_temperature",
         "invalid_audio_upload",
+        "invalid_avatar_id",
+        "invalid_background_color",
         "invalid_batch_id",
         "invalid_batch_position",
         "invalid_boolean",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_date",
         "invalid_id",
@@ -2450,9 +2723,11 @@
         "invalid_reference_images",
         "invalid_reference_upload",
         "invalid_request",
+        "invalid_script",
         "invalid_source",
         "invalid_status",
         "invalid_text",
+        "invalid_voice_id",
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
@@ -2472,6 +2747,7 @@
         "reference_upload_unavailable",
         "request_already_received",
         "request_not_found",
+        "script_too_long",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2484,6 +2760,7 @@
         "unsupported_parameter_for_model",
         "unsupported_protocol",
         "use_stateless_responses",
+        "voice_id_required",
         "workspace_quote_required"
       ],
       "method": "POST",
@@ -2499,11 +2776,23 @@
       "auth": "bearer",
       "errors": [
         "anchor_not_succeeded",
+        "audio_asset_not_found",
+        "audio_duration_unknown",
         "audio_file_required",
         "audio_prompt_too_long",
         "audio_too_large",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
         "billing_requires_priced_media",
         "billing_requires_priced_text_and_output_limit",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
         "customer_login_required",
@@ -2520,9 +2809,12 @@
         "invalid_audio_response_format",
         "invalid_audio_temperature",
         "invalid_audio_upload",
+        "invalid_avatar_id",
+        "invalid_background_color",
         "invalid_batch_id",
         "invalid_batch_position",
         "invalid_boolean",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_date",
         "invalid_id",
@@ -2541,9 +2833,11 @@
         "invalid_reference_images",
         "invalid_reference_upload",
         "invalid_request",
+        "invalid_script",
         "invalid_source",
         "invalid_status",
         "invalid_text",
+        "invalid_voice_id",
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
@@ -2563,6 +2857,7 @@
         "reference_upload_unavailable",
         "request_already_received",
         "request_not_found",
+        "script_too_long",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2575,6 +2870,7 @@
         "unsupported_parameter_for_model",
         "unsupported_protocol",
         "use_stateless_responses",
+        "voice_id_required",
         "workspace_quote_required"
       ],
       "method": "POST",
@@ -2609,11 +2905,23 @@
       "auth": "bearer",
       "errors": [
         "anchor_not_succeeded",
+        "audio_asset_not_found",
+        "audio_duration_unknown",
         "audio_file_required",
         "audio_prompt_too_long",
         "audio_too_large",
+        "avatar_prompt_not_supported",
+        "avatar_source_conflict",
+        "avatar_source_required",
+        "avatar_source_unsupported",
+        "avatar_voice_conflict",
+        "avatar_voice_required",
+        "avatar_voice_unsupported",
+        "background_conflict",
+        "background_unsupported",
         "billing_requires_priced_media",
         "billing_requires_priced_text_and_output_limit",
+        "captions_unsupported",
         "conflicting_parameter",
         "credit_reference_required",
         "customer_login_required",
@@ -2630,9 +2938,12 @@
         "invalid_audio_response_format",
         "invalid_audio_temperature",
         "invalid_audio_upload",
+        "invalid_avatar_id",
+        "invalid_background_color",
         "invalid_batch_id",
         "invalid_batch_position",
         "invalid_boolean",
+        "invalid_captions",
         "invalid_credit_amount",
         "invalid_date",
         "invalid_id",
@@ -2651,9 +2962,11 @@
         "invalid_reference_images",
         "invalid_reference_upload",
         "invalid_request",
+        "invalid_script",
         "invalid_source",
         "invalid_status",
         "invalid_text",
+        "invalid_voice_id",
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
@@ -2673,6 +2986,7 @@
         "reference_upload_unavailable",
         "request_already_received",
         "request_not_found",
+        "script_too_long",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2685,6 +2999,7 @@
         "unsupported_parameter_for_model",
         "unsupported_protocol",
         "use_stateless_responses",
+        "voice_id_required",
         "workspace_quote_required"
       ],
       "method": "POST",
@@ -2765,6 +3080,18 @@
       ]
     },
     {
+      "code": "audio_asset_not_found",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "audio_duration_unknown",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "audio_file_required",
       "status": [
         400
@@ -2780,6 +3107,96 @@
       "code": "audio_too_large",
       "status": [
         413
+      ]
+    },
+    {
+      "code": "audio_too_long",
+      "status": [
+        422
+      ]
+    },
+    {
+      "code": "audio_too_short",
+      "status": [
+        422
+      ]
+    },
+    {
+      "code": "audio_unreadable",
+      "status": [
+        422
+      ]
+    },
+    {
+      "code": "avatar_catalog_unavailable",
+      "status": [
+        503
+      ]
+    },
+    {
+      "code": "avatar_catalog_upstream_error",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "avatar_photo_unsupported_type",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "avatar_prompt_not_supported",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "avatar_source_conflict",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "avatar_source_required",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "avatar_source_unsupported",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "avatar_voice_conflict",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "avatar_voice_required",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "avatar_voice_unsupported",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "background_conflict",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "background_unsupported",
+      "status": [
+        400
       ]
     },
     {
@@ -2882,6 +3299,12 @@
       "code": "captcha_unavailable",
       "status": [
         503
+      ]
+    },
+    {
+      "code": "captions_unsupported",
+      "status": [
+        400
       ]
     },
     {
@@ -3230,6 +3653,18 @@
       ]
     },
     {
+      "code": "invalid_avatar_id",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_background_color",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "invalid_base_url",
       "status": [
         400
@@ -3273,6 +3708,12 @@
     },
     {
       "code": "invalid_captcha_request",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_captions",
       "status": [
         400
       ]
@@ -3357,6 +3798,12 @@
     },
     {
       "code": "invalid_export_format",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_external_ref",
       "status": [
         400
       ]
@@ -3459,6 +3906,12 @@
     },
     {
       "code": "invalid_kind",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_language",
       "status": [
         400
       ]
@@ -3702,6 +4155,12 @@
       ]
     },
     {
+      "code": "invalid_script",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "invalid_skill_ref",
       "status": [
         400
@@ -3769,6 +4228,18 @@
     },
     {
       "code": "invalid_variables",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_voice_id",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_voice_type",
       "status": [
         400
       ]
@@ -4080,6 +4551,12 @@
       ]
     },
     {
+      "code": "script_too_long",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "select_one_tgz_asset",
       "status": [
         400
@@ -4293,6 +4770,12 @@
       "code": "user_not_found",
       "status": [
         404
+      ]
+    },
+    {
+      "code": "voice_id_required",
+      "status": [
+        400
       ]
     },
     {
