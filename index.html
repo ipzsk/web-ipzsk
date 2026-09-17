@@ -347,24 +347,10 @@
     }
   </style>
 <link rel="stylesheet" href="/home-downloads.css">
+<link rel="stylesheet" href="/site-nav.css"><script type="module" src="/site-nav.js"></script>
 <link rel="stylesheet" href="/recharge.css"><script type="module" src="/recharge.js"></script></head>
 <body>
-  <header class="topbar">
-    <nav class="nav shell" aria-label="主导航">
-      <a class="brand" href="/" aria-label="IPZSK 首页">
-        <span class="brand-mark">IP</span>
-        <span class="brand-copy"><strong>IPZSK</strong><small>KNOWLEDGE WORKSPACE</small></span>
-      </a>
-      <div class="tabs" aria-label="功能导航">
-        <a class="tab active" href="/" aria-current="page">首页 · 下载</a>
-        <a class="tab" href="/image.html">生图</a>
-        <a class="tab" href="/video">生视频</a>
-        <a class="tab" href="/workspace">内容工作台</a>
-        <a class="tab" href="/account?recharge=1" data-open-recharge>充值 / 兑换</a>
-        <a class="tab" href="/account">我的</a>
-      </div>
-    </nav>
-  </header>
+  <header class="site-header" data-site-nav></header>
 
   <main>
     <section class="hero shell download-hero" id="home">
@@ -385,7 +371,7 @@
       </div>
     </section>
     <section class="section shell" id="features"><div class="section-head"><div><span class="section-label">CREATE YOUR WAY</span><h2>也可以，直接在网页里开始。</h2></div><p>创作工具和账号服务，各有清晰的入口。</p></div><div class="feature-grid">
-      <article class="feature-card live"><span class="badge">现已开放</span><h3>生图</h3><p>描述画面，生成图片。查看当前账号的云端图片记录。</p><a class="feature-link" href="/image.html">开始生图 ↗</a></article>
+      <article class="feature-card live"><span class="badge">现已开放</span><h3>生图</h3><p>描述画面，生成图片。查看当前账号的云端图片记录。</p><a class="feature-link" href="/image">开始生图 ↗</a></article>
       <article class="feature-card"><span class="badge">已接入</span><h3>生视频</h3><p>登录后使用账户余额生成 AI 视频，支持清晰度、时长设置与任务进度查询。</p><a class="feature-link" href="/video">开始生成视频 ↗</a></article>
       <article class="feature-card"><span class="badge">现已开放</span><h3>内容工作台</h3><p>整理选题、编辑文稿、预览排版。当前草稿保存在本机。</p><a class="feature-link" href="/workspace">进入内容工作台 ↗</a></article>
       <article class="feature-card"><span class="badge">账号与服务</span><h3>我的</h3><p>查看个人资料、账户余额、充值与消费记录，管理自己的创作入口。</p><a class="feature-link" href="/account">打开个人中心 ↗</a></article>

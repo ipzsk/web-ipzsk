@@ -10,7 +10,7 @@ function clearSession(){
   for(const id of ['customer-email','customer-balance','customer-frozen','customer-name','customer-verification','customer-created'])$('#'+id).textContent='';
   for(const id of ['customer-ledger','customer-keys','customer-requests'])$('#'+id).replaceChildren();usageData=undefined;if(wasSignedIn)authUi?.restore();
 }
-async function request(path,body){const r=await fetch('https://api.ipzsk.com'+path,{method:body?'POST':'GET',credentials:'include',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const d=await r.json();if(!r.ok){if(r.status===401&&path.startsWith('/api/me/'))clearSession();throw Object.assign(new Error(errors[d.error?.code??d.code]??'操作未成功，请稍后重试。'),{code:d.error?.code??d.code});}return d;}
+async function request(path,body){const r=await fetch('https://api.ipzsk.com'+path,{method:body?'POST':'GET',credentials:'include',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined}).catch(()=>{throw new Error('暂时无法连接服务，请检查网络后重试。');});const d=await r.json().catch(()=>({}));if(!r.ok){if(r.status===401&&path.startsWith('/api/me/'))clearSession();throw Object.assign(new Error(errors[d.error?.code??d.code]??(r.status>=500?'服务暂时不可用，请稍后重试。':'操作未成功，请稍后重试。')),{code:d.error?.code??d.code,status:r.status});}return d;}
 function handler(fn){return async(e)=>{e.preventDefault();const b=e.target.closest('button')??e.target.querySelector('button');if(b){b.disabled=true;b.dataset.busy='true';}authUi.notice();try{await fn(e);}catch(error){authUi.notice(error.message,true);}finally{if(b){delete b.dataset.busy;b.disabled=false;}}};}
 async function loadAccount(){
   const profile=await request('/api/me/profile');
@@ -37,7 +37,7 @@ $('#customer-copy-token').addEventListener('click',handler(async()=>{await navig
 $('#customer-refresh').addEventListener('click',handler(loadAccount));
 $('#customer-logout').addEventListener('click',handler(async()=>{await request('/api/auth/sign-out',{});clearSession();authUi.showLogin();authUi.notice('已安全退出登录。');}));
 const humanProof=createHumanProof({request});
-authUi=initAuth({request,humanProof,onSignedIn:()=>location.replace(({recharge:'https://www.ipzsk.com/account?recharge=1',developer:'https://www.ipzsk.com/developer',workspace:'https://www.ipzsk.com/workspace',video:'https://www.ipzsk.com/video'}[new URLSearchParams(location.search).get('next')]||'https://www.ipzsk.com/'))});
+authUi=initAuth({request,humanProof,onSignedIn:()=>{const next=new URLSearchParams(location.search).get('next')||'';location.replace(/^\/(?![/\\])/.test(next)?next:({recharge:'/account?recharge=1',developer:'/developer',workspace:'/workspace',video:'/video'}[next]||'/'));}});
 await Promise.all([
   request('/api/account/status').then(status=>{authUi.setStatus(status);}).catch(()=>authUi.setStatus(null)),
   loadAccount().catch(error=>{if(error.code!=='customer_login_required')authUi.notice('暂时无法加载账户，请稍后刷新重试。',true);})

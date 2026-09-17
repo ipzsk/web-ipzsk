@@ -12,8 +12,7 @@ const ui=await build({...options,outfile:'/tmp/ipzsk-test-bundle.js',entryPoints
 const api=await build({...options,entryPoints:['web/api.ts'],globalName:'StudioApi'});
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 async function openAdvanced(w){
- const button=[...w.document.querySelectorAll('button')].find(b=>b.textContent.trim()==='更多工具');
- assert.ok(button,'advanced tools remain accessible from the beginner workspace');button.click();await pause(100);
+ assert.ok(w.document.querySelector('textarea[aria-label="提示词"]'),'the professional studio is the default workspace');
 }
 test('all 561 cases retain images and Chinese-only prompt versions',()=>{
  assert.equal(catalog.length,561);
@@ -93,7 +92,7 @@ test('oversized references fail before submission and plain-text 413 errors are 
  for(let i=0;i<100&&(await service.taskList())[0].status!=='failed';i++)await pause(10);
  assert.match((await service.taskList())[0].error,/图片过大.*不能超过 3MB/);
  w.fetch=async url=>({ok:true,json:async()=>String(url).includes('/api/me/profile')?{user:{id:'test-user'}}:catalog});w.eval(ui.outputFiles[0].text);await pause(150);await openAdvanced(w);
- const alerts=[...w.document.querySelectorAll('[role="alert"]')];assert.ok(alerts.some(el=>/图片过大.*不能超过 3MB/.test(el.textContent)));
+ assert.ok(![...w.document.querySelectorAll('[role="alert"]')].some(el=>/图片过大/.test(el.textContent)),'a failed task error is shown once, in its task row');
  const failedRow=w.document.querySelector('[data-status="failed"]');assert.match(failedRow.textContent,/不能超过 3MB/);
  assert.ok(w.document.querySelector('[aria-label="生成任务"][data-open="true"]'));
  const edit=[...w.document.querySelectorAll('.web-pill')].find(el=>el.textContent.trim()==='图生图');assert.ok(edit);edit.click();await pause(50);

@@ -18,6 +18,11 @@
       "permanent": false
     },
     {
+      "source": "/image.html",
+      "destination": "/image",
+      "permanent": false
+    },
+    {
       "source": "/",
       "has": [
         {
@@ -97,6 +102,10 @@
     {
       "source": "/video",
       "destination": "/video.html"
+    },
+    {
+      "source": "/image",
+      "destination": "/image.html"
     }
   ],
   "headers": [

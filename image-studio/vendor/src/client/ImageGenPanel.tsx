@@ -53,6 +53,10 @@ const SIZE_KEYS: Record<string, 'size.auto' | 'size.square' | 'size.portrait34' 
  *  OpenAI-compatible endpoints (1k→low, 2k→medium, 4k→high). */
 const QUALITIES = ['auto', '1k', '2k', '4k'] as const
 
+/** Web host: the prompt survives the round trip through the login page. */
+const DRAFT_KEY = 'ipzsk-image-draft'
+const LOGIN_HREF = '/account?next=' + encodeURIComponent('/image')
+
 /** Detail options ('' = omit the passthrough). */
 const DETAILS = ['', 'standard', 'high'] as const
 
@@ -460,8 +464,11 @@ export function ImageGenPanel(props: {
   scope: ImageGenScope
   sessions?: ISessions
   conversation?: ConversationService
+  /** Web host: null when signed out; undefined keeps the plugin behaviour. */
+  userId?: string | null
 }) {
-  const { api, scope, sessions, conversation } = props
+  const { api, scope, sessions, conversation, userId } = props
+  const signedOut = userId === null
   const config = useConfig(scope)
   // The plugin language follows the DSH interface (bridged from ctx.locale);
   // this tick re-renders the tree so every tt() switches live — the template
@@ -498,7 +505,9 @@ export function ImageGenPanel(props: {
     setCanvasImportRequest({ source, entryId, imageIndex })
     setWorkspace('canvas')
   }
-  const [prompt, setPrompt] = useState('')
+  const [prompt, setPrompt] = useState(() => { try { return sessionStorage.getItem(DRAFT_KEY) ?? '' } catch { return '' } })
+  const [loginPrompt, setLoginPrompt] = useState(false)
+  const [paramOpen, setParamOpen] = useState<'size' | 'quality' | 'count' | null>(null)
   const [size, setSize] = useState<string>('auto')
   const [quality, setQuality] = useState<string>('auto')
   const [count, setCount] = useState(1)
@@ -729,7 +738,7 @@ export function ImageGenPanel(props: {
           && !tasksRef.current.some(old => old.id === task.id && old.status === 'completed'))
         const newlyFailed = next.find(task => task.status === 'failed'
           && !tasksRef.current.some(old => old.id === task.id && old.status === 'failed'))
-        if (newlyFailed) { setError(newlyFailed.error || '图片生成失败，请稍后重试。'); setTaskTrayOpen(true) }
+        if (newlyFailed) setTaskTrayOpen(true)
         tasksRef.current = next
         setTasks(previous => {
           const completed = next.find(task => task.status === 'completed'
@@ -884,8 +893,17 @@ export function ImageGenPanel(props: {
   }
 
   /** Run one generation. */
+  /** Signed out: keep the draft and ask for login instead of submitting. */
+  const interceptSignedOut = (): boolean => {
+    if (!signedOut) return false
+    try { sessionStorage.setItem(DRAFT_KEY, prompt) } catch {}
+    setError(null)
+    setLoginPrompt(true)
+    return true
+  }
+
   const handleGenerate = async (): Promise<void> => {
-    if (submitting) return
+    if (submitting || interceptSignedOut()) return
     if (!enabled) {
       openSettingsGuide('disabled')
       return
@@ -928,6 +946,7 @@ export function ImageGenPanel(props: {
       const submitted = await Promise.all(targetModels.map(targetModel => api.taskSubmit({ ...request, model: targetModel, ...comparisonFields })))
       setTasks(previous => [...submitted, ...previous.filter(item => !submitted.some(task => task.id === item.id))])
       setComparison(comparisonId === undefined ? null : { taskIds: submitted.map(task => task.id), prompt: promptText, comparisonId })
+      try { sessionStorage.removeItem(DRAFT_KEY) } catch {}
     } catch (caught) {
       setError(errorMessage(caught))
     } finally {
@@ -936,7 +955,7 @@ export function ImageGenPanel(props: {
   }
 
   const handleEcommerceGenerate = async (): Promise<void> => {
-    if (ecommerceGenerateDisabled) return
+    if (ecommerceGenerateDisabled || interceptSignedOut()) return
     if (!enabled || !configured || !apiKeySet) { openSettingsGuide('generation'); return }
     const projectId = ecommerce.projectId || newComparisonId()
     const buildRequest = (slot: ProductSetSlot, index: number): GenerateRequest => {
@@ -1781,7 +1800,7 @@ export function ImageGenPanel(props: {
             <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7.5H6.8L3.8 13.6v-2.6H2.5z"/></svg>
             {tt('chat.toggle')}
           </button>
-          <button
+          {signedOut ? <a className="web-button" href={LOGIN_HREF}>登录</a> : <button
             type="button"
             className={css.connectionStatus}
             data-connected={connected ? 'true' : 'false'}
@@ -1789,7 +1808,7 @@ export function ImageGenPanel(props: {
           >
             <span className={css.connectionDot} aria-hidden="true" />
             {tt(connected ? 'connection.connected' : 'connection.disconnected')}
-          </button>
+          </button>}
         </span>
       </header>
 
@@ -2118,6 +2137,11 @@ export function ImageGenPanel(props: {
                 value={prompt}
                 placeholder={tt('prompt.placeholder')}
                 onChange={(event) => { setPrompt(event.target.value) }}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey) || event.nativeEvent.isComposing) return
+                  event.preventDefault()
+                  if (!generateDisabled) void handleGenerate()
+                }}
               />
               <div className={css.promptFooter}>
                 <button type="button" className="web-button" onClick={() => setPromptEditorOpen(true)}>展开编辑</button>
@@ -2141,55 +2165,43 @@ export function ImageGenPanel(props: {
                 </button>
                 <span className={css.promptCount}>{tt('prompt.count', { count: prompt.length })}</span>
               </div>
-            </section>
-
-            {/* parameters */}
-            <section className={css.card}>
-              <div className={css.paramGroup}>
-                <span className={css.paramLabel}>{tt('params.size')}</span>
-                <div className={css.optionGrid}>
-                  {SIZES.map(option => (
-                    <Pill
-                      key={option}
-                      active={size === option}
-                      onClick={() => { setSize(option) }}
-                      className={css.optionPill}
-                    >
+              <div className={css.paramChips}>
+                {(['size', 'quality', 'count'] as const).map(key => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={css.paramChip}
+                    title={tt(`params.${key}` as const)}
+                    aria-expanded={paramOpen === key}
+                    onClick={() => { setParamOpen(open => open === key ? null : key) }}
+                  >
+                    {key === 'size' ? (size === 'auto' ? '比例自动' : size)
+                      : key === 'quality' ? (quality === 'auto' ? '清晰度自动' : tt(`quality.${quality}` as never))
+                      : tt(`count.${count === 1 ? 'one' : count === 2 ? 'two' : count === 3 ? 'three' : 'four'}` as const)} ▾
+                  </button>
+                ))}
+              </div>
+              {paramOpen !== null ? (
+                <div className={paramOpen === 'size' ? css.optionGrid : css.optionRow} role="group" aria-label={tt(`params.${paramOpen}` as const)}>
+                  {paramOpen === 'size' ? SIZES.map(option => (
+                    <Pill key={option} active={size === option} onClick={() => { setSize(option); setParamOpen(null) }} className={css.optionPill}>
                       {tt(SIZE_KEYS[option] ?? 'size.auto')}
                     </Pill>
-                  ))}
-                </div>
-              </div>
-              <div className={css.paramGroup}>
-                <span className={css.paramLabel}>{tt('params.quality')}</span>
-                <div className={css.optionRow}>
-                  {QUALITIES.map(option => (
-                    <Pill
-                      key={option}
-                      active={quality === option}
-                      onClick={() => { setQuality(option) }}
-                      className={css.optionPill}
-                    >
+                  )) : paramOpen === 'quality' ? QUALITIES.map(option => (
+                    <Pill key={option} active={quality === option} onClick={() => { setQuality(option); setParamOpen(null) }} className={css.optionPill}>
                       {tt(`quality.${option}` as const)}
                     </Pill>
-                  ))}
-                </div>
-              </div>
-              <div className={css.paramGroup}>
-                <span className={css.paramLabel}>{tt('params.count')}</span>
-                <div className={css.optionRow}>
-                  {[1, 2, 3, 4].map(option => (
-                    <Pill
-                      key={option}
-                      active={count === option}
-                      onClick={() => { setCount(option) }}
-                      className={css.optionPill}
-                    >
+                  )) : [1, 2, 3, 4].map(option => (
+                    <Pill key={option} active={count === option} onClick={() => { setCount(option); setParamOpen(null) }} className={css.optionPill}>
                       {tt(`count.${option === 1 ? 'one' : option === 2 ? 'two' : option === 3 ? 'three' : 'four'}` as const)}
                     </Pill>
                   ))}
                 </div>
-              </div>
+              ) : null}
+            </section>
+
+            {/* less common parameters */}
+            <section className={css.card}>
               <div className={css.paramGroup}>
                 <span className={css.paramLabel}>{tt('params.detail')}</span>
                 <div className={css.optionRow}>
@@ -2214,6 +2226,12 @@ export function ImageGenPanel(props: {
               it never overlaps the cards scrolling above it. */}
             <section className={css.footer}>
             {error !== null ? <div className={css.canvasError} role="alert">{error}</div> : null}
+            {signedOut && loginPrompt ? (
+              <div className={css.loginPrompt} role="status">
+                <span>登录后即可生成，提示词已保留。</span>
+                <a className="web-button web-button-primary" href={LOGIN_HREF}>登录后生成</a>
+              </div>
+            ) : null}
             {workspace === 'ecommerce' ? (
               <div className={css.ecommerceFooterBody}>
                 {ecommercePreview ? (
@@ -2300,6 +2318,7 @@ export function ImageGenPanel(props: {
                 </span>
               ) : tt('generate')}
               </Button> : null}
+            {isGeneration ? <a className={css.noticeLink} href="/image-studio/NOTICE.txt" target="_blank" rel="noreferrer">开源说明</a> : null}
             </section>
           </aside>
 
@@ -2571,11 +2590,7 @@ export function ImageGenPanel(props: {
             </div>
           ) : null}
 
-          {!generating && error !== null ? (
-            <div className={css.canvasError} role="alert">{tt('canvas.error', { error })}</div>
-          ) : null}
-
-          {isGeneration && !generating && !error && images.length === 0 ? (
+          {isGeneration && !generating && images.length === 0 ? (
             <InspirationGallery
               api={api}
               onBrowse={() => setLibraryOpen(true)}

@@ -338,9 +338,9 @@ html[data-dsh-imagegen-active] .sidebarHistoryHost {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  padding: 14px 16px 16px;
+  padding: 14px 24px 16px;
   gap: 10px;
-  background: var(--dsw-alias-bg-base);
+  background: var(--ip-paper, var(--dsw-alias-bg-base));
   color: var(--dsw-alias-label-primary);
   font-family: var(--dsw-font-family);
 }
@@ -644,7 +644,7 @@ html[data-dsh-imagegen-active] .sidebarHistoryHost {
 .configGuide { position: fixed; inset: 0; z-index: 1100; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 35%); }
 .configGuideBody { display: flex; width: min(360px, 100%); flex-direction: column; gap: 12px; padding: 18px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1); box-shadow: 0 14px 40px rgb(0 0 0 / 20%); }
 .configGuideBody span { color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 1.55; }
-.configGuideBody button { align-self: flex-end; min-height: 30px; padding: 0 12px; border: 0; border-radius: 7px; color: var(--dsw-alias-bg-layer-1); background: var(--dsw-alias-brand-primary); cursor: pointer; font: inherit; font-size: 12px; }
+.configGuideBody button { align-self: flex-end; min-height: 30px; padding: 0 12px; border: 0; border-radius: 7px; color: var(--ip-acid, var(--dsw-alias-bg-layer-1)); background: var(--dsw-alias-brand-primary); cursor: pointer; font: inherit; font-size: 12px; }
 
 /* --- history surface (rendered into the shell sidebar) ----------------------- */
 
@@ -694,9 +694,9 @@ html[data-dsh-imagegen-active] .sidebarHistoryHost {
   box-sizing: border-box;
   padding: 0 8px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 7px;
+  border-radius: 10px;
   color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-bg-layer-2);
+  background: var(--dsw-alias-bg-layer-3);
   font: inherit;
   font-size: 11px;
 }
@@ -906,9 +906,9 @@ html[data-dsh-imagegen-active] .sidebarHistoryHost {
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  background: var(--dsw-alias-bg-layer-2);
+  background: var(--dsw-alias-bg-base);
   border: 1px solid var(--dsw-alias-border-l1);
-  border-radius: 12px;
+  border-radius: 16px;
   flex: none;
 }
 
@@ -1041,7 +1041,7 @@ html[data-dsh-imagegen-active] .sidebarHistoryHost {
 .ecommerceSlotCard[data-active] {
   background: var(--dsw-alias-label-primary);
   border-color: var(--dsw-alias-label-primary);
-  color: var(--dsw-alias-bg-base);
+  color: var(--ip-acid, var(--dsw-alias-bg-base));
   font-weight: 600;
 }
 
@@ -1053,8 +1053,8 @@ html[data-dsh-imagegen-active] .sidebarHistoryHost {
   height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: var(--dsw-alias-brand-primary);
-  color: #fff;
+  background: var(--ip-acid, var(--dsw-alias-brand-primary));
+  color: var(--dsw-alias-label-primary);
   font-size: 10px;
   font-weight: 600;
   line-height: 16px;
@@ -1084,8 +1084,8 @@ html[data-dsh-imagegen-active] .sidebarHistoryHost {
   margin-left: 5px;
   padding: 0 4px;
   border-radius: 4px;
-  background: var(--dsw-alias-brand-primary);
-  color: #fff;
+  background: var(--ip-acid, var(--dsw-alias-brand-primary));
+  color: var(--dsw-alias-label-primary);
   font-size: 9px;
   font-weight: 700;
   line-height: 13px;
@@ -1505,7 +1505,7 @@ html[data-dsh-imagegen-active] .sidebarHistoryHost {
 
 .topNavItem[data-active] {
   background: var(--dsw-alias-label-primary);
-  color: var(--dsw-alias-bg-base);
+  color: var(--ip-acid, var(--dsw-alias-bg-base));
   font-weight: 600;
 }
 
@@ -1675,7 +1675,7 @@ html[data-dsh-imagegen-chat-collapsed] [data-dsh-imagegen-chat-resizer] {
 
 .prompt {
   width: 100%;
-  min-height: 260px;
+  min-height: 160px;
   padding: 10px 12px;
   font-size: 15px;
   line-height: 1.8;
@@ -1712,15 +1712,14 @@ html[data-dsh-imagegen-chat-collapsed] [data-dsh-imagegen-chat-resizer] {
   gap: 6px;
   height: 26px;
   padding: 0 12px;
-  border: 1px solid var(--dsw-alias-brand-primary);
+  border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 999px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--dsw-alias-brand-primary) 14%, transparent), color-mix(in srgb, var(--dsw-alias-brand-primary) 5%, transparent));
-  color: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
   font-size: 12px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--dsw-alias-brand-primary) 22%, transparent);
   transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
 }
 
@@ -1729,10 +1728,10 @@ html[data-dsh-imagegen-chat-collapsed] [data-dsh-imagegen-chat-resizer] {
 }
 
 .templatesButton:hover {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--dsw-alias-brand-primary) 24%, transparent), color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, transparent));
-  color: var(--dsw-alias-brand-primary);
+  border-color: var(--dsw-alias-label-primary);
+  background: var(--ip-acid, var(--dsw-alias-bg-layer-2));
+  color: var(--dsw-alias-label-primary);
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px color-mix(in srgb, var(--dsw-alias-brand-primary) 30%, transparent);
 }
 
 .templatesButton:active {
@@ -1766,6 +1765,42 @@ html[data-dsh-imagegen-chat-collapsed] [data-dsh-imagegen-chat-resizer] {
 }
 
 /* --- parameter groups ----------------------------------------------------------- */
+
+.paramChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.paramChip {
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-base);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.paramChip[aria-expanded='true'] {
+  border-color: var(--dsw-alias-brand-primary);
+  color: var(--dsw-alias-brand-primary);
+}
+
+.loginPrompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-2);
+  font-size: 13px;
+}
 
 .paramGroup {
   display: flex;
@@ -1836,9 +1871,9 @@ html[data-dsh-imagegen-chat-collapsed] [data-dsh-imagegen-chat-resizer] {
   padding: 0 12px;
   font-size: 13px;
   color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-bg-layer-2);
+  background: var(--dsw-alias-bg-layer-3);
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 18px;
+  border-radius: 12px;
   outline: none;
   font-family: inherit;
   cursor: pointer;
@@ -2616,7 +2651,7 @@ html[data-dsh-imagegen-chat-collapsed] [data-dsh-imagegen-chat-resizer] {
 .galleryCardAction:hover, .galleryCardAction:focus-visible { border-color: var(--dsw-alias-brand-primary); color: var(--dsw-alias-brand-primary); outline: none; }
 .galleryCardAction:disabled { cursor: wait; opacity: .55; }
 .galleryCardFooter { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 10px 12px; }
-.galleryAvatar { display: grid; flex: none; width: 27px; height: 27px; place-items: center; border-radius: 50%; color: #fff; background: var(--dsw-alias-brand-primary); font-size: 12px; font-weight: 700; }
+.galleryAvatar { display: grid; flex: none; width: 27px; height: 27px; place-items: center; border-radius: 50%; color: var(--dsw-alias-label-primary); background: var(--ip-acid, var(--dsw-alias-brand-primary)); font-size: 12px; font-weight: 700; }
 .galleryCardInfo { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
 .galleryCardInfo strong, .galleryCardInfo small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .galleryCardInfo strong { color: var(--dsw-alias-label-primary); font-size: 12px; }
@@ -2663,3 +2698,37 @@ html[data-dsh-imagegen-chat-collapsed] [data-dsh-imagegen-chat-resizer] {
   .galleryToolbarActions { width: 100%; flex-wrap: wrap; }
   .galleryMasonry { grid-template-columns: 1fr; }
 }
+
+/* Narrow hosts: the centered tab strip would overlap the title and actions;
+   give it its own horizontally scrolling row instead. */
+@media (max-width: 1100px) {
+  .panelHeader { flex-wrap: wrap; }
+  .topNav {
+    position: static;
+    transform: none;
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .topNavItem, .topNavDivider { flex: none; }
+}
+
+/* Short windows: scroll the whole settings column (footer included) rather
+   than squeezing the cards into a sliver above a pinned footer. */
+@media (max-height: 820px) and (min-width: 761px) {
+  .config { overflow-y: auto; }
+  .configScroll { flex: none; overflow: visible; }
+}
+
+.noticeLink { align-self: center; color: var(--dsw-alias-label-tertiary); font-size: 11px; text-decoration: none; }
+.noticeLink:hover { color: var(--dsw-alias-label-primary); text-decoration: underline; }
+
+@media (min-width: 1024px) {
+  .panel { padding-right: 32px; padding-left: 32px; }
+}
+
+.galleryFilter[data-active], .galleryFilter[data-active]:hover,
+.galleryRatio[data-active],
+.galleryViewToggle button[data-active] { color: var(--ip-acid, var(--dsw-alias-bg-base)); background: var(--dsw-alias-label-primary); font-weight: 600; }
