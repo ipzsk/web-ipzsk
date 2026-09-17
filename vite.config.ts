@@ -57,5 +57,6 @@ export default defineConfig(({ command }) => ({
       },
     },
   },
-  server: { port: 5174, proxy: { '^/api/': api, '^/v1/': api } // anchored: '/api' alone would also swallow the legacy /api.js module },
+  // Anchored: a plain '/api' key would also swallow the legacy /api.js module.
+  server: { port: 5174, proxy: { '^/api/': api, '^/v1/': api } },
 }))
