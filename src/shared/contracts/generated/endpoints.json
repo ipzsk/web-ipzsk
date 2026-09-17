@@ -1,7 +1,7 @@
 {
   "_source": {
     "repo": "ipzsk-api-gateway",
-    "commit": "b89cc03"
+    "commit": "82756db"
   },
   "auth_kinds": {
     "bearer": {
