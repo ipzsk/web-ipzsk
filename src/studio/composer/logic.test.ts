@@ -9,6 +9,7 @@ import { ApiError } from '@/shared/api'
 import {
   addFromChip, addManual, diffItem, expandModels, itemFromDraft, normalizeParams, planSend, pruneChips,
   quoteEntry, referenceState, sentReferenceIds, serializePrompt, type Draft,
+  modelPriceLabel, summaryParams, unitLabel,
 } from './logic'
 import { quoteQueryKey } from './hooks'
 import { createSender } from './send'
@@ -191,4 +192,29 @@ it('quote cache key is stable across param insertion order', () => {
   expect(hashKey(quoteQueryKey([a]))).not.toBe(hashKey(quoteQueryKey([{ ...a, params: { ...a.params, resolution: '4K' } }])))
   // references are part of the priced body (gateway signs them for lanehub /v1/quote)
   expect(hashKey(quoteQueryKey([a]))).not.toBe(hashKey(quoteQueryKey([{ ...a, reference_asset_ids: ['y'] }])))
+})
+
+describe('summaryParams / unitLabel / modelPriceLabel', () => {
+  it('drops empty params so summaries have no stray separators', () => {
+    expect(summaryParams({ aspect_ratio: '', resolution: '1k', seed: '', n: 0, sound: false })).toEqual([['resolution', '1k'], ['n', 0], ['sound', false]])
+  })
+  it('maps billing units to Chinese, never the raw string', () => {
+    expect(unitLabel('per_call')).toBe('按次')
+    expect(unitLabel('per_second')).toBe('按秒')
+    expect(unitLabel('per_minute')).toBe('按分钟')
+    expect(unitLabel('per_minute_output')).toBe('按分钟')
+    expect(unitLabel('per_1m_tokens')).toBe('按 token')
+    expect(unitLabel('per_weird')).toBe('')
+    expect(unitLabel(undefined)).toBe('')
+  })
+  it('prices per image / second / minute from the default-params quote', () => {
+    const img = { ...gpt, billing: { unit: 'per_call' } }
+    expect(modelPriceLabel(img, 5.70197)).toBe('约 5.7 点/张') // default n = 1
+    expect(modelPriceLabel({ ...img, params: img.params.map(p => p.field === 'n' ? { ...p, default: 2 } : p) }, 12)).toBe('约 6 点/张')
+    const vid = { ...seedance, billing: { unit: 'per_second' } } // default duration 5
+    expect(modelPriceLabel(vid, 28.5)).toBe('约 5.7 点/秒')
+    expect(modelPriceLabel({ ...vid, billing: { unit: 'per_minute_output' } }, 1)).toBe('约 12 点/分钟')
+    expect(modelPriceLabel({ ...vid, billing: { unit: 'per_call' } }, 30)).toBe('约 30 点/次')
+    expect(modelPriceLabel(img, null)).toBe('按次')
+  })
 })

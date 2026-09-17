@@ -5,7 +5,8 @@ import { ExternalLink, LogIn } from 'lucide-react'
 import { Button, Dialog, DialogContent, Input, cn, focusRing, buttonVariants } from '@/ui'
 import { ApiError, isMock, request, type Wallet } from '@/shared/api'
 import { qk, queryClient } from '@/shared/query'
-import { VOUCHER_ERRORS, formatPoints } from './lib'
+import { VOUCHER_ERRORS } from './lib'
+import { formatPoints } from '../points'
 
 export const WALLET_KEY = ['account', 'wallet'] as const
 export interface AccountWallet extends Wallet { frozen_cny?: string; entries?: { created_at: string; kind: string; amount_points: string }[] }

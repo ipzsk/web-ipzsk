@@ -2,6 +2,7 @@
 import type { JSONContent } from '@tiptap/core'
 import type { GenerationParams, MediaKind, MissingAsset, RecordAsset } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
+import { formatPoints } from '@/shared/points'
 import type { Mention } from '../api/queue'
 import { AVATAR_ERRORS } from '../avatar/contract'
 import type { GenerationRecord, GenerationStatus } from '../api/records'
@@ -140,7 +141,7 @@ export function chargeLabel(items: Pick<ItemView, 'status' | 'charged_points'>[]
   if (!done.length) return null
   if (done.some(i => i.status === 'succeeded' && i.charged_points == null)) return '结算中'
   const sum = done.reduce((a, i) => a + Number(i.charged_points ?? 0), 0)
-  return `已扣 ${Math.round(sum * 100) / 100} 点`
+  return `已扣 ${formatPoints(sum)}`
 }
 
 /** Anchors that reached a terminal state → composer calls. `watched` (record_id → item_id) is consumed, so repeat calls are no-ops. */

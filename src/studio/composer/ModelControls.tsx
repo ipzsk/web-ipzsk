@@ -2,12 +2,16 @@ import { useState } from 'react'
 import { ChevronDown, Gauge, Images, Layers, ListPlus, RectangleHorizontal, RotateCw, SlidersHorizontal, Timer, type LucideIcon } from 'lucide-react'
 import type { GenerationParams, ModelSpec } from '@/shared/contracts'
 import { Button, Checkbox, DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger, Popover, PopoverContent, PopoverTrigger, Skeleton, Tooltip, cn } from '@/ui'
-import { formatParam, optionsOf, paramLabel, visibleParams } from './logic'
+import { useQuery } from '@tanstack/react-query'
+import { quote } from '../api/catalog'
+import { quoteQueryKey } from './hooks'
+import { defaultParams, formatParam, modelPriceLabel, optionsOf, paramLabel, unitLabel, visibleParams } from './logic'
 
 const ICONS: Record<string, LucideIcon> = { aspect_ratio: RectangleHorizontal, resolution: Gauge, n: Layers, duration: Timer }
 
-export function ModelPicker({ models, model, status, onRetry, onPick, onAddMany, roomFor }: {
+export function ModelPicker({ models, model, status, signedIn, onRetry, onPick, onAddMany, roomFor }: {
   models: ModelSpec[]
+  signedIn: boolean
   model: ModelSpec | undefined
   status: 'pending' | 'error' | 'success' | 'signedOut'
   onRetry: () => void
@@ -18,6 +22,9 @@ export function ModelPicker({ models, model, status, onRetry, onPick, onAddMany,
 }) {
   const [open, setOpen] = useState(false)
   const [picked, setPicked] = useState<string[]>([])
+  // One batched quote of every listed model at its default params, fetched when the picker opens; cached like the composer quote.
+  const entries = models.map(m => ({ kind: m.kind, model: m.id, params: defaultParams(m), reference_asset_ids: [] }))
+  const prices = useQuery({ queryKey: quoteQueryKey(entries), queryFn: ({ signal }) => quote(entries, signal), enabled: signedIn && open && entries.length > 0, staleTime: 10 * 60_000 })
   if (status === 'pending') return <Skeleton className="h-8 w-32" />
   if (status === 'signedOut') return <span className="px-2 text-[13px] text-muted">登录后选择型号</span>
   if (status === 'error') return <Button size="sm" variant="danger-ghost" icon={<RotateCw className="size-4" />} onClick={onRetry}>型号加载失败 · 重试</Button>
@@ -48,7 +55,9 @@ export function ModelPicker({ models, model, status, onRetry, onPick, onAddMany,
                 <button type="button" className="grid min-w-0 flex-1 cursor-pointer gap-1 rounded-[6px] text-left outline-none focus-visible:outline-2 focus-visible:outline-acid-deep" aria-current={m.id === model?.id || undefined} onClick={() => { onPick(m); setOpen(false) }}>
                   <span className="flex items-center gap-2">
                     <span className="truncate font-semibold">{m.name}</span>
-                    {m.billing?.unit && <span className="ml-auto shrink-0 text-xs text-muted">{m.billing.unit}</span>}
+                    {signedIn && prices.isPending
+                      ? <Skeleton className="ml-auto h-3.5 w-16 shrink-0" />
+                      : <span className="ml-auto shrink-0 text-xs text-muted tabular-nums">{prices.data ? modelPriceLabel(m, prices.data[models.indexOf(m)]?.points) : unitLabel(m.billing?.unit)}</span>}
                   </span>
                   <span className="flex flex-wrap gap-1">
                     {refs > 0 && <Tag icon={Images}>{`参考图 ≤${refs}`}</Tag>}

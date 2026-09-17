@@ -7,6 +7,7 @@ import { openRecharge } from '@/shared/recharge/RechargeDialog'
 import { useOnline } from '@/shared/query'
 import { queryClient } from '@/shared/query'
 import { Button, Dialog, DialogContent, DialogFooter, IconButton, Popover, PopoverContent, PopoverTrigger, SegmentedControl, Tooltip, cn, toast } from '@/ui'
+import { formatPoints } from '@/shared/points'
 import { DropTarget, useUpload, type MediaAsset } from '@/media'
 import { enhancePrompt, fetchModels } from '../api/catalog'
 import { SUBJECT_KIND_LABEL, type Subject } from '../api/subjects'
@@ -284,7 +285,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
     rememberAvatarItems(items.filter(i => isAvatarParams(i.params)).map(i => ({ ...i, fromDraft: includesComposer && i.item_id === current.item_id, points: pointsById.get(i.item_id) })))
     if (includesComposer && !avatarMode) clearDraft()
     void sender.sendBatch(items, { thread_id: useComposer.getState().threadId })
-    toast({ title: `已提交 ${items.length} 项`, description: '可在「创作」里查看进度' })
+    toast({ title: `已提交 ${items.length} 项`, description: location.pathname.startsWith('/studio/create') ? undefined : '可在「创作」里查看进度' })
     setExpanded(false)
   }
   const sendComposer = () => {
@@ -330,7 +331,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
   const expanded = useEditorFlags(s => s.expanded)
   const insetRef = useComposerInset(hidden, expanded)
   const setExpanded = (v: boolean) => useEditorFlags.setState({ expanded: v })
-  const sendLabel = total != null && sendable.length ? `约 ${total} 点` : null
+  const sendLabel = total != null && sendable.length ? `约 ${formatPoints(total)}` : null
 
   const sendButton = account.pending
     ? <Button variant="primary" loading icon={<ArrowUp className="size-[18px]" />}>发送</Button>
@@ -346,7 +347,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
             </Button>
           )
           return !reason && sendable.length > 1
-            ? <Tooltip content={<div className="grid gap-0.5">{sendable.map((it, i) => <span key={it.item_id}>{String.fromCharCode(0x2460 + i)} {it.model} · {pointsById.get(it.item_id) ?? '…'} 点</span>)}<span className="font-semibold text-white">共 {sendable.length} 项 · ⌘/Ctrl+Enter</span></div>}>{btn}</Tooltip>
+            ? <Tooltip content={<div className="grid gap-0.5">{sendable.map((it, i) => <span key={it.item_id}>{String.fromCharCode(0x2460 + i)} {it.model} · {formatPoints(pointsById.get(it.item_id)).replace('待核实', '… 点')}</span>)}<span className="font-semibold text-white">共 {sendable.length} 项 · ⌘/Ctrl+Enter</span></div>}>{btn}</Tooltip>
             : btn
         })()
 
@@ -402,7 +403,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 <SegmentedControl<MediaKind | 'avatar'> label="类型" value={avatarMode ? 'avatar' : kind} onValueChange={setKind} options={[{ value: 'image', label: '图片', icon: Image }, { value: 'video', label: '视频', icon: Clapperboard }, { value: 'avatar', label: '数字人', icon: UserRound }]} />
                 {!avatarMode && <ModelPicker
-                  models={kindModels} model={model} status={!account.signedIn && models.isError ? 'signedOut' : models.status} onRetry={() => void models.refetch()}
+                  models={kindModels} model={model} signedIn={account.signedIn} status={!account.signedIn && models.isError ? 'signedOut' : models.status} onRetry={() => void models.refetch()}
                   onPick={pickModel} onAddMany={addMany} roomFor={n => !hasPrompt ? '先输入提示词' : queueRoom(queue.length, n)}
                 />}
                 {model && <ParamChips model={model} params={params} highlight={highlight} onChange={setParam} />}

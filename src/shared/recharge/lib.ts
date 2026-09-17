@@ -8,5 +8,4 @@ export const VOUCHER_ERRORS: Record<string, string> = {
   account_disabled: '账户已停用，请联系管理员。',
 }
 
-export const formatPoints = (v: string | number | null | undefined) =>
-  v == null ? '待核实' : Number(v).toLocaleString('zh-CN', { maximumFractionDigits: 6 }) + ' 点'
+export { formatPoints } from '../points'

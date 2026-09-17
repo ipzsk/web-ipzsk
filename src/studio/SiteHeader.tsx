@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { MouseEvent } from 'react'
 import { ShieldCheck } from 'lucide-react'
 import { cn, focusRing } from '@/ui'
+import { formatPoints } from '@/shared/points'
 import { isMock, loginUrl, request } from '@/shared/api'
 import { useCurrentUser, useWallet } from '@/shared/query'
 import { RechargeHost, openRecharge } from '@/shared/recharge/RechargeDialog'
@@ -28,10 +29,10 @@ function PointsPill() {
       type="button"
       onClick={openRecharge}
       aria-haspopup="dialog"
-      title={(frozen > 0 ? `处理中冻结 ${frozen} 点 · ` : '') + '充值 / 兑换'}
+      title={(frozen > 0 ? `处理中冻结 ${formatPoints(frozen)} · ` : '') + '充值 / 兑换'}
       className={cn(linkClass, 'cursor-pointer border border-line bg-card font-bold tabular-nums')}
     >
-      {available.toLocaleString('zh-CN', { maximumFractionDigits: 6 })} 点
+      {formatPoints(available)}
       <span className={cn('font-normal max-[720px]:sr-only', available <= 0 ? 'text-danger' : 'text-label')}>{available <= 0 ? ' · 去充值' : ' · 充值'}</span>
     </button>
   )
@@ -74,13 +75,14 @@ export function SiteHeader({ studioKind, onStudioKind }: { studioKind?: StudioKi
           })}
         </div>
         <div className="flex min-w-0 items-center gap-2 max-[720px]:gap-1">
-          {user && <PointsPill />}
-          {user && <RechargeHost />}
+          {/* Admin entry first: the cluster is right-anchored, so it arriving late (after /api/me/roles) grows leftwards and moves nothing else. */}
           {user && !!roles?.length && (
             <a href="/admin" aria-current={onAdmin ? 'page' : undefined} aria-label="管理中台" title="管理中台" className={cn(linkClass, 'inline-flex items-center gap-1.5', onAdmin && 'bg-acid font-bold text-white hover:bg-acid')}>
               <ShieldCheck aria-hidden className="size-4 shrink-0" /><span className="max-[720px]:sr-only">管理中台</span>
             </a>
           )}
+          {user && <PointsPill />}
+          {user && <RechargeHost />}
           {isPending ? null : user
             ? <a href="/account" className={linkClass}>我的</a>
             : <a href={loginUrl()} className={cn(linkClass, 'bg-acid font-bold text-white hover:bg-acid-deep')}>登录 / 注册</a>}

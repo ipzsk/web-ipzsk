@@ -33,6 +33,28 @@ export function addToCanvas(i: ItemView, asset: MediaAsset) {
   else dispatchStudioEvent(CANVAS_ADD_EVENT, { source: 'asset', assets: [asset] })
 }
 
+/**
+ * 下载 a result as `ipzsk-<record>-<n>.<ext>`. R2 signed URLs are cross-origin, so `<a download>` is ignored (it just opens the image):
+ * fetch the blob and save through an object URL. Fetch blocked (e.g. CORS on localhost) → open the original in a new tab instead.
+ */
+export async function downloadAsset(asset: MediaAsset, record: string, index: number) {
+  const url = asset.urls.orig
+  try {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(String(res.status))
+    const blob = await res.blob()
+    const ext = blob.type.split('/')[1]?.replace('jpeg', 'jpg').replace(/[^a-z0-9].*$/, '') || new URL(url).pathname.split('.').pop() || (asset.kind === 'video' ? 'mp4' : 'png')
+    const href = URL.createObjectURL(blob)
+    const a = Object.assign(document.createElement('a'), { href, download: `ipzsk-${record}-${index + 1}.${ext}` })
+    document.body.append(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(href), 10_000)
+  } catch {
+    const w = window.open(url, '_blank')
+    if (w) { w.opener = null; toast({ title: '无法直接下载', description: '已在新标签页打开原图，可在那里另存', tone: 'error' }) }
+    else toast({ title: '下载失败', description: '请稍后重试', tone: 'error', action: { label: '打开原图', onClick: () => window.open(url, '_blank', 'noopener') } })
+  }
+}
+
 export async function copyText(text: string) {
   try { await navigator.clipboard.writeText(text); toast({ title: '已复制提示词', tone: 'success' }) }
   catch { toast({ title: '复制失败', description: '浏览器没有授予剪贴板权限', tone: 'error' }) }

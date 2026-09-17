@@ -2,7 +2,7 @@ import type { JSONContent } from '@tiptap/core'
 import { get, set } from 'idb-keyval'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { request } from '@/shared/api'
-import { queryClient, useCurrentUser } from '@/shared/query'
+import { qk, queryClient, useCurrentUser } from '@/shared/query'
 import type { GenerationParams, GenerationRecord as GenRecord, Page, Thread } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
 import { mockSignUrls } from '@/media/fresh'
@@ -254,6 +254,7 @@ async function onAccepted(v: PendingGeneration, out: SubmitOutcome) {
     } catch { /* stays unfiled; still visible via the active poll */ }
   }
   void queryClient.invalidateQueries({ queryKey: recordKeys.all })
+  void queryClient.invalidateQueries({ queryKey: qk.wallet }) // points are frozen on accept
 }
 
 function fireAnchors(records: GenerationRecord[]) {
@@ -264,6 +265,18 @@ function fireAnchors(records: GenerationRecord[]) {
 }
 
 let prevActive = new Set<string>()
+/** Records last seen still moving money: queued / running, or succeeded with charged_points not settled yet (「结算中」). */
+const unsettled = new Set<string>()
+const refreshWallet = () => void queryClient.invalidateQueries({ queryKey: qk.wallet })
+/** Every records read goes through here: an unsettled record seen settled → the header balance changed. */
+function trackCharges(records: GenerationRecord[]) {
+  let changed = false
+  for (const r of records) {
+    if (r.status === 'queued' || r.status === 'running' || (r.status === 'succeeded' && r.charged_points == null)) unsettled.add(r.id)
+    else if (unsettled.delete(r.id)) changed = true
+  }
+  if (changed) refreshWallet()
+}
 if (typeof window !== 'undefined') {
   queryClient.getMutationCache().subscribe(e => {
     if (e.type !== 'updated' || e.action.type !== 'success') return
@@ -280,12 +293,16 @@ if (typeof window !== 'undefined') {
       const now = new Set(items.map(r => r.id))
       const finished = [...prevActive].filter(id => !now.has(id))
       prevActive = now
-      if (finished.length) void queryClient.invalidateQueries({ queryKey: ['generations', 'thread'] })
+      trackCharges(items)
+      // Finished records leave this list; the thread refetch reports their final charge (trackCharges). Off the create view nothing refetches them, so refresh now too.
+      if (finished.length) { void queryClient.invalidateQueries({ queryKey: ['generations', 'thread'] }); refreshWallet() }
       // Anchors that left the active list (or finished before ever being listed): read them once.
       for (const [rid] of watchedAnchors) if (!now.has(rid)) void recordsApi.get(rid).then(r => fireAnchors([r])).catch(() => {})
     } else {
       const data = e.action.data as { pages: Page<GenerationRecord>[] } | undefined
-      fireAnchors(data?.pages.flatMap(p => p.items) ?? [])
+      const items = data?.pages.flatMap(p => p.items) ?? []
+      trackCharges(items)
+      fireAnchors(items)
     }
   })
 }

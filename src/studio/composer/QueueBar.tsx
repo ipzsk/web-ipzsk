@@ -6,10 +6,11 @@ import { useMutationState } from '@tanstack/react-query'
 import { AlertCircle, ArrowUp, BookmarkPlus, ChevronDown, Copy, GripVertical, Link2, LoaderCircle, Pencil, RotateCw, Trash2, X } from 'lucide-react'
 import type { ModelSpec } from '@/shared/contracts'
 import { Badge, Button, Dialog, DialogContent, DialogFooter, IconButton, cn } from '@/ui'
+import { formatPoints } from '@/shared/points'
 import { GENERATION_SUBMIT_KEY, type PendingGeneration } from '../api/generation'
 import { QUEUE_MAX, type QueueEntry } from '../api/queue'
 import { loadDraft, useComposer } from '../store'
-import { diffItem, formatParam } from './logic'
+import { diffItem, formatParam, summaryParams } from './logic'
 import { retryItem } from './send'
 import { avatarItemSummary } from '../avatar/AvatarResult'
 import { avatarDisplayParams, isAvatarParams } from '../avatar/logic'
@@ -51,7 +52,7 @@ function Row({ item, index, current, models, points, submitting, editing, onRemo
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
           <B on={d.model}>{isAvatarParams(item.params) ? avatarItemSummary(item) : models.get(item.model)?.name ?? item.model}</B>
-          {Object.entries(isAvatarParams(item.params) ? avatarDisplayParams(item.params) : item.params).map(([k, v]) => {
+          {summaryParams(isAvatarParams(item.params) ? avatarDisplayParams(item.params) : item.params).map(([k, v]) => {
             const c = changed.get(k)
             return c
               ? <span key={k} title="该型号不支持原取值，已改为默认值" className="rounded-[4px] bg-acid-soft px-1 font-bold text-label">{formatParam(k, c.from)}→{formatParam(k, c.to)}</span>
@@ -61,7 +62,7 @@ function Row({ item, index, current, models, points, submitting, editing, onRemo
           })}
           {item.reference_asset_ids.length > 0 && <>· <B on={d.references}>{`${item.reference_asset_ids.length} 张参考图`}</B></>}
           {anchorIndex >= 0 && <Badge tone="outline" className="h-5 px-1.5"><Link2 className="size-3" />引用{circled(anchorIndex)}</Badge>}
-          {points != null && <span className="ml-auto pl-2 text-xs text-muted tabular-nums">约 {points} 点</span>}
+          {points != null && <span className="ml-auto pl-2 text-xs text-muted tabular-nums">约 {formatPoints(points)}</span>}
         </div>
         {d.prompt && <p className="mt-0.5 line-clamp-2 text-muted" title={item.prompt}>{item.prompt || '（无提示词）'}</p>}
         {item.issues?.length && !submitting ? <p role="alert" className="mt-0.5 flex items-center gap-1 text-xs text-danger"><AlertCircle className="size-3" />{item.issues[0]!.message} · 编辑补全后再发送</p>
@@ -107,7 +108,7 @@ export function QueueBar({ current, models, pointsById, total, onSendAll, sendRe
       <header className="flex items-center gap-2 px-3 py-2">
         <button type="button" aria-expanded={!collapsed} onClick={() => setCollapsed(c => !c)} className="flex cursor-pointer items-center gap-1.5 rounded-control text-[13px] font-semibold outline-none focus-visible:outline-2 focus-visible:outline-acid-deep">
           <ChevronDown className={cn('size-4 transition-transform duration-(--duration-fast)', collapsed && '-rotate-90')} />
-          待发送队列 · {queue.length} 项{total != null && <span className="font-normal text-muted"> · 约 {total} 点</span>}
+          待发送队列 · {queue.length} 项{total != null && <span className="font-normal text-muted"> · 约 {formatPoints(total)}</span>}
         </button>
         <div className="flex-1" />
         <Button size="sm" variant="ghost" icon={<BookmarkPlus className="size-4" />} onClick={() => openSaveTemplate({ origin: 'queue', covers: [], sources: queue.map(i => ({ ...i, anchor_of: i.anchor_of ?? null })) })} className="max-md:hidden">存为模板</Button>

@@ -32,6 +32,10 @@ export function CreateView() {
   useEffect(() => { useComposer.setState({ threadId: legacyOpen ? null : threadId }) }, [threadId, legacyOpen]) // the local legacy thread is never sent as thread_id
 
   const current = list.find(t => t.id === threadId)
+  // Remount the stream per thread (resets scroll pill / preview), except when the first send auto-creates today's thread:
+  // null → id is the same conversation, and a remount would blank the pending request bubble for a moment.
+  const [stream, setStream] = useState({ thread: threadId, key: 0 })
+  if (stream.thread !== threadId) setStream({ thread: threadId, key: stream.thread === null ? stream.key : stream.key + 1 })
 
   return (
     <div className="min-w-0">
@@ -58,7 +62,7 @@ export function CreateView() {
       <LegacyBanner onImport={() => go(LEGACY_THREAD_ID)} />
       {legacyOpen
         ? <LegacyStream onDismiss={() => go(today?.id ?? null)} />
-        : <Stream key={threadId ?? 'none'} threadId={threadId} acceptsUnfiled={!threadId || threadId === today?.id} waitingForThreads={threads.isPending} />}
+        : <Stream key={stream.key} threadId={threadId} acceptsUnfiled={!threadId || threadId === today?.id} waitingForThreads={threads.isPending} />}
       {renameDialog}
     </div>
   )
@@ -97,7 +101,8 @@ function Stream({ threadId, acceptsUnfiled, waitingForThreads }: { threadId: str
   const editBatch = (items: ItemView[]) => queueLength ? setConfirmBatch(items) : fillQueue(items)
 
   // 「有新结果 ↓」
-  const loading = (!!threadId && records.isPending) || waitingForThreads
+  // Something to show already (e.g. the pending request right after today's thread was auto-created) → no skeleton swap.
+  const loading = ((!!threadId && records.isPending) || waitingForThreads) && !groups.length
   const sig = streamSignature(groups)
   const prevSig = useRef<string | null>(null)
   const [pill, setPill] = useState(false)

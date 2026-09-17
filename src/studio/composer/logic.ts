@@ -1,6 +1,7 @@
 // Pure composer rules (§2.2 / §2.3). No React, no store — unit-tested in logic.test.ts.
 import type { JSONContent } from '@tiptap/core'
 import type { GenerationParams, MediaKind, ModelSpec, ParamSpec } from '@/shared/contracts'
+import { pointsNumber } from '@/shared/points'
 import type { MediaAsset } from '@/media'
 import type { QuoteEntry } from '../api/catalog'
 import type { Mention, ParamChange, ParamValue, QueueEntry, RefSlot } from '../api/queue'
@@ -44,6 +45,31 @@ export function normalizeParams(model: ModelSpec, params: GenerationParams): { p
   }
   return { params: out, changes }
 }
+
+/** Catalog `billing.unit` → Chinese label (never show the raw unit string). */
+const UNIT_LABELS: Record<string, string> = { per_call: '按次', image: '按次', per_second: '按秒', second: '按秒', per_minute: '按分钟', per_minute_output: '按分钟', per_1m_tokens: '按 token' }
+export const unitLabel = (unit: string | null | undefined) => (unit && UNIT_LABELS[unit]) ?? ''
+
+/** A model's default params (empty defaults dropped) — what the model picker quotes. */
+export const defaultParams = (model: ModelSpec): GenerationParams =>
+  Object.fromEntries(summaryParams(Object.fromEntries(visibleParams(model).map(p => [p.field, defaultOf(p)]))))
+
+/** 「约 5.7 点/张」 from a default-params quote; falls back to the unit label when there is no price or no per-unit base. */
+export function modelPriceLabel(model: ModelSpec, points: number | null | undefined): string {
+  const unit = model.billing?.unit
+  const params = defaultParams(model)
+  const seconds = Number(params.duration)
+  const per = (v: number, suffix: string) => `约 ${pointsNumber(v)} 点/${suffix}`
+  if (points == null) return unitLabel(unit)
+  if (unit === 'per_call' || unit === 'image') return model.kind === 'image' ? per(points / (Number(params.n) || 1), '张') : per(points, '次')
+  if (!(seconds > 0)) return unitLabel(unit)
+  if (unit === 'per_second' || unit === 'second') return per(points / seconds, '秒')
+  if (unit === 'per_minute' || unit === 'per_minute_output') return per((points / seconds) * 60, '分钟')
+  return unitLabel(unit)
+}
+
+/** Param entries worth showing in a summary row (「型号 · 1k · 21:9」): empty values would leave stray 「·」 separators. */
+export const summaryParams = (params: GenerationParams) => Object.entries(params).filter(([, v]) => v !== '' && v != null)
 
 export function formatParam(name: string, v: ParamValue): string {
   if (name === 'n') return `${v}张`

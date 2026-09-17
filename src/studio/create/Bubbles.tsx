@@ -3,11 +3,13 @@ import {
   AtSign, BookmarkPlus, Copy, Download, FolderPlus, ImagePlus, LayoutDashboard, LoaderCircle, Maximize2, MoreHorizontal, PencilLine, RefreshCw, Star, Trash2, TriangleAlert, UserPlus, type LucideIcon,
 } from 'lucide-react'
 import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, IndeterminateBar, SegmentedControl, cn, focusRing, toast } from '@/ui'
+import { formatPoints } from '@/shared/points'
 import { MediaImage, MediaVideo, useMediaDraggable, type MediaAsset } from '@/media'
 import {
-  addToCanvas, copyText, deleteBatch, deleteItem, fillFromItem, referenceFrom, regenerate, useStars,
+  addToCanvas, copyText, deleteBatch, downloadAsset, deleteItem, fillFromItem, referenceFrom, regenerate, useStars,
 } from './actions'
 import { useModels } from '../composer/hooks'
+import { summaryParams } from '../composer/logic'
 import { AvatarResultMeta, avatarItemSummary, avatarTileLabel } from '../avatar/AvatarResult'
 import { avatarDisplayParams, isAvatarParams } from '../avatar/logic'
 import { openSaveTemplate } from '../templates/actions'
@@ -63,7 +65,7 @@ function ParamLine({ item, diff, label }: { item: ItemView; diff: Set<string>; l
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
       {label && <span className="font-semibold text-ink">{label}</span>}
       <span className={hl('model')}>{isAvatarParams(item.params) ? avatarItemSummary(item) : modelName(item.model)}</span>
-      {Object.entries(isAvatarParams(item.params) ? avatarDisplayParams(item.params) : item.params).map(([k, v]) => <span key={k} className={hl(k)}>· {paramText(v)}</span>)}
+      {summaryParams(isAvatarParams(item.params) ? avatarDisplayParams(item.params) : item.params).map(([k, v]) => <span key={k} className={hl(k)}>· {paramText(v)}</span>)}
       {item.anchor_record_id && <Badge tone="outline" className="h-5 px-1.5 text-[11px]">引用锚图</Badge>}
     </div>
   )
@@ -136,7 +138,7 @@ function Status({ item, now }: { item: ItemView; now: number }) {
       return (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="flex items-center gap-1.5 text-danger"><TriangleAlert className="size-4" />{item.failure}</span>
-          <span className="text-xs text-muted">{item.status === 'submit_failed' || Number(item.charged_points ?? 0) === 0 ? '未扣点' : `已扣 ${Number(item.charged_points)} 点`}</span>
+          <span className="text-xs text-muted">{item.status === 'submit_failed' || Number(item.charged_points ?? 0) === 0 ? '未扣点' : `已扣 ${formatPoints(item.charged_points)}`}</span>
           <Button size="sm" icon={<RefreshCw className="size-4" />} onClick={() => regenerate(item)}>重试</Button>
         </div>
       )
@@ -154,11 +156,11 @@ function ResultTile({ asset, item, index, onPreview }: { asset: MediaAsset; item
   const drag = useMediaDraggable(`result:${item.item_id ?? item.record_id}:${asset.id}`, [asset])
   const ratio = asset.width && asset.height ? asset.width / asset.height : 1
   const stub = (t: string) => () => toast({ title: t, description: '即将开放' })
-  const actions: { label: string; icon: LucideIcon; run?: () => void; href?: string }[] = [
+  const actions: { label: string; icon: LucideIcon; run: () => void }[] = [
     { label: '再生成', icon: RefreshCw, run: () => regenerate(item) },
     ...(asset.kind === 'image' ? [{ label: '以此为参考', icon: ImagePlus, run: () => referenceFrom(asset) }] : []),
     { label: '放大预览', icon: Maximize2, run: onPreview },
-    { label: '下载', icon: Download, href: asset.urls.orig },
+    { label: '下载', icon: Download, run: () => void downloadAsset(asset, item.record_id ?? item.item_id ?? 'result', index) },
     { label: '放到画布', icon: LayoutDashboard, run: () => addToCanvas(item, asset) },
     { label: '存入素材', icon: FolderPlus, run: stub('存入素材') },
     { label: '存为主体', icon: UserPlus, run: stub('存为主体') },
@@ -177,16 +179,14 @@ function ResultTile({ asset, item, index, onPreview }: { asset: MediaAsset; item
         <Star className={cn('size-4', starred && 'fill-current')} />
       </IconButton>
       <div className="absolute inset-x-1.5 bottom-1.5 hidden flex-wrap justify-end gap-0.5 rounded-control bg-card/92 p-0.5 opacity-0 transition-opacity group-focus-within/tile:opacity-100 group-hover/tile:opacity-100 md:flex">
-        {actions.map(a => a.href
-          ? <a key={a.label} href={a.href} download target="_blank" rel="noreferrer" aria-label={a.label} title={a.label} className={cn('grid size-8 place-items-center rounded-control hover:bg-subtle', focusRing)}><a.icon className="size-4" /></a>
-          : <IconButton key={a.label} label={a.label} size="icon-sm" onClick={a.run}><a.icon className="size-4" /></IconButton>)}
+        {actions.map(a => <IconButton key={a.label} label={a.label} size="icon-sm" onClick={a.run}><a.icon className="size-4" /></IconButton>)}
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button type="button" aria-label="更多操作" className={cn('absolute bottom-1.5 right-1.5 grid size-8 place-items-center rounded-full bg-card/92 md:hidden', focusRing)}><MoreHorizontal className="size-4" /></button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {actions.map(a => <DropdownMenuItem key={a.label} onSelect={() => a.href ? window.open(a.href, '_blank', 'noopener') : a.run?.()}><a.icon className="size-4" />{a.label}</DropdownMenuItem>)}
+          {actions.map(a => <DropdownMenuItem key={a.label} onSelect={a.run}><a.icon className="size-4" />{a.label}</DropdownMenuItem>)}
         </DropdownMenuContent>
       </DropdownMenu>
     </figure>
@@ -201,7 +201,7 @@ function ItemCell({ item, label, now, onPreview, canDelete }: { item: ItemView; 
       {(label || canDelete) && (
         <div className="flex items-center gap-2 text-xs">
           {label && <span className="font-semibold">{label}</span>}
-          {item.status === 'succeeded' && <span className="text-muted">{item.charged_points == null ? '结算中' : `${Number(item.charged_points)} 点`}</span>}
+          {item.status === 'succeeded' && <span className="text-muted">{item.charged_points == null ? '结算中' : formatPoints(item.charged_points)}</span>}
           {canDelete && item.record_id && <IconButton label="删除此项" size="icon-sm" className="ml-auto size-7" onClick={() => deleteItem(item)}><Trash2 className="size-3.5" /></IconButton>}
         </div>
       )}
