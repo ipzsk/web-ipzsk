@@ -39,7 +39,9 @@ function useRecentSearches() {
 /** All cases are image cases: video / 数字人 composer modes show a lightweight empty state and fetch nothing. */
 export function InspirationView() {
   const kind = useComposer((s) => (s.mode === 'avatar' ? 'avatar' : s.kind))
-  if (kind === 'image') return <CaseLibrary />
+  const [sp] = useSearchParams()
+  // An open case (`?case=`) wins over the kind, otherwise the link / back-stack would point at nothing.
+  if (kind === 'image' || sp.has('case')) return <CaseLibrary />
   return (
     <section aria-labelledby="inspiration-title">
       <h1 id="inspiration-title" className="sr-only">灵感</h1>
@@ -158,7 +160,7 @@ function CaseLibrary() {
           onBlur={commitSearch}
           className="w-full md:w-80 md:shrink-0"
         />
-        <ChipScroller label="分类" revealKey={params.cat}>
+        <ChipScroller label="分类" revealKey={`${params.cat}|${chips.length}`}>
           {chips.map((ch) => {
             const on = ch.id ? (ch.id === MY_TEMPLATES ? mine : selectedCats.includes(ch.id)) : !params.cat
             return (
