@@ -68,7 +68,7 @@ export async function submitGeneration(item: PendingGeneration): Promise<SubmitO
     if (r < 0.15) return { status: 'retryable', error: { code: 'network_error', message: '暂时无法连接服务，请检查网络后重试。' } }
     return { status: 'accepted', record_id: crypto.randomUUID() }
   }
-  const path = item.kind === 'video' ? '/api/videos/generations' : '/api/me/images/generations'
+  const path = item.kind === 'video' ? '/api/me/videos/generations' : '/api/me/images/generations'
   try {
     const data = await request<{ record_id?: string; id?: string }>(path, { body, headers: { 'Idempotency-Key': `q:${item.item_id}` } })
     return { status: 'accepted', record_id: data?.record_id ?? data?.id }

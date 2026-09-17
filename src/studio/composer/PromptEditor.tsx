@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react'
+import type { Editor } from '@tiptap/core'
 import { EditorContent, Extension, NodeViewWrapper, ReactNodeViewRenderer, ReactRenderer, useEditor, type NodeViewProps } from '@tiptap/react'
 import Document from '@tiptap/extension-document'
 import Paragraph from '@tiptap/extension-paragraph'
@@ -9,16 +10,49 @@ import { Placeholder } from '@tiptap/extensions'
 import { PluginKey } from '@tiptap/pm/state'
 import type { SuggestionOptions, SuggestionProps } from '@tiptap/suggestion'
 import { create } from 'zustand'
-import { ImagePlus, TriangleAlert, Upload, UserPlus } from 'lucide-react'
-import { Button, Dialog, DialogContent, DialogFooter, Skeleton, Tooltip, cn } from '@/ui'
+import { ImagePlus, TriangleAlert, UserPlus } from 'lucide-react'
+import { Skeleton, Tooltip, cn } from '@/ui'
 import { MediaImage, type MediaAsset } from '@/media'
 import { SUBJECT_KIND_LABEL, type Subject } from '../api/subjects'
 import { useComposer } from '../store'
-import { addFromChip, chipsOf, pruneChips, refLabel, type ChipAttrs } from './logic'
+import { openSubjectEditor } from '../subjects/SubjectEditor'
+import { addFromChip, chipsOf, docFromText, fillSubjectVar, pruneChips, refLabel, type ChipAttrs } from './logic'
 import { useSubjects } from './hooks'
 
 /** Editor-wide flags the chip node views read (they live outside Composer's props). */
-export const useEditorFlags = create<{ refsOver: string | null; createSubjectOpen: boolean }>(() => ({ refsOver: null, createSubjectOpen: false }))
+export const useEditorFlags = create<{ refsOver: string | null; expanded: boolean }>(() => ({ refsOver: null, expanded: false }))
+
+let activeEditor: Editor | null = null
+const live = () => activeEditor && !activeEditor.isDestroyed ? activeEditor : null
+
+/** Bring the composer into view (opens the mobile sheet) and focus the prompt. */
+export function focusComposer() {
+  useEditorFlags.setState({ expanded: true })
+  requestAnimationFrame(() => live()?.commands.focus('end'))
+}
+
+/**
+ * Insert a subject chip programmatically (subject cards 「@ 到输入框」, @ panel 「创建主体」, {{主体:…}} picker).
+ * Adds the subject's references to the slots (deduped, tracked by chip uid). With `token`, replaces that placeholder instead of inserting at the cursor.
+ */
+export function insertSubjectMention(subject: Subject, token?: string) {
+  const uid = crypto.randomUUID()
+  const attrs: ChipAttrs = { id: subject.id, label: subject.name, kind: 'subject', uid }
+  useComposer.setState(s => ({ slots: addFromChip(s.slots, uid, subject.assets) }))
+  const ed = live()
+  if (!token && ed) {
+    ed.chain().focus().insertContent([{ type: 'mention', attrs }, { type: 'text', text: ' ' }]).run()
+    useEditorFlags.setState({ expanded: true })
+    return
+  }
+  useComposer.setState(s => {
+    const doc = s.doc ?? docFromText('')
+    const next = token ? fillSubjectVar(doc, token, attrs)
+      : { ...doc, content: [...(doc.content ?? []), { type: 'paragraph', content: [{ type: 'mention', attrs }, { type: 'text', text: ' ' }] }] }
+    return { doc: next, docVersion: s.docVersion + 1 }
+  })
+  focusComposer()
+}
 
 // ── chip ──────────────────────────────────────────────────────────────────
 
@@ -140,8 +174,9 @@ function suggestion(char: string, key: string): Omit<SuggestionOptions<Item, Ite
     items: () => [], // the panel derives items itself so late-loading subjects show up without another keystroke
     command: ({ editor, range, props }) => {
       if (props.type === 'create') {
+        const name = editor.state.doc.textBetween(range.from + 1, range.to).trim().slice(0, 30)
         editor.chain().focus().deleteRange(range).run()
-        useEditorFlags.setState({ createSubjectOpen: true })
+        openSubjectEditor({ name, onSaved: s => insertSubjectMention(s) })
         return
       }
       const uid = crypto.randomUUID()
@@ -231,6 +266,11 @@ export function PromptEditor({ onSubmit, onFiles, placeholder }: { onSubmit: () 
     },
   })
 
+  useEffect(() => {
+    activeEditor = editor
+    return () => { if (activeEditor === editor) activeEditor = null }
+  }, [editor])
+
   // Doc replaced from outside (edit queue item, restore draft, enhance).
   const docVersion = useComposer(s => s.docVersion)
   const seen = useRef(docVersion)
@@ -240,27 +280,5 @@ export function PromptEditor({ onSubmit, onFiles, placeholder }: { onSubmit: () 
     editor.commands.setContent(useComposer.getState().doc ?? '', { emitUpdate: false })
   }, [editor, docVersion])
 
-  return (
-    <>
-      <EditorContent editor={editor} />
-      <CreateSubjectDialog />
-    </>
-  )
-}
-
-/** Stub until F5b ships the subject editor (§2.9). */
-function CreateSubjectDialog() {
-  const open = useEditorFlags(s => s.createSubjectOpen)
-  const reason = '主体库编辑器将在 F5b 提供'
-  return (
-    <Dialog open={open} onOpenChange={o => useEditorFlags.setState({ createSubjectOpen: o })}>
-      <DialogContent title="创建主体" description="主体是一组有名字的参考图，@ 它就能在多次生成里保持同一个人物、角色或商品。主体库编辑器将在 F5b 提供。">
-        <div className="grid grid-cols-2 gap-2">
-          <Button icon={<Upload className="size-4" />} disabled disabledReason={reason}>从上传创建</Button>
-          <Button icon={<ImagePlus className="size-4" />} disabled disabledReason={reason}>从素材选择</Button>
-        </div>
-        <DialogFooter><Button variant="primary" onClick={() => useEditorFlags.setState({ createSubjectOpen: false })}>知道了</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
+  return <EditorContent editor={editor} />
 }

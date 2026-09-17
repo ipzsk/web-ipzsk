@@ -3,6 +3,7 @@ import { NavLink, Outlet, Route, Routes, useLocation, useParams } from 'react-ro
 import { ArrowUp, Clapperboard, FolderOpen, Image, LayoutDashboard, LoaderCircle, MessagesSquare, Sparkles, type LucideIcon } from 'lucide-react'
 import { Badge, Button, OfflineBanner, SegmentedControl, cn, focusRing } from '@/ui'
 import { StatesPage } from '@/ui/states-page'
+import { MediaDndProvider } from '@/media'
 import { useOnline, useUnauthorizedBroadcast } from '@/shared/query'
 import { SiteHeader } from './SiteHeader'
 import { Composer } from './composer/Composer'
@@ -10,6 +11,9 @@ import { InspirationView } from './inspiration/InspirationView'
 import { CreateView } from './create/CreateView'
 import { AssetsView } from './assets/AssetsView'
 import { CanvasView } from './canvas/CanvasView'
+import { useActiveGenerationCount } from './api/records'
+import { SubjectsPanel } from './subjects/SubjectsPanel'
+import { SubjectEditorHost } from './subjects/SubjectEditor'
 
 const views: { id: string; to: string; label: string; icon: LucideIcon }[] = [
   { id: 'inspiration', to: '/studio', label: '灵感', icon: Sparkles },
@@ -57,7 +61,9 @@ function Layout() {
   const online = useOnline()
   useUnauthorizedBroadcast()
   useScrollMemory(viewKey)
+  const active = useActiveGenerationCount()
   return (
+    <MediaDndProvider>
     <div className="min-h-dvh">
       <div className="sticky top-0 z-40">
         {!online && <OfflineBanner />}
@@ -68,7 +74,7 @@ function Layout() {
           {views.map(v => <NavItem key={v.id} {...v} variant="side" />)}
           <div className="my-2 h-px bg-line" />
           <div className="flex h-10 items-center gap-2.5 px-3 text-sm text-muted">
-            <LoaderCircle className="size-[18px]" />进行中<Badge tone="outline" className="ml-auto">0</Badge>
+            <LoaderCircle className="size-[18px]" />进行中<Badge tone={active ? 'ink' : 'outline'} className="ml-auto tabular-nums">{active}</Badge>
           </div>
         </aside>
         <main className="min-w-0 px-4 pb-48 pt-6 md:px-8 max-md:pb-60">
@@ -79,7 +85,9 @@ function Layout() {
       <nav aria-label="工作台" className="fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
         {views.map(v => <NavItem key={v.id} {...v} variant="tab" />)}
       </nav>
+      <SubjectEditorHost />
     </div>
+    </MediaDndProvider>
   )
 }
 
@@ -103,6 +111,7 @@ export function App() {
         <Route path="create/:threadId" element={<CreateView />} />
         <Route path="assets" element={<AssetsView />} />
         <Route path="assets/:folderId" element={<AssetsView />} />
+        <Route path="subjects" element={<SubjectsPanel />} />
         <Route path="canvas" element={<CanvasView />} />
         <Route path="canvas/:projectId" element={<CanvasView />} />
         <Route path="_states" element={<StatesPage />} />

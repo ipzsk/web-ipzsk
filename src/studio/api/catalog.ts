@@ -54,8 +54,8 @@ export const MOCK_MODELS: ModelSpec[] = [
 
 export async function fetchModels(): Promise<ModelSpec[]> {
   if (isMock) { await mockDelay(); return MOCK_MODELS }
-  const data = await request<ModelSpec[] | { items: ModelSpec[] }>('/api/me/media/models')
-  return Array.isArray(data) ? data : data.items
+  const data = await request<ModelSpec[] | { models?: ModelSpec[]; items?: ModelSpec[] }>('/api/me/media/models')
+  return Array.isArray(data) ? data : data.models ?? data.items ?? []
 }
 
 /** Body of one quote entry = the generation body minus the prompt text (price does not depend on it; avoids re-quoting per keystroke). */
@@ -70,7 +70,10 @@ const mockPoints = ({ model, params }: QuoteEntry) => {
 
 export async function quote(entries: QuoteEntry[], signal?: AbortSignal): Promise<QuoteResult[]> {
   if (isMock) { await mockDelay(200); return entries.map(e => ({ points: mockPoints(e) })) }
-  const data = await request<{ items: { points: string | number | null; error?: QuoteResult['error'] }[] }>('/api/me/media/quote', { body: entries, signal })
+  const data = await request<{ items: { points?: string | number | null; error?: QuoteResult['error'] }[] }>('/api/me/media/quote', {
+    // Generation-body shape minus prompt; points come back as 8-decimal strings (display only).
+    body: { items: entries.map(e => ({ kind: e.kind, model: e.model, ...e.params, reference_count: e.reference_count })) }, signal,
+  })
   return data.items.map(i => ({ points: i.points == null ? null : Number(i.points), error: i.error }))
 }
 

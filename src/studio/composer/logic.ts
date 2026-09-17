@@ -190,3 +190,40 @@ export function planSend(queue: QueueEntry[], composer: QueueEntry | null): Queu
 
 export const quoteEntry = (i: Pick<QueueEntry, 'kind' | 'model' | 'params' | 'reference_asset_ids'>): QuoteEntry =>
   ({ kind: i.kind, model: i.model, params: i.params, reference_count: i.reference_asset_ids.length })
+
+// ── {{主体:…}} template variables (§2.8 / §2.9) ──────────────────────────────
+
+const SUBJECT_VAR = /\{\{主体[:：]([^{}]{1,30})\}\}/g
+
+/** Unfilled subject placeholders in order, deduped, e.g. ['{{主体:商品}}']. */
+export const subjectVarsOf = (text: string) => [...new Set([...text.matchAll(SUBJECT_VAR)].map(m => m[0]))]
+/** 「商品」 from 「{{主体:商品}}」. */
+export const subjectVarLabel = (token: string) => token.replace(SUBJECT_VAR, '$1')
+
+/** Replace every occurrence of `token` in text nodes with a subject chip (all occurrences share the chip's uid). */
+export function fillSubjectVar(doc: JSONContent, token: string, attrs: ChipAttrs): JSONContent {
+  const walk = (n: JSONContent): JSONContent => {
+    if (!n.content) return n
+    return {
+      ...n,
+      content: n.content.flatMap((c): JSONContent[] => {
+        if (c.type !== 'text' || !c.text?.includes(token)) return [walk(c)]
+        return c.text.split(token).flatMap((part, i) => [
+          ...(i > 0 ? [{ type: 'mention', attrs: { ...attrs } }] : []),
+          ...(part ? [{ ...c, text: part }] : []),
+        ])
+      }),
+    }
+  }
+  return walk(doc)
+}
+
+/** Why a set of items can't be sent because of subjects (deleted chip / unfilled placeholder), or null. `subjectIds` undefined = not loaded yet. */
+export function subjectBlockReason(items: Pick<QueueEntry, 'prompt' | 'mentions'>[], subjectIds: Set<string> | undefined): string | null {
+  for (const it of items) {
+    const v = subjectVarsOf(it.prompt)[0]
+    if (v) return `请为 ${v} 选择主体`
+  }
+  if (subjectIds && items.some(it => it.mentions.some(m => m.type === 'subject' && !subjectIds.has(m.id)))) return '有主体已被删除，请先移除「主体已删除」标签'
+  return null
+}

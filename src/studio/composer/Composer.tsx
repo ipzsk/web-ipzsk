@@ -1,19 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowUp, ChevronDown, Clapperboard, Image, ListPlus, LogIn, RefreshCw, Sparkles, Wallet, X } from 'lucide-react'
+import { ArrowUp, ChevronDown, Clapperboard, Image, Info, ListPlus, LogIn, RefreshCw, Sparkles, UserPlus, Wallet, X } from 'lucide-react'
 import type { GenerationParams, MediaKind, ModelSpec } from '@/shared/contracts'
 import { loginUrl } from '@/shared/api'
 import { useOnline } from '@/shared/query'
-import { Button, IconButton, SegmentedControl, Tooltip, cn, toast } from '@/ui'
+import { queryClient } from '@/shared/query'
+import { Button, Dialog, DialogContent, DialogFooter, IconButton, Popover, PopoverContent, PopoverTrigger, SegmentedControl, Tooltip, cn, toast } from '@/ui'
 import { DropTarget, useUpload, type MediaAsset } from '@/media'
-import { enhancePrompt } from '../api/catalog'
+import { enhancePrompt, fetchModels } from '../api/catalog'
+import { SUBJECT_KIND_LABEL, type Subject } from '../api/subjects'
+import { openSubjectEditor } from '../subjects/SubjectEditor'
 import type { QueueEntry } from '../api/queue'
 import { clearDraft, loadDraft, useComposer } from '../store'
 import { useAccount, useModels, useQueueSync, useQuote, useSubjects } from './hooks'
 import {
   addManual, chipsOf, docFromText, expandModels, itemFromDraft, normalizeParams, planSend, queueRoom, quoteEntry, referenceState,
+  subjectBlockReason, subjectVarLabel, subjectVarsOf,
 } from './logic'
+import { COMPOSER_FILL_EVENT, parseFill, planFill, type FillPlan } from './fill'
 import { ModelPicker, ParamChips } from './ModelControls'
-import { PromptEditor, useEditorFlags } from './PromptEditor'
+import { PromptEditor, focusComposer, insertSubjectMention, useEditorFlags } from './PromptEditor'
 import { QueueBar, useSubmittingIds } from './QueueBar'
 import { ReferenceSlots } from './ReferenceSlots'
 import { sender } from './send'
@@ -51,6 +56,87 @@ function useHighlight() {
   return [names, flash] as const
 }
 
+/** Apply a fill plan to the store (queue replace is confirmed by the caller). */
+function applyFill(plan: FillPlan) {
+  const s = useComposer.getState()
+  if (plan.kind || plan.model || plan.params) {
+    const kind = plan.kind ?? s.kind
+    s.remember(kind, { model: plan.model ?? s.memory[kind].model, params: plan.params ?? s.memory[kind].params })
+  }
+  useComposer.setState(st => ({
+    ...(plan.kind && { kind: plan.kind }),
+    ...(plan.doc !== undefined && { doc: plan.doc, docVersion: st.docVersion + 1, editingId: null }),
+    ...(plan.slots && { slots: plan.slots }),
+    ...(plan.queue && { queue: plan.queue }),
+  }))
+  if (plan.toast) toast({ title: '已填入输入框', tone: 'success' })
+  focusComposer()
+}
+
+/**
+ * `ipzsk:composer-fill` (sources: case / asset / record / batch / canvas; see ./fill.ts). Waits for the model catalog,
+ * shows at most one inline notice, confirms before replacing a non-empty queue, never submits.
+ */
+function useComposerFill() {
+  const [notice, setNotice] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState<FillPlan | null>(null)
+  useEffect(() => {
+    const onFill = async (e: Event) => {
+      const detail = parseFill((e as CustomEvent).detail)
+      if (!detail) return
+      const models = await queryClient.fetchQuery({ queryKey: ['media', 'models'], queryFn: fetchModels, staleTime: 10 * 60_000 }).catch(() => [])
+      const s = useComposer.getState()
+      const plan = planFill(detail, { models, kind: s.kind, memory: s.memory, slots: s.slots, queue: s.queue })
+      setNotice(plan.notices.length ? plan.notices.join('；') : null)
+      if (plan.queue && s.queue.length) setConfirm(plan)
+      else applyFill(plan)
+    }
+    window.addEventListener(COMPOSER_FILL_EVENT, onFill)
+    return () => window.removeEventListener(COMPOSER_FILL_EVENT, onFill)
+  }, [])
+  const dialog = (
+    <Dialog open={!!confirm} onOpenChange={o => { if (!o) setConfirm(null) }}>
+      <DialogContent title="替换当前队列？" description={`队列里已有 ${useComposer.getState().queue.length} 项，将替换为新的 ${confirm?.queue?.length ?? 0} 项。正在提交的项不受影响。`}>
+        <DialogFooter>
+          <Button onClick={() => setConfirm(null)}>保留原队列</Button>
+          <Button variant="primary" onClick={() => { if (confirm) applyFill(confirm); setConfirm(null) }}>替换</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+  return { notice, clearNotice: () => setNotice(null), dialog }
+}
+
+/** {{主体:商品}} in the prompt → pick a subject (kind label match first) or create one. */
+function SubjectVarPicker({ token, subjects }: { token: string; subjects: Subject[] }) {
+  const label = subjectVarLabel(token)
+  const sorted = [...subjects].sort((a, b) => Number(SUBJECT_KIND_LABEL[b.kind] === label) - Number(SUBJECT_KIND_LABEL[a.kind] === label))
+  const kind = (Object.entries(SUBJECT_KIND_LABEL).find(([, l]) => l === label)?.[0] ?? undefined) as Subject['kind'] | undefined
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button type="button" className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-full border border-warning/50 bg-warning/12 px-2.5 text-xs font-semibold text-warning hover:bg-warning/20">
+          <UserPlus className="size-3.5" />为 {token} 选择主体
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 p-1">
+        <div className="max-h-64 overflow-y-auto">
+          {sorted.map(s => (
+            <button key={s.id} type="button" onClick={() => insertSubjectMention(s, token)} className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-[8px] px-2 text-left text-sm hover:bg-subtle">
+              <span className="min-w-0 flex-1 truncate font-semibold">{s.name}</span>
+              <span className="text-xs text-muted">{SUBJECT_KIND_LABEL[s.kind]} · {s.assets.length}张</span>
+            </button>
+          ))}
+          {!sorted.length && <p className="px-2 py-2 text-xs text-muted">还没有主体</p>}
+        </div>
+        <button type="button" onClick={() => openSubjectEditor({ kind, onSaved: s => insertSubjectMention(s, token) })} className="flex h-10 w-full cursor-pointer items-center gap-2 border-t border-line px-2 text-sm hover:bg-subtle">
+          <UserPlus className="size-4" />创建{label}主体
+        </button>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 // Owned by F3. Bottom floating composer shared by inspiration / create / assets views.
 export function Composer({ hidden }: { hidden: boolean }) {
   const account = useAccount()
@@ -59,6 +145,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
   const subjects = useSubjects(account.signedIn)
   useQueueSync(account.signedIn, account.pending)
   useRestoreDraft()
+  const fill = useComposerFill()
 
   const kind = useComposer(s => s.kind)
   const memory = useComposer(s => s.memory[s.kind])
@@ -123,7 +210,8 @@ export function Composer({ hidden }: { hidden: boolean }) {
 
   // ── send ──
   const [sending, setSending] = useState(false)
-  const missingSubject = subjects.data && chipsOf(doc).some(c => c.kind === 'subject' && !subjects.data.some(s => s.id === c.id))
+  const subjectIds = useMemo(() => subjects.data && new Set(subjects.data.map(s => s.id)), [subjects.data])
+  const vars = subjectVarsOf(current.prompt)
   const insufficient = account.points != null && total != null && total > account.points
 
   const blockReason = (items: QueueEntry[], includesComposer: boolean): string | null =>
@@ -131,8 +219,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
     : !model ? '型号加载中'
     : !items.length ? (queue.length ? '队列里没有可发送的项（标红的项需要先编辑）' : '先输入提示词')
     : includesComposer && refs.over ? refs.message
-    : includesComposer && missingSubject ? '有主体已被删除，请先移除对应标签'
-    : null
+    : subjectBlockReason(items, subjectIds)
 
   const send = (items: QueueEntry[], includesComposer: boolean) => {
     if (sending || blockReason(items, includesComposer)) return
@@ -150,7 +237,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
   const sendAll = () => send(queue.filter(i => !submitting.has(i.item_id) && !['failed', 'cancelled', 'waiting'].includes(i.state ?? '')), false)
 
   // ── queue ──
-  const addReason = !model ? '型号加载中' : !hasPrompt ? '先输入提示词' : refs.over ? refs.message : queueRoom(queue.length, editingId ? 0 : 1)
+  const addReason = !model ? '型号加载中' : !hasPrompt ? '先输入提示词' : refs.over ? refs.message : subjectBlockReason([current], subjectIds) ?? queueRoom(queue.length, editingId ? 0 : 1)
   const addToQueue = () => {
     if (addReason) return
     if (editingId) {
@@ -181,7 +268,8 @@ export function Composer({ hidden }: { hidden: boolean }) {
   }
 
   // ── mobile sheet ──
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useEditorFlags(s => s.expanded)
+  const setExpanded = (v: boolean) => useEditorFlags.setState({ expanded: v })
   const sendLabel = total != null ? `约 ${total} 点` : null
 
   const sendButton = account.pending
@@ -233,11 +321,18 @@ export function Composer({ hidden }: { hidden: boolean }) {
                   <button type="button" className="ml-auto inline-flex items-center gap-0.5 rounded-control px-1 hover:bg-subtle hover:text-ink" onClick={clearDraft}><X className="size-3" />取消编辑</button>
                 </div>
               )}
+              {fill.notice && (
+                <p role="status" className="mb-1 flex items-start gap-1.5 rounded-control bg-subtle px-2 py-1.5 text-xs text-ink">
+                  <Info className="mt-px size-3.5 shrink-0" /><span className="min-w-0 flex-1">{fill.notice}</span>
+                  <button type="button" aria-label="关闭提示" className="cursor-pointer text-muted hover:text-ink" onClick={fill.clearNotice}><X className="size-3.5" /></button>
+                </p>
+              )}
               <ReferenceSlots refs={refs} upload={upload} onFiles={onFiles} />
               <div className="flex items-start gap-1">
                 <div className="min-w-0 flex-1"><PromptEditor onSubmit={sendComposer} onFiles={onFiles} placeholder="描述你想要的画面，输入 @ 引用主体或参考图…" /></div>
                 <IconButton label="增强提示词" loading={enhancing} disabled={!!enhanceReason} disabledReason={enhanceReason ?? undefined} onClick={() => void enhance()}><Sparkles className="size-4" /></IconButton>
               </div>
+              {vars.length > 0 && <div className="flex flex-wrap gap-1.5 px-1 pt-1">{vars.map(v => <SubjectVarPicker key={v} token={v} subjects={subjects.data ?? []} />)}</div>}
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 <SegmentedControl label="类型" value={kind} onValueChange={setKind} options={[{ value: 'image', label: '图片', icon: Image }, { value: 'video', label: '视频', icon: Clapperboard }]} />
                 <ModelPicker
@@ -254,6 +349,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
               </div>
             </div>
           </DropTarget>
+          {fill.dialog}
         </div>
       </div>
     </div>
