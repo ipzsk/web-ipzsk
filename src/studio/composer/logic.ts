@@ -189,7 +189,7 @@ export function planSend(queue: QueueEntry[], composer: QueueEntry | null): Queu
 }
 
 export const quoteEntry = (i: Pick<QueueEntry, 'kind' | 'model' | 'params' | 'reference_asset_ids'>): QuoteEntry =>
-  ({ kind: i.kind, model: i.model, params: i.params, reference_count: i.reference_asset_ids.length })
+  ({ kind: i.kind, model: i.model, params: i.params, reference_asset_ids: [...i.reference_asset_ids] })
 
 // ── {{主体:…}} template variables (§2.8 / §2.9) ──────────────────────────────
 

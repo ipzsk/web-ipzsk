@@ -41,15 +41,17 @@ export function createSender(deps: SenderDeps) {
 
   return {
     /** Phase 1: items without an in-batch anchor. Items with `anchor_of` wait for onAnchorSucceeded. */
-    async sendBatch(items: QueueEntry[], ctx: { thread_id: string | null }) {
-      const batch_id = newId()
+    async sendBatch(items: QueueEntry[], ctx: { thread_id: string | null; parent_record_id?: string | null }) {
+      // A regenerate of one record is a standalone request linked by parent_record_id, not a new batch (§2.5).
+      const parent_record_id = ctx.parent_record_id ?? null
+      const batch_id = parent_record_id ? null : newId()
       const ids = new Set(items.map(i => i.item_id))
       const list = items.map((item, i) => ({
         item,
         pending: {
           item_id: item.item_id, kind: item.kind, model: item.model, prompt: item.prompt, params: item.params,
           reference_asset_ids: item.reference_asset_ids, references: item.slots.map(s => s.asset),
-          batch_id, batch_position: i + 1, thread_id: ctx.thread_id, anchor_record_id: null,
+          batch_id, batch_position: batch_id ? i : null, parent_record_id, thread_id: ctx.thread_id, anchor_record_id: null,
           anchor_of: item.anchor_of && ids.has(item.anchor_of) ? item.anchor_of : null,
           mentions: item.mentions, prompt_doc: item.prompt_doc,
         } satisfies PendingGeneration,

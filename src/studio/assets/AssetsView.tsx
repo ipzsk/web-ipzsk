@@ -1,3 +1,4 @@
+import { SubjectsPanel } from '../subjects/SubjectsPanel'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as RKeyboardEvent, type ReactNode } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -10,7 +11,7 @@ import {
   DropdownMenuTrigger, EmptyState, SegmentedControl, Skeleton, cn, focusRing, toast,
 } from '@/ui'
 import {
-  MasonryGrid, MediaCard, MediaDndProvider, MediaLightbox, useSelection, useUpload,
+  MasonryGrid, MediaCard, MediaLightbox, useSelection, useUpload,
   type CardState, type MediaAsset, type UploadItem,
 } from '@/media'
 import { useOnline } from '@/shared/query'
@@ -87,7 +88,8 @@ type Cell =
 /* ---------- view ---------- */
 
 export function AssetsView() {
-  return <MediaDndProvider><AssetsPage /></MediaDndProvider>
+  // Drag context is provided once by the studio layout (App.tsx) so cards can also drop into the composer and canvas.
+  return <AssetsPage />
 }
 
 function AssetsPage() {
@@ -363,7 +365,7 @@ function AssetsPage() {
         </div>
 
         {tab === 'subjects' ? (
-          <EmptyState icon={Users} text="主体库即将上线：把人物、角色、商品存成主体，多次生成保持一致" />
+          <SubjectsPanel />
         ) : mode === 'dense' && tab !== 'cases' ? (
           <DenseGrid cells={cells} render={renderCell} loading={!!loading} error={error} onRetry={retry} onEndReached={onEndReached} empty={empty} />
         ) : (

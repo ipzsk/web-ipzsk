@@ -10,7 +10,7 @@ const rec = (p: Partial<GenerationRecord> & { id: string }): GenerationRecord =>
 })
 const pending = (item_id: string, p: Partial<PendingGeneration> = {}, s: Partial<PendingState> = {}): PendingState => ({
   status: 'pending', submittedAt: Date.parse('2026-09-17T11:00:00Z'),
-  item: { item_id, kind: 'image', model: 'gpt-image-2', prompt: 'cat', params: {}, reference_asset_ids: [], references: [], batch_id: 'b2', batch_position: 1, thread_id: 't', anchor_record_id: null, anchor_of: null, mentions: [], prompt_doc: null, ...p },
+  item: { item_id, kind: 'image', model: 'gpt-image-2', prompt: 'cat', params: {}, reference_asset_ids: [], references: [], batch_id: 'b2', batch_position: 1, parent_record_id: null, thread_id: 't', anchor_record_id: null, anchor_of: null, mentions: [], prompt_doc: null, ...p },
   ...s,
 })
 

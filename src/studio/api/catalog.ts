@@ -59,7 +59,7 @@ export async function fetchModels(): Promise<ModelSpec[]> {
 }
 
 /** Body of one quote entry = the generation body minus the prompt text (price does not depend on it; avoids re-quoting per keystroke). */
-export interface QuoteEntry { kind: MediaKind; model: string; params: GenerationParams; reference_count: number }
+export interface QuoteEntry { kind: MediaKind; model: string; params: GenerationParams; reference_asset_ids: string[] }
 export interface QuoteResult { points: number | null; error?: { code: string; message: string } }
 
 const mockPoints = ({ model, params }: QuoteEntry) => {
@@ -71,8 +71,9 @@ const mockPoints = ({ model, params }: QuoteEntry) => {
 export async function quote(entries: QuoteEntry[], signal?: AbortSignal): Promise<QuoteResult[]> {
   if (isMock) { await mockDelay(200); return entries.map(e => ({ points: mockPoints(e) })) }
   const data = await request<{ items: { points?: string | number | null; error?: QuoteResult['error'] }[] }>('/api/me/media/quote', {
-    // Generation-body shape minus prompt; points come back as 8-decimal strings (display only).
-    body: { items: entries.map(e => ({ kind: e.kind, model: e.model, ...e.params, reference_count: e.reference_count })) }, signal,
+    // Generation-body shape minus prompt (gateway forwards it to lanehub /v1/quote and swaps asset ids for signed URLs);
+    // points come back as 8-decimal strings (display only).
+    body: { items: entries.map(e => ({ model: e.model, ...e.params, reference_asset_ids: e.reference_asset_ids })) }, signal,
   })
   return data.items.map(i => ({ points: i.points == null ? null : Number(i.points), error: i.error }))
 }

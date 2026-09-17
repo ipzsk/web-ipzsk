@@ -26,8 +26,10 @@ export interface PendingGeneration {
   reference_asset_ids: string[]
   /** For thumbnails in the placeholder card only; not sent. */
   references: MediaAsset[]
-  batch_id: string
-  batch_position: number
+  /** null for a standalone request (e.g. 再生成 of one record, which carries parent_record_id instead). */
+  batch_id: string | null
+  batch_position: number | null
+  parent_record_id: string | null
   thread_id: string | null
   anchor_record_id: string | null
   anchor_of: string | null
@@ -59,6 +61,7 @@ export async function submitGeneration(item: PendingGeneration): Promise<SubmitO
   const body = {
     model: item.model, prompt: item.prompt, ...item.params,
     reference_asset_ids: item.reference_asset_ids, batch_id: item.batch_id, batch_position: item.batch_position,
+    parent_record_id: item.parent_record_id,
     thread_id: item.thread_id, anchor_record_id: item.anchor_record_id, mentions: item.mentions, prompt_doc: item.prompt_doc,
   }
   if (isMock) {

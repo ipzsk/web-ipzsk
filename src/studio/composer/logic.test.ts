@@ -116,7 +116,7 @@ it('classifies HTTP outcomes', () => {
 describe('sender', () => {
   const setup = (outcome: (id: string) => SubmitOutcome) => {
     let queue: QueueEntry[] = []
-    const calls: { item_id: string; reference_asset_ids: string[]; anchor_record_id: string | null; batch_position: number }[] = []
+    const calls: { item_id: string; reference_asset_ids: string[]; anchor_record_id: string | null; batch_position: number | null }[] = []
     let inFlight = 0, maxInFlight = 0
     const sender = createSender({
       submit: async p => {
@@ -141,7 +141,7 @@ describe('sender', () => {
     await t.sender.sendBatch(t.queue, { thread_id: null })
     expect(t.queue.map(i => [i.item_id, i.state])).toEqual([['bad', 'failed'], ['net', 'retryable']])
     expect(t.queue[0]!.error?.message).toBe('不支持')
-    expect(t.calls.map(c => c.batch_position)).toEqual([1, 2, 3, 4, 5])
+    expect(t.calls.map(c => c.batch_position)).toEqual([0, 1, 2, 3, 4]) // 0-based: gateway CHECK batch_position BETWEEN 0 AND 11
     expect(t.maxInFlight).toBeLessThanOrEqual(3)
   })
 
@@ -159,8 +159,8 @@ describe('sender', () => {
     expect(t.queue.map(i => [i.item_id, i.state])).toEqual([['B', 'waiting'], ['C', 'waiting']])
     await t.sender.onAnchorSucceeded('A', 'asset-A')
     expect(t.calls.slice(1)).toMatchObject([
-      { item_id: 'B', reference_asset_ids: ['asset-A', 'own'], anchor_record_id: 'rec-A', batch_position: 2 },
-      { item_id: 'C', reference_asset_ids: ['asset-A'], anchor_record_id: 'rec-A', batch_position: 3 },
+      { item_id: 'B', reference_asset_ids: ['asset-A', 'own'], anchor_record_id: 'rec-A', batch_position: 1 },
+      { item_id: 'C', reference_asset_ids: ['asset-A'], anchor_record_id: 'rec-A', batch_position: 2 },
     ])
     expect(t.queue).toEqual([])
     await t.sender.onAnchorSucceeded('A', 'asset-A') // idempotent
@@ -186,7 +186,9 @@ describe('sender', () => {
 
 it('quote cache key is stable across param insertion order', () => {
   const a = quoteEntry({ kind: 'image', model: 'gpt-image-2', params: { resolution: '2K', aspect_ratio: '1:1' }, reference_asset_ids: ['x'] })
-  const b = quoteEntry({ reference_asset_ids: ['y'], params: { aspect_ratio: '1:1', resolution: '2K' }, model: 'gpt-image-2', kind: 'image' })
+  const b = quoteEntry({ reference_asset_ids: ['x'], params: { aspect_ratio: '1:1', resolution: '2K' }, model: 'gpt-image-2', kind: 'image' })
   expect(hashKey(quoteQueryKey([a]))).toBe(hashKey(quoteQueryKey([b])))
   expect(hashKey(quoteQueryKey([a]))).not.toBe(hashKey(quoteQueryKey([{ ...a, params: { ...a.params, resolution: '4K' } }])))
+  // references are part of the priced body (gateway signs them for lanehub /v1/quote)
+  expect(hashKey(quoteQueryKey([a]))).not.toBe(hashKey(quoteQueryKey([{ ...a, reference_asset_ids: ['y'] }])))
 })

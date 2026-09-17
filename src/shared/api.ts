@@ -15,11 +15,14 @@ const messages: Record<string, string> = {
 export class ApiError extends Error {
   readonly status: number
   readonly code: string
-  constructor(message: string, { status, code }: { status: number; code: string }) {
+  /** Parsed JSON body of the error response (e.g. `error.field`, 409 `queue` / `project` payloads). */
+  readonly body: unknown
+  constructor(message: string, { status, code, body }: { status: number; code: string; body?: unknown }) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.body = body
   }
 }
 
@@ -49,7 +52,7 @@ export async function request<T = unknown>(path: string, { method, body, headers
   if (!response.ok) {
     const code: string = data?.error?.code ?? data?.code ?? `http_${response.status}`
     if (response.status === 401) window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT))
-    throw new ApiError(errorMessage(code), { status: response.status, code })
+    throw new ApiError(errorMessage(code), { status: response.status, code, body: data })
   }
   return data as T
 }

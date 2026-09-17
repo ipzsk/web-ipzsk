@@ -51,8 +51,8 @@ export async function copyText(text: string) {
 
 /**
  * 再生成 / 重试 of an accepted record → a new request with the same body and a new idempotency key.
- * ponytail: goes through the composer sender as a 1-item batch, so `parent_record_id` isn't sent until
- * api/generation.ts forwards it; a rejected submit lands in the queue (red) so nothing is lost.
+ * Goes through the composer sender as a standalone request carrying `parent_record_id`;
+ * a rejected submit lands in the queue (red) so nothing is lost.
  */
 export function regenerate(i: ItemView) {
   if (i.status === 'submit_failed' && i.item_id) { void retryItem(i.item_id); return }
@@ -61,7 +61,7 @@ export function regenerate(i: ItemView) {
     reference_asset_ids: i.references.map(r => r.id), anchor_of: null, mentions: i.mentions, prompt_doc: i.prompt_doc,
     slots: i.references.map(asset => ({ asset, by: [], manual: true })),
   }
-  void sender.sendBatch([entry], { thread_id: i.thread_id ?? useComposer.getState().threadId })
+  void sender.sendBatch([entry], { thread_id: i.thread_id ?? useComposer.getState().threadId, parent_record_id: i.record_id ?? null })
   toast({ title: '已提交再生成' })
 }
 

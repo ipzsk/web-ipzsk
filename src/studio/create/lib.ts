@@ -74,7 +74,7 @@ export function mergeItems(records: GenerationRecord[], pendings: PendingState[]
     const v = p.item
     items.push({
       key: `p:${v.item_id}`, record_id: rid ?? null, item_id: v.item_id, kind: v.kind, model: v.model, prompt: v.prompt, prompt_doc: v.prompt_doc,
-      mentions: v.mentions, params: v.params, references: v.references, batch_id: v.batch_id, batch_position: v.batch_position, thread_id: v.thread_id,
+      mentions: v.mentions, params: v.params, references: v.references, batch_id: v.batch_id, batch_position: v.batch_position ?? 0, thread_id: v.thread_id,
       anchor_record_id: v.anchor_record_id, anchor: false, status: p.status === 'success' ? 'queued' : p.status === 'error' ? 'submit_failed' : 'submitting', progress: null,
       failure: p.status === 'error' ? (out && out.status !== 'accepted' ? out.error.message : '提交失败') : null,
       charged_points: null, results: [], created_at: new Date(p.submittedAt).toISOString(),
