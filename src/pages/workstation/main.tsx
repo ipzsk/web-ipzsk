@@ -1,6 +1,5 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import '@/styles/theme.css'
+import { mountPage } from '@/pages/shared/auth/mount'
+import { WorkstationPage } from './WorkstationPage'
 
-// F9 migration target for the legacy /workstation page (preview at /next/workstation until cutover).
-createRoot(document.getElementById('root')!).render(<StrictMode><main className="p-8 text-sm text-muted">迁移中</main></StrictMode>)
+// F9 migration of the legacy /workstation page (preview at /next/workstation until cutover).
+mountPage(<WorkstationPage />)
