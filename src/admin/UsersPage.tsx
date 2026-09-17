@@ -49,7 +49,7 @@ export function UsersPage() {
   )
 }
 
-function UserTable({ rows, onOpen, extraLabel }: { rows: { id: string; email: string; name: string; roles: Role[]; extra: string }[]; onOpen: (id: string) => void; extraLabel: string }) {
+function UserTable({ rows, onOpen, extraLabel }: { rows: { id: string; email: string | null; name: string; roles: Role[]; extra: string }[]; onOpen: (id: string) => void; extraLabel: string }) {
   const th = 'border-b border-line py-2 text-left text-xs font-semibold text-muted'
   return (
     <table className="w-full border-separate border-spacing-0 text-sm">
@@ -57,7 +57,7 @@ function UserTable({ rows, onOpen, extraLabel }: { rows: { id: string; email: st
       <tbody>
         {rows.map(u => (
           <tr key={u.id} className="hover:bg-card">
-            <td className="border-b border-line py-2.5"><button type="button" onClick={() => onOpen(u.id)} className={cn('rounded-[4px] font-semibold hover:underline', focusRing)}>{u.email}</button></td>
+            <td className="border-b border-line py-2.5"><button type="button" onClick={() => onOpen(u.id)} className={cn('rounded-[4px] font-semibold hover:underline', focusRing)}>{u.email ?? u.name ?? u.id}</button></td>
             <td className="border-b border-line py-2.5 text-muted">{u.name}</td>
             <td className="border-b border-line py-2.5"><span className="flex flex-wrap gap-1">{u.roles.length ? u.roles.map(r => <Badge key={r} tone={roleTone(r)}>{ROLE_LABEL[r]}</Badge>) : <span className="text-muted">普通用户</span>}</span></td>
             <td className="border-b border-line py-2.5 text-xs text-muted">{u.extra}</td>
@@ -140,7 +140,7 @@ function UserDrawer({ id, onClose }: { id: string | null; onClose: () => void })
                 <ul className="divide-y divide-line rounded-card border border-line">
                   {d.recent_generations.map(g => (
                     <li key={g.id}>
-                      <Link to={`/admin/generations?id=${g.id}&user=${encodeURIComponent(d.user.email)}`} className={cn('grid grid-cols-[1fr_auto] gap-x-3 px-3 py-2 text-sm hover:bg-subtle', focusRing)}>
+                      <Link to={`/admin/generations?id=${g.id}&user=${encodeURIComponent(d.user.email ?? d.user.id)}`} className={cn('grid grid-cols-[1fr_auto] gap-x-3 px-3 py-2 text-sm hover:bg-subtle', focusRing)}>
                         <span className="truncate">{g.prompt}</span>
                         <span className="text-xs text-muted">{GEN_STATUS_LABEL[g.status]}</span>
                         <span className="text-xs text-muted">{g.model} · {fmtTime(g.created_at)}</span>

@@ -3,7 +3,7 @@ import type { MediaAsset } from '@/media'
 import { queryClient } from '@/shared/query'
 import { toast } from '@/ui'
 import {
-  createSubject, deleteSubject, setSubjectAssets, subjectErrorMessage, updateSubject, type Subject, type SubjectInput, type SubjectPatch,
+  createSubject, deleteSubject, presentAssets, setSubjectAssets, subjectErrorMessage, toServerAsset, updateSubject, type Subject, type SubjectInput, type SubjectPatch,
 } from '../api/subjects'
 import { copyName, undoable } from './logic'
 
@@ -17,8 +17,10 @@ const fail = (title: string, e: unknown) => toast({ title, description: subjectE
 export async function createSubjectOptimistic(input: SubjectInput): Promise<Subject> {
   await queryClient.cancelQueries({ queryKey: SUBJECTS_KEY })
   const tempId = `temp-${crypto.randomUUID()}`
-  const cover = input.assets.find(a => a.id === input.cover_id) ?? input.assets[0] ?? null
-  set(xs => [{ id: tempId, name: input.name.trim(), kind: input.kind, note: input.note, cover, assets: input.assets }, ...xs])
+  const assets = input.assets.map(toServerAsset)
+  const cover = assets.find(a => a.id === input.cover_id) ?? assets[0] ?? null
+  const now = new Date().toISOString()
+  set(xs => [{ id: tempId, name: input.name.trim(), kind: input.kind, note: input.note || null, cover_id: cover?.id ?? null, cover, assets, created_at: now, updated_at: now }, ...xs])
   try {
     const s = await createSubject(input)
     replace(tempId, s)
@@ -50,7 +52,11 @@ export async function updateSubjectOptimistic(id: string, patch: SubjectPatch): 
 export async function setAssetsOptimistic(id: string, assets: MediaAsset[]): Promise<Subject> {
   await queryClient.cancelQueries({ queryKey: SUBJECTS_KEY })
   const prev = get()?.find(x => x.id === id)
-  if (prev) replace(id, { ...prev, assets, cover: assets.find(a => a.id === prev.cover?.id) ?? assets[0] ?? null })
+  if (prev) {
+    const next = assets.map(toServerAsset)
+    const cover = next.find(a => a.id === prev.cover?.id) ?? next[0] ?? null
+    replace(id, { ...prev, assets: next, cover, cover_id: cover?.id ?? null })
+  }
   try {
     const s = await setSubjectAssets(id, assets)
     replace(id, s)
@@ -78,7 +84,7 @@ export function deleteSubjectWithUndo(subject: Subject) {
 export async function duplicateSubject(subject: Subject) {
   const name = copyName(subject.name, get() ?? [])
   try {
-    await createSubjectOptimistic({ name, kind: subject.kind, note: subject.note, assets: subject.assets, cover_id: subject.cover?.id ?? null })
+    await createSubjectOptimistic({ name, kind: subject.kind, note: subject.note ?? '', assets: presentAssets(subject), cover_id: subject.cover?.id ?? null })
     toast({ title: `已复制为「${name}」`, tone: 'success' })
   } catch (e) { fail('复制失败', e) }
 }

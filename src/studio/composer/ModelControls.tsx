@@ -2,10 +2,9 @@ import { useState } from 'react'
 import { ChevronDown, Gauge, Images, Layers, ListPlus, RectangleHorizontal, RotateCw, SlidersHorizontal, Timer, type LucideIcon } from 'lucide-react'
 import type { GenerationParams, ModelSpec } from '@/shared/contracts'
 import { Button, Checkbox, DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger, Popover, PopoverContent, PopoverTrigger, Skeleton, Tooltip, cn } from '@/ui'
-import { formatParam, optionsOf, visibleParams } from './logic'
+import { formatParam, optionsOf, paramLabel, visibleParams } from './logic'
 
 const ICONS: Record<string, LucideIcon> = { aspect_ratio: RectangleHorizontal, resolution: Gauge, n: Layers, duration: Timer }
-const LABELS: Record<string, string> = { aspect_ratio: '比例', resolution: '清晰度', n: '张数', duration: '时长' }
 
 export function ModelPicker({ models, model, status, onRetry, onPick, onAddMany, roomFor }: {
   models: ModelSpec[]
@@ -36,8 +35,8 @@ export function ModelPicker({ models, model, status, onRetry, onPick, onAddMany,
       <PopoverContent align="start" side="top" className="w-80 p-1">
         <ul role="list" aria-label="型号" className="grid max-h-80 gap-0.5 overflow-y-auto">
           {models.map(m => {
-            const refs = m.references?.max ?? 0
-            const hasDuration = m.params.some(p => p.name === 'duration')
+            const refs = m.references?.maxImages ?? 0
+            const hasDuration = m.params.some(p => p.field === 'duration')
             return (
               <li key={m.id} className={cn('flex items-start gap-2 rounded-[10px] p-2 hover:bg-subtle', m.id === model?.id && 'bg-subtle')}>
                 <Checkbox
@@ -49,9 +48,8 @@ export function ModelPicker({ models, model, status, onRetry, onPick, onAddMany,
                 <button type="button" className="grid min-w-0 flex-1 cursor-pointer gap-1 rounded-[6px] text-left outline-none focus-visible:outline-2 focus-visible:outline-ink" aria-current={m.id === model?.id || undefined} onClick={() => { onPick(m); setOpen(false) }}>
                   <span className="flex items-center gap-2">
                     <span className="truncate font-semibold">{m.name}</span>
-                    {m.billing_unit && <span className="ml-auto shrink-0 text-xs text-muted">{m.billing_unit}</span>}
+                    {m.billing?.unit && <span className="ml-auto shrink-0 text-xs text-muted">{m.billing.unit}</span>}
                   </span>
-                  {m.description && <span className="text-xs text-muted">{m.description}</span>}
                   <span className="flex flex-wrap gap-1">
                     {refs > 0 && <Tag icon={Images}>{`参考图 ≤${refs}`}</Tag>}
                     {hasDuration && <Tag icon={Timer}>时长</Tag>}
@@ -82,26 +80,26 @@ export function ParamChips({ model, params, highlight, onChange }: {
   return (
     <>
       {visibleParams(model).map(spec => {
-        const Icon = ICONS[spec.name] ?? SlidersHorizontal
-        const label = spec.label ?? LABELS[spec.name] ?? spec.name
+        const Icon = ICONS[spec.field] ?? SlidersHorizontal
+        const label = paramLabel(spec.field)
         const options = optionsOf(spec)
-        const value = params[spec.name]!
+        const value = params[spec.field]!
         const chip = (
           <Button
-            size="sm" variant="ghost" aria-label={`${label}：${formatParam(spec.name, value)}`}
-            disabled={options.length < 2} disabledReason={`${model.name} 的${label}只有 ${formatParam(spec.name, value)}`}
-            className={cn('gap-1 px-2 tabular-nums transition-[background-color,box-shadow] duration-(--duration-base)', highlight.has(spec.name) && 'bg-acid ring-2 ring-acid-deep hover:bg-acid')}
+            size="sm" variant="ghost" aria-label={`${label}：${formatParam(spec.field, value)}`}
+            disabled={options.length < 2} disabledReason={`${model.name} 的${label}只有 ${formatParam(spec.field, value)}`}
+            className={cn('gap-1 px-2 tabular-nums transition-[background-color,box-shadow] duration-(--duration-base)', highlight.has(spec.field) && 'bg-acid ring-2 ring-acid-deep hover:bg-acid')}
           >
-            <Icon className="size-4" />{formatParam(spec.name, value)}
+            <Icon className="size-4" />{formatParam(spec.field, value)}
           </Button>
         )
-        if (options.length < 2) return <span key={spec.name}>{chip}</span>
+        if (options.length < 2) return <span key={spec.field}>{chip}</span>
         return (
-          <DropdownMenu key={spec.name}>
+          <DropdownMenu key={spec.field}>
             <Tooltip content={label}><DropdownMenuTrigger asChild>{chip}</DropdownMenuTrigger></Tooltip>
             <DropdownMenuContent side="top" align="start" className="max-h-72 overflow-y-auto">
               {options.map(o => (
-                <DropdownMenuCheckboxItem key={String(o)} checked={o === value} onSelect={() => onChange(spec.name, o)}>{formatParam(spec.name, o)}</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem key={String(o)} checked={o === value} onSelect={() => onChange(spec.field, o)}>{formatParam(spec.field, o)}</DropdownMenuCheckboxItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>

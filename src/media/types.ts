@@ -1,12 +1,7 @@
-export type MediaAsset = {
-  id: string
-  kind: 'image' | 'video'
-  status: 'pending' | 'ready' | 'failed' | 'deleted'
-  width: number | null
-  height: number | null
-  duration_ms: number | null
-  urls: { w480?: string; w960?: string; orig: string; poster?: string }
-}
+import type { LooseMediaAsset } from '@/shared/contracts'
+
+/** Generated `MediaAsset`; `source` / `thumb_state` / `created_at` optional so locally built assets fit. w480/w960/poster may be absent. */
+export type MediaAsset = LooseMediaAsset
 
 export type MediaSize = 'thumb' | 'detail' | 'orig'
 

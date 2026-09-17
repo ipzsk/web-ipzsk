@@ -324,9 +324,9 @@
 ```css
 @theme {
   --color-paper: #f4f2eb;   --color-card: #fffefb;   --color-subtle: #ebe8de;
-  --color-line: #e3e4da;    --color-ink: #161916;    --color-muted: #767970;
+  --color-line: #e3e4da;    --color-ink: #161916;    --color-muted: #686b62;
   --color-label: #4e651e;   --color-acid: #c9ff4a;   --color-acid-deep: #89bd13;
-  --color-danger: #a63c2f;  --color-warning: #9a6a12; --color-success: #4e651e;
+  --color-danger: #a63c2f;  --color-warning: #855a0d; --color-success: #4e651e;
   --radius-control: 10px;   --radius-card: 16px;     --radius-panel: 24px;
   --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
   --ease-standard: cubic-bezier(.2, 0, 0, 1);

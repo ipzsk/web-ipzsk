@@ -1,12 +1,12 @@
 import type { JSONContent } from '@tiptap/core'
 import { ApiError, request } from '@/shared/api'
-import type { GenerationParams, QueueItem } from '@/shared/contracts'
+import type { GenerationParams, Mention, Queue, QueueConflict, QueueItem } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
 import { isMock, mockDelay } from './catalog'
 
 export const QUEUE_MAX = 12
 
-export interface Mention { type: 'subject' | 'reference'; id: string; name: string }
+export type { Mention }
 export type ParamValue = GenerationParams[string]
 export interface ParamChange { name: string; from: ParamValue; to: ParamValue }
 /** A reference slot. `by` = uids of @ chips that introduced it; `manual` = user added it directly (§2.2). */
@@ -16,7 +16,9 @@ export interface RefSlot { asset: MediaAsset; by: string[]; manual: boolean; /**
  * composer_queues.items[] (§8.5) plus composer extras. Extras ride along in the same JSON
  * (server only checks size); `reference_asset_ids` stays the source of truth for sending.
  */
-export interface QueueEntry extends QueueItem {
+export interface QueueEntry extends Omit<QueueItem, 'params' | 'reference_asset_ids' | 'mentions' | 'prompt_doc' | 'missing'> {
+  params: GenerationParams
+  reference_asset_ids: string[]
   mentions: Mention[]
   prompt_doc: JSONContent | null
   slots: RefSlot[]
@@ -68,31 +70,33 @@ const writeExtras = (items: QueueEntry[]) => {
 }
 
 export async function getQueue(): Promise<QueueDoc> {
-  const doc = isMock ? (await mockDelay(150), readLocal(MOCK_KEY)) : await request<QueueDoc>('/api/me/queue')
-  return { items: reviveQueue(doc.items ?? []), revision: doc.revision ?? 0 }
+  const doc = isMock ? (await mockDelay(150), readLocal(MOCK_KEY)) : await request<Queue>('/api/me/queue')
+  return { items: reviveQueue(doc.items as QueueEntry[]), revision: doc.revision ?? 0 }
 }
 
 /** The server copy carried by a 409 (`body.queue`), revived; null when the body doesn't have one. */
 export function conflictQueue(e: unknown): QueueDoc | null {
-  const q = e instanceof ApiError && e.status === 409 ? (e.body as { queue?: QueueDoc } | null)?.queue : null
-  return q && Array.isArray(q.items) ? { items: reviveQueue(q.items), revision: q.revision ?? 0 } : null
+  const q = e instanceof ApiError && e.status === 409 ? (e.body as Partial<QueueConflict> | null)?.queue : null
+  return q && Array.isArray(q.items) ? { items: reviveQueue(q.items as QueueEntry[]), revision: q.revision ?? 0 } : null
 }
 
 /**
  * PUT with revision. Throws ApiError 409 with `body.queue` (server copy) when another device wrote first.
  * Mock: bump `revision` in localStorage['ipzsk.mock.queue'] to simulate another device.
  */
-export async function putQueue(items: QueueEntry[], revision: number): Promise<{ revision: number }> {
+/** Resolves to the full server `Queue` (generated contract); callers currently only need `revision`. */
+export async function putQueue(items: QueueEntry[], revision: number): Promise<Queue> {
   writeExtras(items)
   const wire = toWire(items)
   if (isMock) {
     await mockDelay(150)
     const server = readLocal(MOCK_KEY)
     if (server.revision !== revision) throw new ApiError('队列已在其他设备更新', { status: 409, code: 'queue_conflict', body: { error: { code: 'queue_conflict' }, queue: server } })
-    writeLocal(MOCK_KEY, { items: wire as unknown as QueueEntry[], revision: revision + 1 })
-    return { revision: revision + 1 }
+    const next = { items: wire as unknown as QueueItem[], revision: revision + 1 }
+    writeLocal(MOCK_KEY, next as unknown as QueueDoc)
+    return next
   }
-  return request<{ revision: number }>('/api/me/queue', { method: 'PUT', body: { items: wire, revision } })
+  return request<Queue>('/api/me/queue', { method: 'PUT', body: { items: wire, revision } })
 }
 
 /** Signed-out queue lives in localStorage; appended to the server queue after login (§2.3). */

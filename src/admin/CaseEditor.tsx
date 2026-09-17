@@ -8,6 +8,7 @@ import { ApiError } from '@/shared/api'
 import { queryClient } from '@/shared/query'
 import { fetchModels } from '@/studio/api/catalog'
 import { uploadApi } from '@/studio/composer/uploadApi'
+import { paramLabel } from '@/studio/composer/logic'
 import { adminApi } from './api'
 import { MAX_OUTPUTS, STATUS_LABEL, publishIssues, serverIssues, templateIssues, type AdminCase, type CaseFields, type CaseStatus, type FieldIssue, type IssueField, type TemplateItem } from './lib'
 import { Confirm, Select, StatusBadge, adminErrorText } from './ui'
@@ -208,7 +209,7 @@ function Form({ initial }: { initial: AdminCase | null }) {
                 {draft.model && !model && <option value={draft.model}>{draft.model}（目录中不存在）</option>}
               </Select>
               {model?.params.filter(p => p.type === 'enum').map(p => (
-                <Select key={p.name} label={p.label ?? p.name} value={String(draft.params[p.name] ?? '')} onChange={e => set('params', e.target.value ? { ...draft.params, [p.name]: e.target.value } : Object.fromEntries(Object.entries(draft.params).filter(([k]) => k !== p.name)))}>
+                <Select key={p.field} label={paramLabel(p.field)} value={String(draft.params[p.field] ?? '')} onChange={e => set('params', e.target.value ? { ...draft.params, [p.field]: e.target.value } : Object.fromEntries(Object.entries(draft.params).filter(([k]) => k !== p.field)))}>
                   <option value="">默认</option>
                   {p.values?.map(v => <option key={String(v)} value={String(v)}>{String(v)}</option>)}
                 </Select>
@@ -292,8 +293,8 @@ function Form({ initial }: { initial: AdminCase | null }) {
   )
 }
 
-const enumValues = (m: { params: { name: string; values?: (string | number)[] }[] } | undefined, name: string) =>
-  m?.params.find(p => p.name === name)?.values?.map(String) ?? []
+const enumValues = (m: { params: { field: string; values?: (string | number)[] }[] } | undefined, name: string) =>
+  m?.params.find(p => p.field === name)?.values?.map(String) ?? []
 
 function Section({ title, hint, error, aside, children }: { title: string; hint?: string; error?: string; aside?: ReactNode; children: ReactNode }) {
   return (

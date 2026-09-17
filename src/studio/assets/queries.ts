@@ -83,7 +83,7 @@ export function useFolderMutations() {
 
   const create = useMutation({
     mutationFn: (name: string) => api.createFolder(name),
-    onMutate: (name) => snapshot(qc, (fs) => [...fs, { id: `temp-${name}`, name, position: Math.max(0, ...fs.map((f) => f.position)) + 1, count: 0 }]),
+    onMutate: (name) => snapshot(qc, (fs) => [...fs, { id: `temp-${name}`, name, position: Math.max(0, ...fs.map((f) => f.position)) + 1, count: 0, created_at: new Date().toISOString() }]),
     onError: rollback(qc, '新建文件夹失败'),
     onSettled: settle,
   })

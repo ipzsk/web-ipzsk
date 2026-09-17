@@ -5,6 +5,7 @@ import { MediaImage } from '@/media'
 import { NODE_LABEL, assembleInputs, type AssetRef, type CanvasNode } from './graph'
 import { defaultParams, findModel, modelsFor, useAssetUrls } from './mock'
 import { KIND_ICON } from './nodes'
+import { paramLabel } from '../composer/logic'
 import { runBlocker, runNode, sendToComposer, updateData, useCanvas } from './store'
 
 const selectClass = 'h-9 w-full cursor-pointer rounded-control border border-line bg-card px-2.5 text-sm hover:border-muted focus:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-45'
@@ -31,7 +32,7 @@ export function NodePanel({ node, onClose }: { node: CanvasNode; onClose: () => 
   const run = useCanvas(s => s.runs[node.id])
   const blocker = useCanvas(s => (s.nodes, s.edges, runBlocker(node.id)))
   const model = findModel(node.data.model)
-  const refMax = model?.references?.max ?? 0
+  const refMax = model?.references?.maxImages ?? 0
   const ids = { prompt: useId(), model: useId() }
   const Icon = KIND_ICON[node.type!]
 
@@ -97,30 +98,29 @@ export function NodePanel({ node, onClose }: { node: CanvasNode; onClose: () => 
               const m = findModel(e.target.value)!
               // Keep values the new model accepts; reset the rest to its defaults (§2.2).
               const prev = node.data.params ?? {}
-              const params = Object.fromEntries(m.params.map(p => [p.name, p.values?.includes(prev[p.name] as never) ? prev[p.name]! : defaultParams(m)[p.name]!]))
+              const params = Object.fromEntries(m.params.map(p => [p.field, p.values?.includes(prev[p.field] as never) ? prev[p.field]! : defaultParams(m)[p.field]!]))
               updateData(node.id, { model: m.id, params })
             }}
           >
-            {modelsFor(kind).map(m => <option key={m.id} value={m.id}>{m.name}{m.references ? '' : '（不支持参考图）'}</option>)}
+            {modelsFor(kind).map(m => <option key={m.id} value={m.id}>{m.name}{m.references?.maxImages ? '' : '（不支持参考图）'}</option>)}
           </select>
-          {model?.description && <span className="text-xs font-normal text-muted">{model.description}</span>}
         </label>
 
         {model && model.params.length > 0 && (
           <div className="grid grid-cols-2 gap-3">
             {model.params.map(p => (
-              <label key={p.name} className="grid gap-1.5 text-[13px] font-semibold">
-                {p.label ?? p.name}
+              <label key={p.field} className="grid gap-1.5 text-[13px] font-semibold">
+                {paramLabel(p.field)}
                 <select
                   className={selectClass}
                   disabled={!!node.data.locked}
-                  value={String(node.data.params?.[p.name] ?? p.default ?? '')}
+                  value={String(node.data.params?.[p.field] ?? p.default ?? '')}
                   onChange={e => {
                     const v = p.values?.find(x => String(x) === e.target.value) ?? e.target.value
-                    updateData(node.id, { params: { ...node.data.params, [p.name]: v } })
+                    updateData(node.id, { params: { ...node.data.params, [p.field]: v } })
                   }}
                 >
-                  {p.values?.map(v => <option key={String(v)} value={String(v)}>{p.name === 'duration' ? `${v} 秒` : String(v)}</option>)}
+                  {p.values?.map(v => <option key={String(v)} value={String(v)}>{p.field === 'duration' ? `${v} 秒` : String(v)}</option>)}
                 </select>
               </label>
             ))}

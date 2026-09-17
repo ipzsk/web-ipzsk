@@ -4,7 +4,7 @@ import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Ban, Copy, ListX, RefreshCw } from 'lucide-react'
 import { Badge, Button, EmptyState, ErrorState, Skeleton, Textarea, cn, focusRing, toast } from '@/ui'
-import { MediaImage } from '@/media'
+import { MediaImage, MissingMedia } from '@/media'
 import { queryClient } from '@/shared/query'
 import { fetchModels } from '@/studio/api/catalog'
 import { adminApi, type AdminGenerationDetail, type GenerationQuery } from './api'
@@ -205,7 +205,7 @@ function Thumbs({ title, items }: { title: string; items: AdminGenerationDetail[
       <h3 className="mb-2 text-sm font-bold">{title} <span className="font-normal text-muted">{items.length}</span></h3>
       {items.length ? (
         <ul className="flex flex-wrap gap-2">
-          {items.map(a => <li key={a.id} className="w-32"><a href={a.urls.orig} target="_blank" rel="noopener noreferrer" className={cn('block rounded-[8px]', focusRing)}><MediaImage asset={a} alt={title} className="rounded-[8px]" hideBadge /></a></li>)}
+          {items.map(a => 'missing' in a ? <li key={a.id} className="w-32"><MissingMedia className="rounded-[8px]" /></li> : <li key={a.id} className="w-32"><a href={a.urls.orig} target="_blank" rel="noopener noreferrer" className={cn('block rounded-[8px]', focusRing)}><MediaImage asset={a} alt={title} className="rounded-[8px]" hideBadge /></a></li>)}
         </ul>
       ) : <p className="text-sm text-muted">无</p>}
     </section>

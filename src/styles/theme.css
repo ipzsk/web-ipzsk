@@ -7,12 +7,14 @@
   --color-subtle: #ebe8de;
   --color-line: #e3e4da;
   --color-ink: #161916;
-  --color-muted: #767970;
+  /* WCAG AA: #686b62 = 4.85:1 on paper, 5.38 on card, 4.51 on subtle. */
+  --color-muted: #686b62;
   --color-label: #4e651e;
   --color-acid: #c9ff4a;
   --color-acid-deep: #89bd13;
   --color-danger: #a63c2f;
-  --color-warning: #9a6a12;
+  /* #855a0d = 5.06:1 on its own 12% tint (4.5 on the 20% hover tint). */
+  --color-warning: #855a0d;
   --color-success: #4e651e;
   --radius-control: 10px;
   --radius-card: 16px;

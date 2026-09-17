@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck } from 'lucide-react'
 import { cn, focusRing } from '@/ui'
-import { loginUrl, request } from '@/shared/api'
+import { isMock, loginUrl, request } from '@/shared/api'
 import { useCurrentUser, useWallet } from '@/shared/query'
 
 // React port of /site-nav.js + /points-wallet.js; look matches /site-nav.css.
@@ -34,7 +34,8 @@ function PointsPill() {
 const useMyRoles = (enabled: boolean) => useQuery({
   queryKey: ['me', 'roles'],
   enabled,
-  queryFn: async () => { try { return (await request<{ roles: string[] }>('/api/me/roles')).roles } catch { return [] } },
+  // Mock: the admin mock defaults to role admin, so show the entry (and never hit the real endpoint → 401 → 「登录已失效」).
+  queryFn: async () => { if (isMock) return ['admin']; try { return (await request<{ roles: string[] }>('/api/me/roles')).roles } catch { return [] } },
   staleTime: 5 * 60_000,
 })
 

@@ -1,10 +1,13 @@
 import { COMPOSER_FILL_EVENT, dispatchStudioEvent, type ComposerFillDetail as SharedFillDetail } from '@/shared/events'
 /** Pure helpers for the 灵感 view (tested in lib.test.ts). */
 
-export type CaseTemplateItem = { key: string; label: string; description: string; count: number; references: { slot: string }[] }
+import type { AssetUrls, CaseImage, InspirationCase } from '@/shared/contracts'
 
-/** One row of data/cases.manifest.json (built by scripts/build-cases-manifest.mjs). */
-export interface CaseItem {
+/** A case as the gateway serves it (`GET /api/public/cases`). The static manifest is mapped into this shape. */
+export type CaseItem = InspirationCase
+
+/** One row of data/cases.manifest.json (built by scripts/build-cases-manifest.mjs). Only `fromManifest` reads it. */
+export interface ManifestCase {
   id: string
   title: string
   prompt: string
@@ -20,8 +23,23 @@ export interface CaseItem {
   source_repo: 'awesome-gpt-image-2' | 'Punk-Skill'
   license_note: string
   /** §2.8 case template (ecommerce product sets). */
-  template?: { items: CaseTemplateItem[] }
+  template?: { items: { key: string; label: string; description: string; count: number; references: { slot: string }[] }[] }
 }
+
+export const fromManifest = (m: ManifestCase): CaseItem => ({
+  id: m.id, title: m.title, prompt: m.prompt, category: m.category, category_zh: m.categoryZh, tags: m.tags,
+  model: m.model ?? null, params: m.params ?? {}, template: m.template ?? null,
+  author: m.author ?? null, author_url: m.author_url ?? null, source_url: m.source_url ?? null, source_repo: m.source_repo, license_note: m.license_note,
+  image: { width: m.image.width, height: m.image.height, urls: { w480: m.image.url, w960: null, orig: m.image.orig } },
+})
+
+/** CaseImage urls (nullable variants) → MediaImage urls (absent variants). */
+export const caseUrls = (img: CaseImage): AssetUrls => ({
+  orig: img.urls.orig, ...(img.urls.w480 && { w480: img.urls.w480 }), ...(img.urls.w960 && { w960: img.urls.w960 }),
+})
+export const caseAspect = (img: CaseImage) => img.width && img.height ? img.height / img.width : 1
+const primitiveParams = (p: Record<string, unknown>) =>
+  Object.fromEntries(Object.entries(p).filter(([, v]) => ['string', 'number', 'boolean'].includes(typeof v))) as Record<string, string | number | boolean>
 
 export type CaseFilter = { cat: string; q: string }
 
@@ -69,7 +87,7 @@ export type CategoryCount = { id: string; label: string; count: number }
 export function categoryCounts(all: CaseItem[], q: string): { total: number; categories: CategoryCount[] } {
   const map = new Map<string, CategoryCount>()
   // Keep manifest order of first appearance for categories, even with zero hits.
-  for (const c of all) if (!map.has(c.category)) map.set(c.category, { id: c.category, label: c.categoryZh, count: 0 })
+  for (const c of all) if (!map.has(c.category)) map.set(c.category, { id: c.category, label: c.category_zh ?? c.category, count: 0 })
   let total = 0
   for (const c of all) if (matchesCase(c, { cat: '', q })) { total++; map.get(c.category)!.count++ }
   return { total, categories: [...map.values()] }
@@ -119,11 +137,14 @@ export function fillDetail(c: CaseItem, promptOnly = false): ComposerFillDetail 
   return {
     ...base,
     model: c.model ?? null,
-    params: c.params ?? {},
+    params: primitiveParams(c.params ?? {}),
     ...(c.template && {
       template: {
         name: c.title,
-        items: c.template.items.map((it) => ({ key: it.key, label: it.label, count: it.count, references: it.references, prompt: `${c.prompt}\n\n${it.label}：${it.description}` })),
+        items: c.template.items.map((it, i) => ({
+          key: it.key ?? `item-${i}`, label: it.label, count: it.count ?? 1, references: it.references ?? [],
+          prompt: it.description ? `${c.prompt}\n\n${it.label}：${it.description}` : `${c.prompt}\n\n${it.label}`,
+        })),
       },
     }),
   }

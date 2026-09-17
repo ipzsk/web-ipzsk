@@ -4,7 +4,7 @@ import { Copy, Ellipsis, ExternalLink, Heart, Search, SearchX, WandSparkles, X }
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, EmptyState, cn, focusRing } from '@/ui'
 import { MasonryGrid, MediaCard, type MasonryGridHandle } from '@/media'
 import { toggleFavorite, useCases, useCategories, useFavorites } from './api'
-import { copyrightLabel, patchParams, readParams, type CaseItem } from './lib'
+import { caseAspect, copyrightLabel, patchParams, readParams, type CaseItem } from './lib'
 import { caseAsset, copyPrompt, fillComposer } from './actions'
 import { CaseDetail } from './CaseDetail'
 
@@ -137,7 +137,7 @@ export function InspirationView() {
         aria-label="灵感案例"
         items={items}
         getKey={(c) => c.id}
-        getAspect={(c) => c.image.height / c.image.width}
+        getAspect={(c) => caseAspect(c.image)}
         renderItem={renderItem}
         loading={cases.isPending || isFetchingNextPage}
         error={cases.isError ? '案例加载失败，请检查网络后重试' : null}
@@ -230,7 +230,7 @@ function CaseCard({ c, priority, fav, onOpen }: { c: CaseItem; priority: boolean
           <DropdownMenuItem onSelect={() => fillComposer(c)}><WandSparkles aria-hidden />做同款</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => toggleFavorite(c.id)}><Heart aria-hidden className={cn(fav && 'fill-current')} />{fav ? '取消收藏' : '收藏'}</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void copyPrompt(c)}><Copy aria-hidden />复制提示词</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => window.open(c.image.orig, '_blank', 'noopener,noreferrer')}><ExternalLink aria-hidden />新标签打开原图</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => window.open(c.image.urls.orig, '_blank', 'noopener,noreferrer')}><ExternalLink aria-hidden />新标签打开原图</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

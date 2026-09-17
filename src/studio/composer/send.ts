@@ -14,8 +14,8 @@ const ANCHOR_FAILED = { code: 'anchor_failed', message: '锚图失败' }
 
 export function createSender(deps: SenderDeps) {
   const newId = deps.newId ?? (() => crypto.randomUUID())
-  /** anchor item_id → its dependents (+ record id once accepted). */
-  const waiting = new Map<string, { record_id?: string; dependents: { item: QueueEntry; pending: PendingGeneration }[] }>()
+  /** anchor item_id → its dependents. */
+  const waiting = new Map<string, { dependents: { item: QueueEntry; pending: PendingGeneration }[] }>()
 
   const cancelDependents = (anchorId: string) => {
     const w = waiting.get(anchorId)
@@ -27,8 +27,6 @@ export function createSender(deps: SenderDeps) {
     const r = await deps.submit(pending)
     if (r.status === 'accepted') {
       deps.apply(item, 'remove')
-      const w = waiting.get(item.item_id)
-      if (w) w.record_id = r.record_id
       return
     }
     deps.apply(item, { state: r.status === 'rejected' ? 'failed' : 'retryable', error: r.error })
@@ -66,13 +64,14 @@ export function createSender(deps: SenderDeps) {
       await run(list.filter(d => !d.pending.anchor_of))
     },
     /** Phase 2 — called by the create view when the anchor generation succeeded and its result is archived. */
-    async onAnchorSucceeded(itemId: string, resultAssetId: string) {
+    /** `recordId` = the anchor's generation record (looked up by idempotency key; the submit response carries none). */
+    async onAnchorSucceeded(itemId: string, resultAssetId: string, recordId: string) {
       const w = waiting.get(itemId)
       if (!w) return
       waiting.delete(itemId)
       await run(w.dependents.map(d => ({
         item: d.item,
-        pending: { ...d.pending, reference_asset_ids: [resultAssetId, ...d.pending.reference_asset_ids], anchor_record_id: w.record_id ?? null },
+        pending: { ...d.pending, reference_asset_ids: [resultAssetId, ...d.pending.reference_asset_ids], anchor_record_id: recordId },
       })))
     },
     /** Anchor generation failed later (after being accepted): dependents are cancelled, never charged. */

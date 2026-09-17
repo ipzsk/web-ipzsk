@@ -71,3 +71,10 @@ export async function currentUser(): Promise<User | null> {
 }
 
 export interface Wallet { available_points: string; frozen_points: string }
+
+/** Mock adapters: `?mock=1` on entry, or DEV + localStorage['ipzsk.mock']==='1'. Read once per page load. */
+export const isMock = (() => {
+  try {
+    return new URLSearchParams(location.search).get('mock') === '1' || (import.meta.env.DEV && localStorage.getItem('ipzsk.mock') === '1')
+  } catch { return false }
+})()

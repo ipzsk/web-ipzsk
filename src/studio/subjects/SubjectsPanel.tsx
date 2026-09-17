@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { AtSign, Copy, Images, Pencil, Search, Trash2, UserPlus, Users } from 'lucide-react'
 import { Badge, Button, EmptyState, ErrorState, IconButton, Input, Skeleton, cn, focusRing } from '@/ui'
-import { MediaImage } from '@/media'
-import { SUBJECT_KINDS, SUBJECT_KIND_LABEL, type Subject, type SubjectKind } from '../api/subjects'
+import { MediaImage, MissingMedia } from '@/media'
+import { SUBJECT_KINDS, SUBJECT_KIND_LABEL, isMissingAsset, type Subject, type SubjectKind } from '../api/subjects'
 import { useSubjects } from '../composer/hooks'
 import { insertSubjectMention } from '../composer/PromptEditor'
 import { deleteSubjectWithUndo, duplicateSubject } from './actions'
@@ -18,10 +18,10 @@ function SubjectCard({ subject }: { subject: Subject }) {
     <li className={cn('group relative overflow-hidden rounded-card border border-line bg-card transition-[transform,box-shadow] duration-(--duration-fast) hover:-translate-y-px hover:shadow-lg', temp && 'opacity-70')}>
       <button type="button" disabled={temp} onClick={() => openSubjectEditor({ subject })} aria-label={`编辑主体 ${subject.name}`} className={cn('block w-full cursor-pointer text-left', focusRing)}>
         <div className="relative aspect-square bg-subtle">
-          {subject.cover && <MediaImage asset={subject.cover} alt="" hideBadge className="size-full" />}
+          {subject.cover && (isMissingAsset(subject.cover) ? <MissingMedia className="size-full" /> : <MediaImage asset={subject.cover} alt="" hideBadge className="size-full" />)}
           {/* hover: first 4 references */}
           <div className="absolute inset-0 grid grid-cols-2 gap-px bg-line opacity-0 transition-opacity duration-(--duration-fast) group-hover:opacity-100 max-md:hidden" aria-hidden>
-            {subject.assets.slice(0, 4).map(a => <MediaImage key={a.id} asset={a} alt="" hideBadge className="size-full" />)}
+            {subject.assets.slice(0, 4).map(a => isMissingAsset(a) ? <MissingMedia key={a.id} className="size-full" /> : <MediaImage key={a.id} asset={a} alt="" hideBadge className="size-full" />)}
           </div>
           <Badge tone="ink" className="absolute left-2 top-2 h-6"><Icon className="size-3.5" />{SUBJECT_KIND_LABEL[subject.kind]}</Badge>
         </div>

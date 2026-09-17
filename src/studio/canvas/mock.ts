@@ -5,41 +5,43 @@ import type { AssetRef } from './graph'
 
 /** Local stand-ins until the model catalog / generation API / upload API are wired (§10). */
 
-export const MOCK_MODELS: ModelSpec[] = [
+export const MOCK_MODELS = [
   {
-    id: 'gpt-image-2', kind: 'image', name: 'GPT Image 2', description: '通用图像，擅长文字与排版', billing_unit: '张',
-    references: { max: 15 },
+    id: 'gpt-image-2', kind: 'image', name: 'GPT Image 2', billing: { unit: 'image' }, unsupported: {},
+    references: { maxImages: 15 },
     params: [
-      { name: 'aspect_ratio', label: '比例', type: 'enum', values: ['1:1', '3:4', '4:3', '9:16', '16:9'], default: '1:1' },
-      { name: 'resolution', label: '清晰度', type: 'enum', values: ['1K', '2K'], default: '1K' },
-      { name: 'n', label: '张数', type: 'integer', values: [1, 2, 3, 4], default: 1 },
+      { field: 'aspect_ratio', type: 'enum', values: ['1:1', '3:4', '4:3', '9:16', '16:9'], default: '1:1' },
+      { field: 'resolution', type: 'enum', values: ['1K', '2K'], default: '1K' },
+      { field: 'n', type: 'integer', values: [1, 2, 3, 4], default: 1 },
     ],
   },
   {
-    id: 'gpt-image-2.5-flare', kind: 'image', name: 'GPT Image 2.5 Flare', description: '高清出图', billing_unit: '张',
-    references: { max: 4 },
+    id: 'gpt-image-2.5-flare', kind: 'image', name: 'GPT Image 2.5 Flare', billing: { unit: 'image' }, unsupported: {},
+    references: { maxImages: 4 },
     params: [
-      { name: 'aspect_ratio', label: '比例', type: 'enum', values: ['1:1', '3:4', '16:9'], default: '1:1' },
-      { name: 'resolution', label: '清晰度', type: 'enum', values: ['1K', '2K', '4K'], default: '2K' },
-      { name: 'n', label: '张数', type: 'integer', values: [1, 2, 4], default: 2 },
+      { field: 'aspect_ratio', type: 'enum', values: ['1:1', '3:4', '16:9'], default: '1:1' },
+      { field: 'resolution', type: 'enum', values: ['1K', '2K', '4K'], default: '2K' },
+      { field: 'n', type: 'integer', values: [1, 2, 4], default: 2 },
     ],
   },
   {
-    id: 'sketch-fast', kind: 'image', name: '草图快出', description: '不支持参考图', billing_unit: '张',
-    params: [{ name: 'n', label: '张数', type: 'integer', values: [1, 2, 3, 4], default: 4 }],
+    id: 'sketch-fast', kind: 'image', name: '草图快出', billing: { unit: 'image' }, unsupported: {},
+    references: { maxImages: 0 },
+    params: [{ field: 'n', type: 'integer', values: [1, 2, 3, 4], default: 4 }],
   },
   {
-    id: 'video-v1', kind: 'video', name: '视频 V1', description: '5–10 秒短片', billing_unit: '条',
+    id: 'video-v1', kind: 'video', name: '视频 V1', billing: { unit: 'second' }, unsupported: {},
+    references: { maxImages: 0 },
     params: [
-      { name: 'aspect_ratio', label: '比例', type: 'enum', values: ['16:9', '9:16', '1:1'], default: '16:9' },
-      { name: 'duration', label: '时长', type: 'enum', values: [5, 10], default: 5 },
+      { field: 'aspect_ratio', type: 'enum', values: ['16:9', '9:16', '1:1'], default: '16:9' },
+      { field: 'duration', type: 'enum', values: [5, 10], default: 5, unit: 's' },
     ],
   },
-]
+] satisfies ModelSpec[] as ModelSpec[]
 
 export const modelsFor = (kind: 'image' | 'video') => MOCK_MODELS.filter(m => m.kind === kind)
 export const findModel = (id?: string) => MOCK_MODELS.find(m => m.id === id)
-export const defaultParams = (m: ModelSpec) => Object.fromEntries(m.params.filter(p => p.default !== undefined).map(p => [p.name, p.default!]))
+export const defaultParams = (m: ModelSpec) => Object.fromEntries(m.params.filter(p => p.default != null).map(p => [p.field, p.default!]))
 
 const SAMPLE_VIDEO = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4'
 

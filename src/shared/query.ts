@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { QueryClient, useQuery } from '@tanstack/react-query'
-import { ApiError, UNAUTHORIZED_EVENT, currentUser, request, type Wallet } from './api'
+import { ApiError, UNAUTHORIZED_EVENT, currentUser, isMock, request, type User, type Wallet } from './api'
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,12 +15,16 @@ export const queryClient = new QueryClient({
 
 export const qk = { me: ['me'] as const, wallet: ['wallet'] as const }
 
-export const useCurrentUser = () => useQuery({ queryKey: qk.me, queryFn: currentUser })
+/** Mock mode is signed in (matches the composer's useAccount), so the header and the studio agree. */
+const MOCK_USER: User = { id: 'mock-user', email: 'mock@ipzsk.com', name: '体验用户' }
+const mockPoints = () => { try { return Number(localStorage.getItem('ipzsk.mock.points') ?? 1000) } catch { return 1000 } }
+export const useCurrentUser = () => useQuery({ queryKey: qk.me, queryFn: isMock ? async () => MOCK_USER : currentUser })
 
 export const useWallet = (enabled = true) => useQuery({
   queryKey: qk.wallet,
   enabled,
-  queryFn: async () => {
+  queryFn: async (): Promise<Wallet | null> => {
+    if (isMock) return { available_points: mockPoints().toFixed(8), frozen_points: '0.00000000' }
     try { return await request<Wallet>('/api/me/wallet') }
     catch (e) { if (e instanceof ApiError && (e.status === 401 || e.status === 403)) return null; throw e }
   },

@@ -111,7 +111,7 @@ describe('optimistic delete + undo', () => {
 })
 
 describe('folders', () => {
-  const folders: Folder[] = [{ id: 'f1', name: 'A', position: 1, count: 3 }, { id: 'f2', name: 'B', position: 2, count: 0 }]
+  const folders: Folder[] = [{ id: 'f1', name: 'A', position: 1, count: 3, created_at: '2026-01-01T00:00:00Z' }, { id: 'f2', name: 'B', position: 2, count: 0, created_at: '2026-01-01T00:00:00Z' }]
 
   it('move to folder is optimistic and rolls back on failure', async () => {
     const qc = new QueryClient()
@@ -127,7 +127,7 @@ describe('folders', () => {
   })
 
   it('reorder position is a midpoint', () => {
-    const three = [...folders, { id: 'f3', name: 'C', position: 3, count: 0 }]
+    const three = [...folders, { id: 'f3', name: 'C', position: 3, count: 0, created_at: '2026-01-01T00:00:00Z' }]
     expect(positionAt(three, 2, 0)).toBe(0)
     expect(positionAt(three, 0, 1)).toBe(2.5)
     expect(positionAt(three, 0, 2)).toBe(4)

@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import { getCase, listCases, listCategories } from './api'
 import {
-  COMPOSER_FILL_EVENT, copyrightLabel, dispatchComposerFill, fillDetail, pageCases, patchParams, readParams, similarCases, type CaseItem,
+  COMPOSER_FILL_EVENT, copyrightLabel, dispatchComposerFill, fillDetail, pageCases, patchParams, readParams, similarCases, fromManifest, type CaseItem, type ManifestCase,
 } from './lib'
 
 const mk = (id: string, over: Partial<CaseItem> = {}): CaseItem => ({
-  id, title: `t${id}`, prompt: `p${id}`, category: 'posters', categoryZh: '封面与海报', tags: [],
-  image: { url: `/t/${id}.webp`, orig: `/o/${id}.png`, width: 3, height: 4 }, source_repo: 'awesome-gpt-image-2', license_note: '', ...over,
+  id, title: `t${id}`, prompt: `p${id}`, category: 'posters', category_zh: '封面与海报', tags: [], model: null, params: {}, template: null,
+  author: null, author_url: null, source_url: null, image: { width: 3, height: 4, urls: { w480: `/t/${id}.webp`, w960: null, orig: `/o/${id}.png` } },
+  source_repo: 'awesome-gpt-image-2', license_note: '', ...over,
 })
 
 describe('manifest adapter', () => {
@@ -22,10 +23,10 @@ describe('manifest adapter', () => {
   })
 
   it('every case has dimensions and a source', async () => {
-    const all = (await import('./data/cases.manifest.json')).default as CaseItem[]
+    const all = ((await import('./data/cases.manifest.json')).default as ManifestCase[]).map(fromManifest)
     expect(all).toHaveLength(561)
     expect(new Set(all.map((c) => c.id)).size).toBe(all.length)
-    expect(all.every((c) => c.image.width > 0 && c.image.height > 0 && c.source_repo && c.license_note)).toBe(true)
+    expect(all.every((c) => c.image.width! > 0 && c.image.height! > 0 && c.source_repo && c.license_note)).toBe(true)
   })
 
   it('filters by category and searches title/prompt/tags; counts agree', async () => {

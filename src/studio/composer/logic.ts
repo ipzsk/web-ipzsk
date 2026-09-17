@@ -8,23 +8,26 @@ import { QUEUE_MAX } from '../api/queue'
 
 // ── params ────────────────────────────────────────────────────────────────
 
-export const visibleParams = (model: ModelSpec) => model.params.filter(p => !model.unsupported?.includes(p.name))
+/** Chip / select labels. The catalog only declares `field`; the wording is ours. */
+export const PARAM_LABELS: Record<string, string> = { aspect_ratio: '比例', resolution: '清晰度', n: '张数', duration: '时长' }
+export const paramLabel = (field: string) => PARAM_LABELS[field] ?? field
+
+/** `unsupported` maps field → reason; those params are hidden. */
+export const visibleParams = (model: ModelSpec) => model.params.filter(p => !(p.field in (model.unsupported ?? {})))
 
 export function defaultOf(spec: ParamSpec): ParamValue {
-  return spec.default ?? spec.values?.[0] ?? spec.min ?? (spec.type === 'boolean' ? false : '')
+  return spec.default ?? spec.values?.[0] ?? (spec.type === 'boolean' ? false : '')
 }
 
 export function optionsOf(spec: ParamSpec): ParamValue[] {
   if (spec.values) return spec.values
   if (spec.type === 'boolean') return [true, false]
-  if (spec.type === 'integer' && spec.min != null && spec.max != null && spec.max - spec.min < 24)
-    return Array.from({ length: spec.max - spec.min + 1 }, (_, i) => spec.min! + i)
   return []
 }
 
 function valid(spec: ParamSpec, v: ParamValue): boolean {
   if (spec.values) return spec.values.includes(v as string | number) // verbatim: '1K' ≠ '1k'
-  if (spec.type === 'integer') return Number.isInteger(v) && (spec.min == null || (v as number) >= spec.min) && (spec.max == null || (v as number) <= spec.max)
+  if (spec.type === 'integer') return Number.isInteger(v)
   if (spec.type === 'boolean') return typeof v === 'boolean'
   return typeof v === 'string'
 }
@@ -34,10 +37,10 @@ export function normalizeParams(model: ModelSpec, params: GenerationParams): { p
   const out: GenerationParams = {}
   const changes: ParamChange[] = []
   for (const spec of visibleParams(model)) {
-    const v = params[spec.name]
-    if (v !== undefined && valid(spec, v)) { out[spec.name] = v; continue }
-    out[spec.name] = defaultOf(spec)
-    if (v !== undefined) changes.push({ name: spec.name, from: v, to: out[spec.name]! })
+    const v = params[spec.field]
+    if (v !== undefined && valid(spec, v)) { out[spec.field] = v; continue }
+    out[spec.field] = defaultOf(spec)
+    if (v !== undefined) changes.push({ name: spec.field, from: v, to: out[spec.field]! })
   }
   return { params: out, changes }
 }
@@ -51,7 +54,7 @@ export function formatParam(name: string, v: ParamValue): string {
 
 // ── references ────────────────────────────────────────────────────────────
 
-export const referenceMax = (model: ModelSpec | undefined) => model?.references?.max ?? 0
+export const referenceMax = (model: ModelSpec | undefined) => model?.references?.maxImages ?? 0
 
 export interface ReferenceState { max: number; count: number; supported: boolean; over: boolean; message: string | null }
 export function referenceState(model: ModelSpec | undefined, count: number): ReferenceState {

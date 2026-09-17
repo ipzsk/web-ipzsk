@@ -7,7 +7,7 @@ import { Box, Check, Drama, ImagePlus, Mountain, Package, RotateCw, Star, Upload
 import { ApiError } from '@/shared/api'
 import { Button, Dialog, DialogContent, DialogFooter, EmptyState, ErrorState, IconButton, Input, SegmentedControl, Skeleton, Textarea, cn, toast } from '@/ui'
 import { MediaImage, useUpload, type MediaAsset } from '@/media'
-import { SUBJECT_KINDS, SUBJECT_KIND_LABEL, subjectErrorMessage, type Subject, type SubjectKind } from '../api/subjects'
+import { SUBJECT_KINDS, SUBJECT_KIND_LABEL, presentAssets, subjectErrorMessage, type Subject, type SubjectKind } from '../api/subjects'
 import { useSubjects } from '../composer/hooks'
 import { uploadApi } from '../composer/uploadApi'
 import { createSubjectOptimistic, setAssetsOptimistic, updateSubjectOptimistic } from './actions'
@@ -85,7 +85,7 @@ function Editor({ opts, close }: { opts: SubjectEditorOptions; close: () => void
   const [name, setName] = useState(editing?.name ?? opts.name ?? '')
   const [kind, setKind] = useState<SubjectKind>(editing?.kind ?? opts.kind ?? 'person')
   const [note, setNote] = useState(editing?.note ?? '')
-  const [assets, setAssets] = useState<MediaAsset[]>(() => editing?.assets ?? addAssets([], opts.initialAssets ?? []).assets)
+  const [assets, setAssets] = useState<MediaAsset[]>(() => editing ? presentAssets(editing) : addAssets([], opts.initialAssets ?? []).assets)
   const [coverId, setCoverId] = useState<string | null>(editing?.cover?.id ?? null)
   const [serverNameError, setServerNameError] = useState<{ name: string; message: string } | null>(null)
   const [touched, setTouched] = useState(false)
@@ -191,6 +191,7 @@ function Editor({ opts, close }: { opts: SubjectEditorOptions; close: () => void
           <div className="flex items-center gap-2">
             <span className="text-[13px] font-semibold">参考图</span>
             <span className="text-xs text-muted tabular-nums">{assets.length}/{ASSETS_MAX} · 拖动排序，星标设为封面</span>
+            {editing && editing.assets.length > presentAssets(editing).length && <span className="text-xs text-warning">{editing.assets.length - presentAssets(editing).length} 张素材已删除，保存参考图时移除</span>}
           </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ screenReaderInstructions: { draggable: '按空格拿起，用方向键移动，再按空格放下' } }}>
           <ul aria-label="参考图" className="grid grid-cols-4 gap-2 max-sm:grid-cols-3">

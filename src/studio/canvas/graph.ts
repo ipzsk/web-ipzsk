@@ -151,7 +151,7 @@ export function assembleInputs(nodeId: string, nodes: CanvasNode[], edges: Canva
 
 /** §2.2 rule, decided only at submit time. References beyond the model's capability are dropped, never deleted from the graph. */
 export function decideMode(kind: 'image' | 'video', references: AssetRef[], model: Pick<ModelSpec, 'references'> | undefined) {
-  const max = model?.references?.max ?? 0
+  const max = model?.references?.maxImages ?? 0
   const used = references.slice(0, max)
   const mode: GenMode = kind === 'image'
     ? (used.length ? 'image-to-image' : 'text-to-image')

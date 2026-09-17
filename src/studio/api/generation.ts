@@ -14,7 +14,8 @@ export const GENERATION_SUBMIT_KEY = ['generation', 'submit'] as const
  *
  *   useMutationState({ filters: { mutationKey: GENERATION_SUBMIT_KEY }, select: m => ({ status: m.state.status, item: m.state.variables as PendingGeneration, result: m.state.data as SubmitOutcome | undefined, error: m.state.error as SubmitError | null }) })
  *
- * status 'pending' → 「提交中」 card; 'success' → data.record_id (poll generations); 'error' → error.outcome.error.message + retry
+ * status 'pending' → 「提交中」 card; 'success' → accepted (the gateway passes the upstream body through, no record id: records are
+ * matched by idempotency key `q:{item_id}`, see api/records.ts findByItem); 'error' → error.outcome.error.message + retry
  * via `retryItem(item_id)` from composer/send.ts. Anchor dependents only appear once phase 2 starts.
  */
 export interface PendingGeneration {
@@ -38,7 +39,7 @@ export interface PendingGeneration {
 }
 
 export type SubmitOutcome =
-  | { status: 'accepted'; record_id?: string }
+  | { status: 'accepted' }
   | { status: 'rejected' | 'retryable'; error: { code: string; message: string; field?: string } }
 
 export class SubmitError extends Error {
@@ -72,12 +73,13 @@ export async function submitGeneration(item: PendingGeneration): Promise<SubmitO
     const r = Math.random(), f = mockFailRate() // default 5% → 10% rejected (with a field, like the gateway), 5% retryable
     if (r < f * 2) return classify(new ApiError('参数取值不被当前型号支持，请修改后重试。', { status: 400, code: 'invalid_param_value', body: { error: { code: 'invalid_param_value', field: Object.keys(item.params)[0] } } }))
     if (r < f * 3) return { status: 'retryable', error: { code: 'network_error', message: '暂时无法连接服务，请检查网络后重试。' } }
-    return { status: 'accepted', record_id: crypto.randomUUID() }
+    return { status: 'accepted' }
   }
   const path = item.kind === 'video' ? '/api/me/videos/generations' : '/api/me/images/generations'
   try {
-    const data = await request<{ record_id?: string; id?: string }>(path, { body, headers: { 'Idempotency-Key': `q:${item.item_id}` } })
-    return { status: 'accepted', record_id: data?.record_id ?? data?.id }
+    // Response is the upstream body passed through (UpstreamPassthrough) — no record id; don't read it.
+    await request<unknown>(path, { body, headers: { 'Idempotency-Key': `q:${item.item_id}` } })
+    return { status: 'accepted' }
   } catch (error) { return classify(error) }
 }
 

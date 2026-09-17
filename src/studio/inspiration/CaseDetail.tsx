@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Copy, ExternalLink, Flag, Heart, ImageOff, L
 import { Badge, Button, Dialog, DialogContent, EmptyState, IconButton, Skeleton, cn, focusRing } from '@/ui'
 import { MediaImage } from '@/media'
 import { toggleFavorite, useCase, useFavorites, useSimilar } from './api'
-import { copyrightLabel, takedownHref, type CaseItem } from './lib'
+import { caseAspect, caseUrls, copyrightLabel, takedownHref, type CaseItem } from './lib'
 import { addCaseToCanvas, copyPrompt, fillComposer } from './actions'
 
 type Props = {
@@ -72,7 +72,7 @@ export function CaseDetail({ id, list, hasMore, loadMore, onClose, onNavigate }:
 
               <div className="grid min-w-0 content-start gap-5">
                 <div className="flex items-center gap-1">
-                  <Badge tone="outline">{c.categoryZh}</Badge>
+                  <Badge tone="outline">{c.category_zh ?? c.category}</Badge>
                   <span className="ml-auto" />
                   <IconButton label="上一个（←）" size="icon-sm" disabled={!prev} disabledReason={index < 0 ? outOfList : '已经是第一个'} onClick={() => prev && onNavigate(prev.id)}><ChevronLeft /></IconButton>
                   <IconButton label="下一个（→）" size="icon-sm" disabled={!next} disabledReason={index < 0 ? outOfList : hasMore ? '正在加载更多' : '已经是最后一个'} onClick={() => next && onNavigate(next.id)}><ChevronRight /></IconButton>
@@ -98,16 +98,16 @@ export function CaseDetail({ id, list, hasMore, loadMore, onClose, onNavigate }:
                   <div className="flex flex-wrap gap-1.5">
                     {c.model && <Badge>{c.model}</Badge>}
                     {Object.entries(c.params ?? {}).map(([k, v]) => <Badge key={k} tone="outline">{k === 'aspect_ratio' ? '比例' : k} {String(v)}</Badge>)}
-                    <Badge tone="outline">{c.image.width}×{c.image.height}</Badge>
+                    <Badge tone="outline">{c.image.width ?? '?'}×{c.image.height ?? '?'}</Badge>
                   </div>
                 </section>
 
                 {c.template && (
                   <section className="grid gap-2">
-                    <h3 className="flex items-center gap-1.5 text-[13px] font-semibold"><Layers aria-hidden />套图模板 · {c.template.items.reduce((n, it) => n + it.count, 0)} 张</h3>
+                    <h3 className="flex items-center gap-1.5 text-[13px] font-semibold"><Layers aria-hidden />套图模板 · {c.template.items.reduce((n, it) => n + (it.count ?? 1), 0)} 张</h3>
                     <ul className="grid gap-1 text-[13px] text-muted">
-                      {c.template.items.map((it) => (
-                        <li key={it.key}><span className="font-semibold text-ink">{it.label}</span> ×{it.count} · {it.description}{it.references.length > 0 && ` · 需要放入：${it.references.map((r) => r.slot).join('、')}`}</li>
+                      {c.template.items.map((it, i) => (
+                        <li key={it.key ?? i}><span className="font-semibold text-ink">{it.label}</span> ×{it.count ?? 1}{it.description && ` · ${it.description}`}{!!it.references?.length && ` · 需要放入：${it.references.map((r) => r.slot).join('、')}`}</li>
                       ))}
                     </ul>
                   </section>
@@ -148,7 +148,7 @@ function ZoomImage({ c }: { c: CaseItem }) {
     const r = e.currentTarget.getBoundingClientRect()
     setOrigin(`${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`)
   }
-  const ratio = c.image.width / c.image.height
+  const ratio = 1 / caseAspect(c.image)
   return (
     <button
       type="button"
@@ -161,8 +161,8 @@ function ZoomImage({ c }: { c: CaseItem }) {
     >
       <div className="transition-transform duration-base ease-standard motion-reduce:transition-none" style={{ transform: zoom ? 'scale(2.5)' : undefined, transformOrigin: origin }}>
         {/* thumb (usually cached from the feed) under the full image, so something shows instantly */}
-        <MediaImage urls={{ orig: c.image.url }} width={c.image.width} height={c.image.height} alt="" hideBadge className="w-full" />
-        <MediaImage urls={{ orig: c.image.orig }} width={c.image.width} height={c.image.height} alt={c.title} sizes="orig" priority hideBadge className="absolute inset-0 w-full bg-transparent" />
+        <MediaImage urls={{ orig: c.image.urls.w480 ?? c.image.urls.w960 ?? c.image.urls.orig }} width={c.image.width} height={c.image.height} alt="" hideBadge className="w-full" />
+        <MediaImage urls={{ orig: c.image.urls.orig }} width={c.image.width} height={c.image.height} alt={c.title} sizes="orig" priority hideBadge className="absolute inset-0 w-full bg-transparent" />
       </div>
     </button>
   )
@@ -185,7 +185,7 @@ function Similar({ id, onNavigate }: { id: string; onNavigate: (id: string) => v
               onClick={() => onNavigate(s.id)}
               className={cn('group mb-3 block w-full break-inside-avoid overflow-hidden rounded-card text-left transition-[transform,box-shadow] duration-(--duration-fast) hover:-translate-y-px hover:shadow-[0_6px_20px_rgb(22_25_22/.12)] active:scale-[.98] motion-reduce:transform-none', focusRing)}
             >
-              <MediaImage urls={{ w480: s.image.url, orig: s.image.orig }} width={s.image.width} height={s.image.height} alt={s.title} className="w-full" />
+              <MediaImage urls={caseUrls(s.image)} width={s.image.width} height={s.image.height} alt={s.title} className="w-full" />
               <span className="block truncate px-1 pt-1.5 text-xs text-muted group-hover:text-ink">{s.title}</span>
             </button>
           ))}

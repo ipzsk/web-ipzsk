@@ -1,60 +1,20 @@
 import { ApiError, request } from '@/shared/api'
-import type { MediaAsset } from '@/media'
+import type { MediaAsset } from '@/shared/contracts'
+import type { AdminGeneration, AdminGenerationDetail, AdminMe, AdminUserDetail, AdminUserSummary, AuditEvent, RoleGrant, UserRef } from '@/shared/contracts'
 import { MOCK_MODELS, isMock, mockDelay } from '@/studio/api/catalog'
 import { can, publishIssues, positionBetween, type AdminCase, type CaseFields, type CaseStatus, type Capability, type GenStatus, type Role } from './lib'
 
 /* Adapters for docs/admin-api.md. Mock: `?mock=1` (same switch as studio) + `&role=admin|operator|viewer|none|expired|guest`. */
 
 export interface Page<T> { items: T[]; next_cursor: string | null; total?: number }
-export interface UserRef { id: string; email: string; name?: string | null }
-export interface AdminMe { user: UserRef; roles: Role[]; session: { created_at: string; expires_at: string } }
-
+// Response shapes are the generated gateway contracts; mocks below must produce exactly these (contracts/mocks.test.ts).
+export type { AdminGeneration, AdminGenerationDetail, AdminMe, AdminUserDetail, AdminUserSummary, AuditEvent, RoleGrant, UserRef } from '@/shared/contracts'
 export interface CaseQuery { status?: CaseStatus | ''; category?: string; q?: string; cursor?: string | null }
 export interface CategoryCount { category: string; category_zh: string | null; count: number }
 export type CaseCreate = Partial<CaseFields> & Pick<CaseFields, 'title' | 'prompt' | 'category'> & { id?: string; cover_asset_id: string }
 export type CasePatch = Partial<CaseFields> & { status?: CaseStatus; expected_updated_at?: string }
 export interface BulkResult { items: { id: string; ok: boolean; error?: { code: string; fields?: { field: string; code: string }[] } }[] }
-
-export interface AdminUserSummary extends UserRef { email_verified: boolean; created_at: string; roles: Role[] }
-export interface RoleGrant { role: Role; granted_at: string; granted_by: UserRef | null }
-export interface AdminUserDetail {
-  user: UserRef & { email_verified: boolean; created_at: string; last_sign_in_at: string | null }
-  roles: RoleGrant[]
-  wallet: { available_points: string; frozen_points: string } | null
-  wallet_error: string | null
-  usage: { last_30d: { generations: number; succeeded: number; failed: number; cancelled: number; charged_points: string }; total_generations: number; storage: { assets: number; bytes: number } }
-  recent_generations: AdminGeneration[]
-}
-
-export interface AdminGeneration {
-  id: string
-  user: UserRef
-  kind: 'image' | 'video'
-  model: string
-  prompt: string
-  params: Record<string, string | number | boolean>
-  status: GenStatus
-  failure_code: string | null
-  charged_points: string | null
-  source: 'studio' | 'template' | 'canvas'
-  batch_id: string | null
-  batch_position: number | null
-  created_at: string
-  updated_at: string
-}
-export interface AdminGenerationDetail extends AdminGeneration {
-  failure_message: string | null
-  request_id: string
-  idempotency_key: string | null
-  upstream: { provider: string; request_id: string | null; task_id: string | null; task_status: string | null; last_synced_at: string | null }
-  billing: { mode: string; state: 'pending' | 'charged' | 'released'; cost_cny: string | null }
-  references: MediaAsset[]
-  results: MediaAsset[]
-  deleted_at: string | null
-}
 export interface GenerationQuery { user?: string; model?: string; status?: string; kind?: string; from?: string; to?: string; cursor?: string | null }
-
-export interface AuditEvent { id: number; action: string; actor: UserRef | null; legacy_administrator_id: number | null; target_id: string | null; details: Record<string, unknown> | null; created_at: string }
 export interface AuditQuery { actor?: string; action?: string; target?: string; from?: string; to?: string; cursor?: string | null }
 
 export interface AdminApi {
@@ -134,7 +94,7 @@ const err = (status: number, code: string, body?: unknown) => new ApiError(code,
 function rng(seed: number) { return () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32) }
 const pick = <T,>(r: () => number, xs: readonly T[]) => xs[Math.floor(r() * xs.length)]!
 const pic = (seed: string, w = 480, h = 480): MediaAsset => ({
-  id: `a-${seed}`, kind: 'image', status: 'ready', width: w, height: h, duration_ms: null,
+  id: `a-${seed}`, kind: 'image', source: 'generation', status: 'ready', width: w, height: h, duration_ms: null, thumb_state: 'done', created_at: '2026-09-01T00:00:00Z',
   urls: { w480: `https://picsum.photos/seed/${seed}/${Math.round(w / 2)}/${Math.round(h / 2)}`, orig: `https://picsum.photos/seed/${seed}/${w}/${h}` },
 })
 
@@ -157,7 +117,7 @@ export function createMockApi(role: MockRole = 'admin', delay = mockDelay): Admi
 
   const models = MOCK_MODELS.map(m => m.id)
   const statuses: GenStatus[] = ['succeeded', 'succeeded', 'succeeded', 'succeeded', 'failed', 'running', 'queued', 'cancelled']
-  const failures = ['upstream_timeout', 'upstream_rejected', 'invalid_params', 'archive_failed']
+  const failures = ['upstream_unavailable', 'queue_timeout', 'unsupported_parameter', 'media_storage_unavailable'] // gateway codes (endpoints.json)
   const prompts = ['一只橘猫戴宇航员头盔，电影感光影', '极简风咖啡品牌海报，留白', '赛博朋克雨夜街道，灯牌倒影', '电商主图：白底蓝牙耳机', '水彩风江南小镇清晨', '产品详情页卖点图：保温杯']
   const records: AdminGenerationDetail[] = Array.from({ length: 420 }, (_, i) => {
     const u = users[1 + Math.floor(r() * 40)]!
@@ -176,8 +136,9 @@ export function createMockApi(role: MockRole = 'admin', delay = mockDelay): Admi
       request_id: `req-${i + 1}`, idempotency_key: `q:${i + 1}`,
       upstream: { provider: 'lanehub', request_id: `lh-${(i * 7919).toString(16)}`, task_id: `task_${(i * 104729).toString(36)}`, task_status: status, last_synced_at: iso(created + 60_000) },
       billing: { mode: 'lanehub', state: status === 'succeeded' ? 'charged' : status === 'failed' || status === 'cancelled' ? 'released' : 'pending', cost_cny: null },
-      references: i % 4 === 0 ? [pic(`ref${i}`)] : [],
+      references: i % 4 === 0 ? [pic(`ref${i}`)] : i % 13 === 1 ? [{ id: `a-gone${i}`, status: 'deleted', missing: true }] : [],
       results: status === 'succeeded' ? Array.from({ length: n }, (_, k) => pic(`gen${i}-${k}`)) : [],
+      thread_id: null, anchor_record_id: null, parent_record_id: null, source_case_id: null,
       deleted_at: i % 29 === 0 ? iso(created + DAY) : null,
     }
   })
@@ -202,7 +163,7 @@ export function createMockApi(role: MockRole = 'admin', delay = mockDelay): Admi
     cases = rows.map((m, i): AdminCase => ({
       id: m.id, title: m.title, prompt: m.prompt, category: m.category, category_zh: m.categoryZh, tags: m.tags, model: m.model ?? null,
       params: m.params ?? {}, template: m.template ?? null,
-      cover: { id: `cover-${m.id}`, kind: 'image', status: 'ready', width: m.image.width, height: m.image.height, duration_ms: null, urls: { w480: m.image.url, orig: m.image.orig } },
+      cover: { id: `cover-${m.id}`, kind: 'image', source: 'case', status: 'ready', width: m.image.width, height: m.image.height, duration_ms: null, thumb_state: 'done', created_at: iso(now), urls: { w480: m.image.url, orig: m.image.orig } },
       references: [], author: m.author ?? null, author_url: m.author_url ?? null, source_repo: m.source_repo, source_url: m.source_url ?? null, license_note: m.license_note,
       status: i % 17 === 3 ? 'hidden' : 'published', position: i, created_at: iso(now - (600 - i) * 3600_000), updated_at: iso(now - (600 - i) * 3600_000),
     }))
@@ -219,7 +180,7 @@ export function createMockApi(role: MockRole = 'admin', delay = mockDelay): Admi
   const gate = async (cap: Capability) => { await delay(); allowed(cap) }
   const page = <T,>(items: T[], cursor: string | null | undefined, size = 50): Page<T> => {
     const start = Number(cursor) || 0
-    return { items: items.slice(start, start + size), next_cursor: start + size < items.length ? String(start + size) : null, total: items.length }
+    return { items: items.slice(start, start + size), next_cursor: start + size < items.length ? String(start + size) : null }
   }
   const findCase = async (id: string) => { const c = (await loadCases()).find(x => x.id === id); if (!c) throw err(404, 'case_not_found'); return c }
   const sorted = (xs: AdminCase[]) => xs.slice().sort((a, b) => a.position - b.position || (a.id < b.id ? -1 : 1))
@@ -247,7 +208,7 @@ export function createMockApi(role: MockRole = 'admin', delay = mockDelay): Admi
         const hits = sorted(await loadCases()).filter(c => (!q.status || c.status === q.status) && (!q.category || c.category === q.category)
           && terms.every(t => c.id === t || `${c.title}\n${c.prompt}\n${c.tags.join(' ')}`.toLowerCase().includes(t)))
         const p = page(hits, q.cursor)
-        return { ...p, items: p.items.map(c => ({ ...c, prompt: c.prompt.slice(0, 200) })) }
+        return { ...p, total: hits.length, items: p.items.map(c => ({ ...c, prompt: c.prompt.slice(0, 200) })) } // AdminCasePage is the only page with `total`
       },
       async categories() {
         await gate('read')
@@ -339,7 +300,7 @@ export function createMockApi(role: MockRole = 'admin', delay = mockDelay): Admi
         await gate('read')
         const s = q.trim().toLowerCase()
         if (!s) throw err(400, 'invalid_query')
-        return page(users.filter(u => u.id === s || u.email.includes(s) || (u.name ?? '').toLowerCase().includes(s)).map(u => ({ ...u, roles: rolesOf(u.id) })), cursor)
+        return page(users.filter(u => u.id === s || !!u.email?.includes(s) || (u.name ?? '').toLowerCase().includes(s)).map(u => ({ ...u, roles: rolesOf(u.id) })), cursor)
       },
       async get(id) {
         await gate('read')
@@ -349,8 +310,9 @@ export function createMockApi(role: MockRole = 'admin', delay = mockDelay): Admi
         const recent = mine.filter(x => Date.parse(x.created_at) > now - 30 * DAY)
         const n = Number(id.split('-')[1]) || 0
         return {
-          user: { ...refOf(u), email_verified: u.email_verified, created_at: u.created_at, last_sign_in_at: iso(now - n * 3600_000) },
+          user: { id: u.id, email: u.email, name: u.name, email_verified: u.email_verified, created_at: u.created_at, last_sign_in_at: iso(now - n * 3600_000) },
           roles: [...(grants.get(id)?.values() ?? [])],
+          developer: { state: n % 5 === 2 ? 'approved' : null },
           wallet: n % 11 === 7 ? null : { available_points: (n * 37.5).toFixed(8), frozen_points: (n % 3 ? 0 : 12).toFixed(8) },
           wallet_error: n % 11 === 7 ? 'billing_unavailable' : null,
           usage: {
@@ -390,7 +352,7 @@ export function createMockApi(role: MockRole = 'admin', delay = mockDelay): Admi
         const hits = records.filter(x => (!u || x.user.email === u || x.user.id === u) && (!q.model || x.model === q.model)
           && (!st || st.includes(x.status)) && (!q.kind || x.kind === q.kind) && inRange(x.created_at, q.from, q.to))
         const p = page(hits, q.cursor)
-        return { ...p, items: p.items.map(({ failure_message: _f, request_id: _r, idempotency_key: _i, upstream: _u, billing: _b, references: _re, results: _rs, deleted_at: _d, ...x }) => x) }
+        return { ...p, items: p.items.map(({ failure_message: _f, request_id: _r, idempotency_key: _i, upstream: _u, billing: _b, references: _re, results: _rs, deleted_at: _d, thread_id: _t, anchor_record_id: _a, parent_record_id: _p, source_case_id: _s, ...x }) => x) }
       },
       async get(id) { await gate('read'); const x = records.find(y => y.id === id); if (!x) throw err(404, 'generation_not_found'); return structuredClone(x) },
       async resync(id) {

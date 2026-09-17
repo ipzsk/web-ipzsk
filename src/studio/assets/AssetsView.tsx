@@ -30,7 +30,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'all', label: '全部' }, { id: 'upload', label: '我的上传' }, { id: 'generation', label: '生成结果' },
   { id: 'cases', label: '收藏的案例' }, { id: 'subjects', label: '主体' },
 ]
-const SOURCE_LABEL: Record<Asset['source'], string> = { upload: '上传', generation: '生成', poster: '封面' }
+const SOURCE_LABEL: Record<Asset['source'], string> = { upload: '上传', generation: '生成', poster: '封面', case: '案例' }
 const VIEW_KEY = 'ipzsk:studio:assets-view'
 const ACCEPT = 'image/png,image/jpeg,image/webp,video/mp4'
 const OFFLINE = '网络已断开，恢复后才能上传'

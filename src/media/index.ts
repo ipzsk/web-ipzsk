@@ -1,6 +1,6 @@
 export type { MediaAsset, MediaSize } from './types'
 export { pickUrl, aspectOf } from './types'
-export { MediaImage } from './MediaImage'
+export { MediaImage, MissingMedia } from './MediaImage'
 export { MediaVideo, claimPlayback } from './MediaVideo'
 export { MasonryGrid, columnsFor, gapFor, type MasonryGridHandle } from './MasonryGrid'
 export { MediaLightbox, type LightboxItem } from './MediaLightbox'

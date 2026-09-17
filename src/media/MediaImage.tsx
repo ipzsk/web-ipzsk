@@ -20,6 +20,15 @@ type Props = {
   hideBadge?: boolean
 }
 
+/** Placeholder for a referenced asset the server reports as `missing` (deleted / failed). */
+export function MissingMedia({ className, label = '素材已删除' }: { className?: string; label?: string }) {
+  return (
+    <div role="img" aria-label={label} className={cn('flex aspect-square flex-col items-center justify-center gap-1 bg-subtle p-1 text-center text-[11px] leading-tight text-muted', className)}>
+      <ImageOff size={16} aria-hidden />{label}
+    </div>
+  )
+}
+
 const RETRIES = 2
 type Phase = { src: 'primary' | 'orig'; attempt: number; failed: boolean }
 const INITIAL: Phase = { src: 'primary', attempt: 0, failed: false }
@@ -66,7 +75,9 @@ export function MediaImage({ asset, urls: urlsProp, width, height, sizes = 'thum
     }
   }
 
-  const processing = !hideBadge && (asset?.status === 'pending' || (!urls.w480 && !urls.w960 && !!urls.orig && !urls.orig.startsWith('blob:')))
+  const processing = !hideBadge && (asset?.status === 'pending' || (asset?.thumb_state
+    ? asset.thumb_state === 'queued' || asset.thumb_state === 'running'
+    : !urls.w480 && !urls.w960 && !!urls.orig && !urls.orig.startsWith('blob:')))
 
   return (
     <div

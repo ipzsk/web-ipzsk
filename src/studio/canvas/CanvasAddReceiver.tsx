@@ -13,7 +13,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { create } from 'zustand'
 import { LayoutDashboard, Plus } from 'lucide-react'
 import { Button, Dialog, DialogContent, Skeleton, cn, focusRing, toast } from '@/ui'
-import { CANVAS_ADD_EVENT, parseCanvasAdd, type CanvasAddDetail } from './canvasAdd'
+import { CANVAS_ADD_EVENT, onStudioEvent, type CanvasAddDetail } from '@/shared/events'
 import { canvasRepo } from './repo'
 import { addToOpenCanvas, addToProject } from './store'
 import { ago } from './ProjectList'
@@ -92,13 +92,11 @@ export function useCanvasAddListener(): ReactNode {
 
   useEffect(() => {
     if (!owner) return
-    const on = (e: Event) => {
-      const d = parseCanvasAdd((e as CustomEvent).detail)
-      if (!d) { toast({ title: '没有放到画布', description: '内容格式无法识别，请刷新页面后重试', tone: 'error' }); return }
-      if (!addToOpenCanvas(d)) useInbox.setState({ pending: d })
-    }
-    window.addEventListener(CANVAS_ADD_EVENT, on)
-    return () => window.removeEventListener(CANVAS_ADD_EVENT, on)
+    return onStudioEvent(
+      CANVAS_ADD_EVENT,
+      d => { if (!addToOpenCanvas(d)) useInbox.setState({ pending: d }) },
+      () => toast({ title: '没有放到画布', description: '内容格式无法识别，请刷新页面后重试', tone: 'error' }),
+    )
   }, [owner])
 
   return owner && pending ? <PickDialog pending={pending} /> : null

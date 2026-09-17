@@ -12,8 +12,8 @@ import type { SuggestionOptions, SuggestionProps } from '@tiptap/suggestion'
 import { create } from 'zustand'
 import { ImagePlus, TriangleAlert, UserPlus } from 'lucide-react'
 import { Skeleton, Tooltip, cn } from '@/ui'
-import { MediaImage, type MediaAsset } from '@/media'
-import { SUBJECT_KIND_LABEL, type Subject } from '../api/subjects'
+import { MediaImage, MissingMedia, type MediaAsset } from '@/media'
+import { SUBJECT_KIND_LABEL, isMissingAsset, presentAssets, presentCover, type Subject } from '../api/subjects'
 import { useComposer } from '../store'
 import { openSubjectEditor } from '../subjects/SubjectEditor'
 import { addFromChip, chipsOf, docFromText, fillSubjectVar, pruneChips, refLabel, type ChipAttrs } from './logic'
@@ -38,7 +38,7 @@ export function focusComposer() {
 export function insertSubjectMention(subject: Subject, token?: string) {
   const uid = crypto.randomUUID()
   const attrs: ChipAttrs = { id: subject.id, label: subject.name, kind: 'subject', uid }
-  useComposer.setState(s => ({ slots: addFromChip(s.slots, uid, subject.assets) }))
+  useComposer.setState(s => ({ slots: addFromChip(s.slots, uid, presentAssets(subject)) }))
   const ed = live()
   if (!token && ed) {
     ed.chain().focus().insertContent([{ type: 'mention', attrs }, { type: 'text', text: ' ' }]).run()
@@ -64,7 +64,7 @@ function ChipView({ node, selected }: NodeViewProps) {
   const subject = subjects?.find(s => s.id === id)
   const refAsset = kind === 'reference' ? slots.find(s => s.asset.id === id)?.asset : undefined
   const missing = kind === 'subject' ? !!subjects && !subject : !refAsset
-  const cover = kind === 'subject' ? subject?.cover : refAsset
+  const cover = kind === 'subject' ? (subject && presentCover(subject)) : refAsset
   const name = kind === 'reference' ? refLabel(slots, id) : `@${label}`
   const warn = (kind === 'subject' && over) || missing
   const chip = (
@@ -85,7 +85,7 @@ function ChipView({ node, selected }: NodeViewProps) {
     : kind === 'subject' && subject ? (
       <div className="grid gap-1.5">
         <span>{subject.name} · {SUBJECT_KIND_LABEL[subject.kind]} · {subject.assets.length} 张参考图</span>
-        <span className="flex gap-1">{subject.assets.slice(0, 8).map(a => <MediaImage key={a.id} asset={a} alt="" hideBadge className="size-10 overflow-hidden rounded-[6px]" />)}</span>
+        <span className="flex gap-1">{subject.assets.slice(0, 8).map(a => isMissingAsset(a) ? <MissingMedia key={a.id} label="已删除" className="size-10 overflow-hidden rounded-[6px]" /> : <MediaImage key={a.id} asset={a} alt="" hideBadge className="size-10 overflow-hidden rounded-[6px]" />)}</span>
         {over && <span className="text-acid">{over}</span>}
       </div>
     ) : null
@@ -144,7 +144,7 @@ const MentionPanel = forwardRef<PanelHandle, SuggestionProps<unknown, Item>>(fun
           : subjectRows.map(it => {
             const s = (it as Extract<Item, { type: 'subject' }>).subject
             return row(it, items.indexOf(it), <>
-              {s.cover ? <MediaImage asset={s.cover} alt="" hideBadge className="size-8 shrink-0 overflow-hidden rounded-full" /> : <span className="size-8 rounded-full bg-subtle" />}
+              {presentCover(s) ? <MediaImage asset={presentCover(s)!} alt="" hideBadge className="size-8 shrink-0 overflow-hidden rounded-full" /> : <span className="size-8 rounded-full bg-subtle" />}
               <span className="min-w-0 flex-1 truncate font-semibold">{s.name}</span>
               <span className="text-xs text-muted">{SUBJECT_KIND_LABEL[s.kind]} · {s.assets.length}张</span>
             </>)
@@ -183,7 +183,7 @@ function suggestion(char: string, key: string): Omit<SuggestionOptions<Item, Ite
       const attrs: ChipAttrs = props.type === 'subject'
         ? { id: props.subject.id, label: props.subject.name, kind: 'subject', uid }
         : { id: props.asset.id, label: `图${props.index + 1}`, kind: 'reference', uid }
-      if (props.type === 'subject') useComposer.setState(s => ({ slots: addFromChip(s.slots, uid, props.subject.assets) }))
+      if (props.type === 'subject') useComposer.setState(s => ({ slots: addFromChip(s.slots, uid, presentAssets(props.subject)) }))
       editor.chain().focus().insertContentAt(range, [{ type: 'mention', attrs }, { type: 'text', text: ' ' }]).run()
     },
     render: () => {

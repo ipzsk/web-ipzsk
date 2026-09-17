@@ -6,7 +6,7 @@ import { anchorCalls, chargeLabel, differingParams, groupItems, mergeItems, newR
 const rec = (p: Partial<GenerationRecord> & { id: string }): GenerationRecord => ({
   thread_id: 't', batch_id: null, batch_position: null, anchor_record_id: null, parent_record_id: null, idempotency_key: null,
   kind: 'image', model: 'gpt-image-2', prompt: 'cat', prompt_doc: null, mentions: [], params: { aspect_ratio: '1:1' }, source: 'studio',
-  status: 'succeeded', failure_code: null, charged_points: '6', references: [], results: [], created_at: '2026-09-17T10:00:00Z', updated_at: '2026-09-17T10:00:00Z', ...p,
+  status: 'succeeded', failure_code: null, charged_points: '6', request_id: null, task_id: null, references: [], results: [], created_at: '2026-09-17T10:00:00Z', updated_at: '2026-09-17T10:00:00Z', ...p,
 })
 const pending = (item_id: string, p: Partial<PendingGeneration> = {}, s: Partial<PendingState> = {}): PendingState => ({
   status: 'pending', submittedAt: Date.parse('2026-09-17T11:00:00Z'),
@@ -46,11 +46,11 @@ describe('request bubble', () => {
 
 describe('optimistic reconciliation', () => {
   it('shows placeholders, keeps accepted-unlisted as queued, drops them once the record is listed', () => {
-    const p = [pending('i1'), pending('i2', { batch_position: 2 }, { status: 'success', result: { status: 'accepted', record_id: 'r2' } }), pending('i3', {}, { status: 'error', error: { outcome: { status: 'rejected', error: { code: 'x', message: '不支持' } } } })]
+    const p = [pending('i1'), pending('i2', { batch_position: 2 }, { status: 'success', result: { status: 'accepted' } }), pending('i3', {}, { status: 'error', error: { outcome: { status: 'rejected', error: { code: 'x', message: '不支持' } } } })]
     const before = mergeItems([], p)
     expect(before.map(i => i.status)).toEqual(['submitting', 'queued', 'submit_failed'])
     expect(before[2]!.failure).toBe('不支持')
-    const after = mergeItems([rec({ id: 'r2', status: 'running' }), rec({ id: 'r1', idempotency_key: 'q:i1', status: 'queued' })], p)
+    const after = mergeItems([rec({ id: 'r2', idempotency_key: 'q:i2', status: 'running' }), rec({ id: 'r1', idempotency_key: 'q:i1', status: 'queued' })], p)
     expect(after.map(i => i.key).sort()).toEqual(['p:i3', 'r1', 'r2'])
   })
   it('latest mutation per item wins (retries do not duplicate)', () => {
@@ -65,8 +65,8 @@ describe('anchors', () => {
     const watched = new Map([['r1', 'item1'], ['r2', 'item2']])
     expect(anchorCalls([rec({ id: 'r1', status: 'running' })], watched)).toEqual([])
     expect(anchorCalls([rec({ id: 'r1', status: 'succeeded', results: [] })], watched)).toEqual([])
-    const done = [rec({ id: 'r1', results: [{ id: 'asset1', kind: 'image', status: 'ready', width: 1, height: 1, duration_ms: null, urls: { orig: '' } }] }), rec({ id: 'r2', status: 'failed' })]
-    expect(anchorCalls(done, watched)).toEqual([{ itemId: 'item1', assetId: 'asset1' }, { itemId: 'item2', assetId: null }])
+    const done = [rec({ id: 'r1', results: [{ id: 'gone', status: 'deleted', missing: true }, { id: 'asset1', kind: 'image', source: 'generation', status: 'ready', width: 1, height: 1, duration_ms: null, thumb_state: 'done', created_at: '', urls: { orig: '' } }] }), rec({ id: 'r2', status: 'failed' })]
+    expect(anchorCalls(done, watched)).toEqual([{ itemId: 'item1', recordId: 'r1', assetId: 'asset1' }, { itemId: 'item2', recordId: 'r2', assetId: null }])
     expect(anchorCalls(done, watched)).toEqual([])
   })
 })

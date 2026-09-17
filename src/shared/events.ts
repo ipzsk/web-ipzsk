@@ -15,7 +15,7 @@
  *   case    { case_id, image: { url, width, height }, prompt }  URL-only image node + text node
  */
 import type { JSONContent } from '@tiptap/core'
-import type { GenerationParams, MediaKind } from './contracts'
+import type { CaseTemplateItem, GenerationParams, MediaKind } from './contracts'
 import type { MediaAsset } from '@/media'
 
 export const COMPOSER_FILL_EVENT = 'ipzsk:composer-fill'
@@ -23,7 +23,8 @@ export const CANVAS_ADD_EVENT = 'ipzsk:canvas-add'
 
 export interface FillMention { type: 'subject' | 'reference'; id: string; name: string }
 export interface FillBase { kind?: MediaKind; model?: string | null; prompt?: string; prompt_doc?: JSONContent | null; mentions?: FillMention[]; params?: GenerationParams }
-export interface CaseTemplate { name: string; items: { key: string; label: string; prompt: string; count: number; references: { slot: string }[] }[] }
+/** Case templates name slots with strings (`CaseTemplateItem.references`); user templates use integer slots (`TemplateReference`) and never travel through this event. */
+export interface CaseTemplate { name: string; items: { key: string; label: string; prompt: string; count: number; references: NonNullable<CaseTemplateItem['references']> }[] }
 
 export type ComposerFillDetail =
   | FillBase & { source: 'case'; case_id?: string; reference_urls: string[]; template?: CaseTemplate }

@@ -6,7 +6,7 @@ import { conflictQueue, reviveQueue, toWire, type QueueEntry } from '../api/queu
 import { planFill, parseFill } from './fill'
 import { itemFromDraft, planSend } from './logic'
 
-const model: ModelSpec = { id: 'm', kind: 'image', name: 'M', params: [{ name: 'resolution', type: 'enum', values: ['1K', '2K'], default: '1K' }], references: { max: 4 } }
+const model: ModelSpec = { id: 'm', kind: 'image', name: 'M', billing: { unit: null }, unsupported: {}, params: [{ field: 'resolution', type: 'enum', values: ['1K', '2K'], default: '1K' }], references: { maxImages: 4 } }
 const asset = (id: string) => ({ id, kind: 'image' as const, status: 'ready' as const, width: 1, height: 1, duration_ms: null, urls: { orig: `https://x/${id}` } })
 const entry = (id: string, extra: Partial<QueueEntry> = {}): QueueEntry => ({ ...itemFromDraft({ kind: 'image', model, params: { resolution: '1K' }, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: id }] }] }, slots: [{ asset: asset('a1'), by: [], manual: true }] }, id), ...extra })
 

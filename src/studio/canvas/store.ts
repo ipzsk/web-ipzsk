@@ -9,7 +9,8 @@ import {
 } from './graph'
 import { emptyHistory, record, redo, undo, type History } from './history'
 import { canvasRepo, mockServer, resolveConflict, syncDirty, type CanvasProjectSnapshot, type ConflictChoice } from './repo'
-import { buildCanvasAdd, type CanvasAddDetail } from './canvasAdd'
+import { buildCanvasAdd } from './canvasAdd'
+import { COMPOSER_FILL_EVENT, dispatchStudioEvent, type CanvasAddDetail } from '@/shared/events'
 import { defaultParams, findModel, mockGenerate, mockUpload, modelsFor, readImageSize, resolveUrl, seedResolved } from './mock'
 
 type Snap = { nodes: CanvasNode[]; edges: CanvasEdge[] }
@@ -403,8 +404,7 @@ export const nodeLabel = (n: CanvasNode) => NODE_LABEL[n.type!]
 
 // ---------- interop ----------
 
-export interface ComposerFillDetail { source: 'canvas'; project_id: string; node_id: string; prompt: string; reference_urls: string[]; reference_asset_ids: string[] }
-/** 「加入输入框」: the composer (F3) listens for `ipzsk:composer-fill` with ComposerFillDetail. */
+/** 「加入输入框」: nodes with an asset id go as `reference_assets` (sent); URL-only nodes as `reference_urls` (display only). */
 export function sendToComposer(nodeId: string) {
   const s = get()
   const n = s.nodes.find(x => x.id === nodeId)
@@ -417,13 +417,16 @@ export function sendToComposer(nodeId: string) {
     assets = inputs.references
   } else if (n.type === 'text') prompt = n.data.text ?? ''
   else if (n.data.asset) assets = [n.data.asset]
-  const refs = assets.map(a => a.urls.orig)
-  const detail: ComposerFillDetail = {
-    source: 'canvas', project_id: s.projectId, node_id: nodeId, prompt,
-    reference_urls: refs.map(resolveUrl), reference_asset_ids: assets.flatMap(a => (a.asset_id ? [a.asset_id] : [])),
+  const reference_assets = assets.flatMap(a => a.asset_id
+    ? [{ id: a.asset_id, kind: a.kind, status: 'ready' as const, width: a.width, height: a.height, duration_ms: null, urls: { ...a.urls, orig: resolveUrl(a.urls.orig) } }]
+    : [])
+  const reference_urls = assets.filter(a => !a.asset_id).map(a => resolveUrl(a.urls.orig))
+  const count = reference_assets.length + reference_urls.length
+  if (!dispatchStudioEvent(COMPOSER_FILL_EVENT, { source: 'canvas', project_id: s.projectId, node_id: nodeId, prompt, reference_assets, reference_urls })) {
+    toast({ title: '没有加入输入框', description: '内容格式无法识别，请刷新页面后重试', tone: 'error' })
+    return
   }
-  window.dispatchEvent(new CustomEvent('ipzsk:composer-fill', { detail }))
-  toast({ title: '已加入输入框', description: refs.length ? `${refs.length} 张参考图${prompt ? ' + 提示词' : ''}` : '提示词已带入' })
+  toast({ title: '已加入输入框', description: count ? `${count} 张参考图${prompt ? ' + 提示词' : ''}` : '提示词已带入' })
 }
 
 export const saveToAssets = () => toast({ title: '存入素材即将开放', description: '素材库接口接入后可用（§2.6）' })

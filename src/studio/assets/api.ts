@@ -1,6 +1,7 @@
 import { CANVAS_ADD_EVENT, COMPOSER_FILL_EVENT, dispatchStudioEvent } from '@/shared/events'
 import { ApiError, request } from '@/shared/api'
 import type { CreateUploadReq, CreateUploadRes, MediaAsset, UploadApi } from '@/media'
+import type { AssetListQuery, Folder, FolderList, Page, MediaAsset as GenAsset } from '@/shared/contracts'
 import { createMockApi } from './mock'
 import { isMock } from '../api/catalog'
 
@@ -15,12 +16,11 @@ import { isMock } from '../api/catalog'
  *   GET  /api/me/favorites?type=asset   → { items: { target_id }[] }
  */
 
-export type AssetSource = 'upload' | 'generation' | 'poster'
-export type ThumbState = 'none' | 'queued' | 'running' | 'done' | 'skipped' | 'failed'
-export type Asset = MediaAsset & { source: AssetSource; created_at: string; thumb_state: ThumbState }
-export type Folder = { id: string; name: string; position: number; count: number }
-export type AssetQuery = { kind?: 'image' | 'video'; source?: AssetSource; folder?: string }
-export type Page<T> = { items: T[]; next_cursor: string | null }
+export type { Folder, Page, ThumbState } from '@/shared/contracts'
+/** Generated MediaAsset: `source` / `thumb_state` / `created_at` always present on server assets. */
+export type Asset = GenAsset
+export type AssetSource = GenAsset['source']
+export type AssetQuery = Omit<AssetListQuery, 'cursor'>
 
 export interface AssetsApi extends UploadApi {
   listAssets: (q: AssetQuery, cursor: string | null) => Promise<Page<Asset>>
@@ -40,7 +40,7 @@ const qs = (o: Record<string, string | null | undefined>) =>
 const realApi: AssetsApi = {
   listAssets: (q, cursor) => request(`/api/me/assets?${qs({ cursor, kind: q.kind, source: q.source, folder: q.folder })}`),
   deleteAsset: async (id) => { await request(`/api/me/assets/${id}`, { method: 'DELETE' }) },
-  listFolders: async () => (await request<{ items: Folder[] }>('/api/me/folders')).items,
+  listFolders: async () => (await request<FolderList>('/api/me/folders')).items,
   createFolder: (name) => request('/api/me/folders', { body: { name } }),
   updateFolder: (id, patch) => request(`/api/me/folders/${id}`, { method: 'PATCH', body: patch }),
   deleteFolder: async (id) => { await request(`/api/me/folders/${id}`, { method: 'DELETE' }) },

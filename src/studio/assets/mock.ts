@@ -46,8 +46,8 @@ function seedState(random: () => number): State {
   const assets = Array.from({ length: 64 }, (_, i) =>
     mkAsset(`seed-${i}`, i, i % 3 === 0 ? 'upload' : 'generation', now - i * 3_600_000, random, i === 7 || i === 30 ? 'video' : 'image'))
   const folders: Folder[] = [
-    { id: 'f-brand', name: '品牌素材', position: 1, count: 0 },
-    { id: 'f-portrait', name: '人像参考', position: 2, count: 0 },
+    { id: 'f-brand', name: '品牌素材', position: 1, count: 0, created_at: new Date(now).toISOString() },
+    { id: 'f-portrait', name: '人像参考', position: 2, count: 0, created_at: new Date(now).toISOString() },
   ]
   const items = { 'f-brand': assets.slice(0, 6).map((a) => a.id), 'f-portrait': assets.slice(10, 13).map((a) => a.id) }
   return { assets, folders, items, favs: [assets[1]!.id], seq: 64 }
@@ -102,7 +102,7 @@ export function createMockApi(opts: Opts = {}): AssetsApi {
       await wait(); flaky()
       const s = await db()
       if (s.folders.some((f) => f.name === name)) fail(409, 'folder_name_taken')
-      const f: Folder = { id: `f-${++s.seq}`, name, position: Math.max(0, ...s.folders.map((x) => x.position)) + 1, count: 0 }
+      const f: Folder = { id: `f-${++s.seq}`, name, position: Math.max(0, ...s.folders.map((x) => x.position)) + 1, count: 0, created_at: new Date().toISOString() }
       s.folders.push(f)
       await commit(s)
       return f

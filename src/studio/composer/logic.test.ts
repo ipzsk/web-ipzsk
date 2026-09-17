@@ -136,7 +136,7 @@ describe('sender', () => {
 
   it('per-item outcomes → queue state, concurrency ≤ 3', async () => {
     const t = setup(id => id === 'bad' ? { status: 'rejected', error: { code: 'unsupported_param', message: '不支持' } }
-      : id === 'net' ? { status: 'retryable', error: { code: 'network_error', message: '网络' } } : { status: 'accepted', record_id: 'r-' + id })
+      : id === 'net' ? { status: 'retryable', error: { code: 'network_error', message: '网络' } } : { status: 'accepted' })
     t.queue = ['a', 'bad', 'net', 'b', 'c'].map(id => t.item(id))
     await t.sender.sendBatch(t.queue, { thread_id: null })
     expect(t.queue.map(i => [i.item_id, i.state])).toEqual([['bad', 'failed'], ['net', 'retryable']])
@@ -152,18 +152,18 @@ describe('sender', () => {
   })
 
   it('anchor two-phase', async () => {
-    const t = setup(id => ({ status: 'accepted', record_id: 'rec-' + id }))
+    const t = setup(() => ({ status: 'accepted' }))
     t.queue = [t.item('A'), t.item('B', { anchor_of: 'A', reference_asset_ids: ['own'] }), t.item('C', { anchor_of: 'A' })]
     await t.sender.sendBatch(t.queue, { thread_id: null })
     expect(t.calls.map(c => c.item_id)).toEqual(['A'])
     expect(t.queue.map(i => [i.item_id, i.state])).toEqual([['B', 'waiting'], ['C', 'waiting']])
-    await t.sender.onAnchorSucceeded('A', 'asset-A')
+    await t.sender.onAnchorSucceeded('A', 'asset-A', 'rec-A')
     expect(t.calls.slice(1)).toMatchObject([
       { item_id: 'B', reference_asset_ids: ['asset-A', 'own'], anchor_record_id: 'rec-A', batch_position: 1 },
       { item_id: 'C', reference_asset_ids: ['asset-A'], anchor_record_id: 'rec-A', batch_position: 2 },
     ])
     expect(t.queue).toEqual([])
-    await t.sender.onAnchorSucceeded('A', 'asset-A') // idempotent
+    await t.sender.onAnchorSucceeded('A', 'asset-A', 'rec-A') // idempotent
     expect(t.calls).toHaveLength(3)
   })
 
@@ -178,7 +178,7 @@ describe('sender', () => {
     u.queue = [u.item('A'), u.item('B', { anchor_of: 'A' })]
     await u.sender.sendBatch(u.queue, { thread_id: null })
     u.sender.onAnchorFailed('A')
-    await u.sender.onAnchorSucceeded('A', 'late')
+    await u.sender.onAnchorSucceeded('A', 'late', 'rec-A')
     expect(u.queue.map(i => [i.item_id, i.state])).toEqual([['B', 'cancelled']])
     expect(u.calls).toHaveLength(1)
   })

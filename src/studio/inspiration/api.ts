@@ -1,33 +1,46 @@
 import { useSyncExternalStore } from 'react'
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { categoryCounts, pageCases, similarCases, type CaseFilter, type CaseItem } from './lib'
+import { request } from '@/shared/api'
+import type { CaseCategories, InspirationCaseDetail, Page } from '@/shared/contracts'
+import { categoryCounts, fromManifest, pageCases, similarCases, type CaseFilter, type CaseItem, type ManifestCase } from './lib'
 
 /*
- * Case library adapter. Reads the static manifest today.
- * TODO(B4): switch to `GET /api/public/cases?cat=&q=&cursor=` (§8.7) via `request()` from '@/shared/api' —
- * keep the return shapes below ({ items, next_cursor, total }) so the view doesn't change.
- * Map `cover` (MediaAsset, signed w480/w960/orig) → `image` then.
+ * Case library adapter. Both sources return the generated shapes (InspirationCase / Page), so the view doesn't care.
+ * VITE_CASES_SOURCE=api → gateway `/api/public/cases*`; anything else (default) → static manifest mapped by fromManifest.
  */
+export const casesFromApi = import.meta.env.VITE_CASES_SOURCE === 'api'
 
 let manifest: Promise<CaseItem[]> | undefined
 // Separate chunk (~1.3MB, mostly prompts) so the studio shell doesn't wait on it.
 const loadManifest = () =>
-  (manifest ??= import('./data/cases.manifest.json').then((m) => m.default as CaseItem[]).catch((e) => { manifest = undefined; throw e }))
+  (manifest ??= import('./data/cases.manifest.json').then((m) => (m.default as ManifestCase[]).map(fromManifest)).catch((e) => { manifest = undefined; throw e }))
 
-export async function listCases({ cat, q, cursor }: CaseFilter & { cursor?: string | null }) {
+const qs = (o: Record<string, string | null | undefined>) => new URLSearchParams(Object.entries(o).filter((e): e is [string, string] => !!e[1])).toString()
+
+/** `total` only from the manifest (the public API pages without a count). */
+export async function listCases({ cat, q, cursor }: CaseFilter & { cursor?: string | null }): Promise<Page<CaseItem> & { total?: number }> {
+  if (casesFromApi) return request<Page<CaseItem>>(`/api/public/cases?${qs({ cat, q, cursor })}`)
   return pageCases(await loadManifest(), { cat, q }, cursor ?? null)
 }
 
+const detail = (id: string) => request<InspirationCaseDetail>(`/api/public/cases/${encodeURIComponent(id)}`)
+
 export async function getCase(id: string): Promise<CaseItem | null> {
+  if (casesFromApi) return detail(id).catch(() => null)
   return (await loadManifest()).find((c) => c.id === id) ?? null
 }
 
-/** TODO(B4): server-side; no endpoint in §8.7 yet. */
+/** API mode: counts ignore the search term (the endpoint has no `q`). */
 export async function listCategories(q: string) {
+  if (casesFromApi) {
+    const { items } = await request<CaseCategories>('/api/public/case-categories')
+    return { total: items.reduce((n, c) => n + c.count, 0), categories: items.map((c) => ({ id: c.category, label: c.category_zh ?? c.category, count: c.count })) }
+  }
   return categoryCounts(await loadManifest(), q)
 }
 
-export async function listSimilar(id: string) {
+export async function listSimilar(id: string): Promise<CaseItem[]> {
+  if (casesFromApi) return (await detail(id)).similar
   const all = await loadManifest()
   const c = all.find((x) => x.id === id)
   return c ? similarCases(all, c) : []

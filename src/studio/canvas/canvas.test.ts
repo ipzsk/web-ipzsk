@@ -5,7 +5,8 @@ import {
 } from './graph'
 import { emptyHistory, record, redo, undo, HISTORY_LIMIT } from './history'
 import { createLocalRepo, createMockServer, createSyncedRepo, resolveConflict, syncDirty, type KV } from './repo'
-import { buildCanvasAdd, parseCanvasAdd } from './canvasAdd'
+import { buildCanvasAdd } from './canvasAdd'
+import { parseCanvasAdd } from '@/shared/events'
 import { absolutePosition, dropTarget, nudge, reparent, sortParentsFirst } from './graph'
 
 const img = (id: string): AssetRef => ({ id, kind: 'image', width: 10, height: 10, urls: { orig: `https://x/${id}.png` } })
@@ -150,11 +151,11 @@ describe('inputs assembly & mode decision', () => {
     expect(r.references.map(x => x.id)).toEqual(['a', 'r1'])
   })
   it('no upstream images → text-to-image; with → image-to-image; model without refs ignores them', () => {
-    expect(decideMode('image', [], { references: { max: 15 } }).mode).toBe('text-to-image')
-    expect(decideMode('image', [img('a')], { references: { max: 15 } }).mode).toBe('image-to-image')
-    expect(decideMode('image', [img('a')], {})).toMatchObject({ mode: 'text-to-image', ignored: 1 })
-    expect(decideMode('image', [img('a'), img('b'), img('c')], { references: { max: 2 } })).toMatchObject({ mode: 'image-to-image', ignored: 1 })
-    expect(decideMode('video', [img('a')], {}).mode).toBe('text-to-video')
+    expect(decideMode('image', [], { references: { maxImages: 15 } }).mode).toBe('text-to-image')
+    expect(decideMode('image', [img('a')], { references: { maxImages: 15 } }).mode).toBe('image-to-image')
+    expect(decideMode('image', [img('a')], { references: { maxImages: 0 } })).toMatchObject({ mode: 'text-to-image', ignored: 1 })
+    expect(decideMode('image', [img('a'), img('b'), img('c')], { references: { maxImages: 2 } })).toMatchObject({ mode: 'image-to-image', ignored: 1 })
+    expect(decideMode('video', [img('a')], { references: { maxImages: 0 } }).mode).toBe('text-to-video')
   })
 })
 
@@ -209,7 +210,7 @@ describe('放到画布 detail', () => {
     expect(parseCanvasAdd({ source: 'nope' })).toBeNull()
     // legacy shape without `source` from the assets/create views
     const legacy = parseCanvasAdd({ assets: [media('a'), { junk: true }] })
-    expect(legacy).toMatchObject({ source: 'asset', assets: [{ id: 'a', asset_id: 'a', urls: { orig: 'https://s/a' } }] })
+    expect(legacy).toMatchObject({ source: 'asset', assets: [{ id: 'a', urls: { orig: 'https://s/a' } }] })
     expect(parseCanvasAdd({ source: 'case', case_id: 'c', image: { url: 'u', width: 'x', height: 5 }, prompt: 7 }))
       .toEqual({ source: 'case', case_id: 'c', image: { url: 'u', width: null, height: 5 }, prompt: '' })
   })

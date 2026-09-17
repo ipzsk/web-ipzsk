@@ -1,5 +1,6 @@
 /** Pure helpers + types for the admin console (contract: docs/admin-api.md). Tested in lib.test.ts. */
 import type { MediaAsset } from '@/media'
+import type { MediaAsset as ServerAsset } from '@/shared/contracts'
 
 export type Role = 'admin' | 'operator' | 'viewer'
 export const ROLES: Role[] = ['admin', 'operator', 'viewer']
@@ -57,8 +58,8 @@ export interface CaseFields {
 
 export interface AdminCase extends CaseFields {
   id: string
-  cover: MediaAsset | null
-  references: MediaAsset[]
+  cover: ServerAsset | null
+  references: ServerAsset[]
   status: CaseStatus
   position: number
   created_at: string
@@ -152,15 +153,8 @@ export function cancelBlockReason(r: { status: GenStatus; created_at: string }, 
   return null
 }
 
-export const FAILURE_LABEL: Record<string, string> = {
-  upstream_timeout: '上游超时',
-  upstream_rejected: '上游拒绝（内容审核）',
-  insufficient_balance: '点数不足',
-  invalid_params: '参数不被型号支持',
-  anchor_failed: '锚图失败',
-  admin_cancelled: '管理员标记取消',
-  archive_failed: '结果归档失败',
-}
+/** Same gateway failure-code map as the studio (create/lib.ts), so both consoles say the same thing. */
+export { FAILURE_MESSAGES as FAILURE_LABEL } from '@/studio/create/lib'
 
 export const fmtTime = (iso: string) => new Date(iso).toLocaleString('zh-CN', { hour12: false })
 export const fmtPoints = (p: string | null) => p == null ? '结算中' : `${Number(p).toLocaleString('zh-CN', { maximumFractionDigits: 2 })} 点`

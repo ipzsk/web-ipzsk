@@ -1,6 +1,6 @@
 /** Pure helpers for the 创作 view (tested in lib.test.ts). */
 import type { JSONContent } from '@tiptap/core'
-import type { GenerationParams, MediaKind } from '@/shared/contracts'
+import type { GenerationParams, MediaKind, MissingAsset, RecordAsset } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
 import type { Mention } from '../api/queue'
 import type { GenerationRecord, GenerationStatus } from '../api/records'
@@ -36,44 +36,60 @@ export interface ItemView {
 export interface PendingState { status: 'idle' | 'pending' | 'success' | 'error'; item: PendingGeneration; result?: SubmitOutcome; error?: { outcome?: SubmitOutcome } | null; submittedAt: number }
 
 export const FAILURE_MESSAGES: Record<string, string> = {
-  content_moderation: '内容未通过安全审核，请调整提示词或参考图',
-  upstream_timeout: '上游生成超时',
-  upstream_error: '上游服务异常',
-  anchor_failed: '锚图失败',
+  // Gateway error codes (endpoints.json) that can end a media task / submit. Unknown codes fall back to 「生成失败（code）」.
   insufficient_balance: '点数不足',
+  too_many_active: '同时进行的任务太多，请稍后再试',
+  unknown_model: '型号不可用',
+  model_not_media: '型号不可用',
+  unsupported_parameter: '参数不被当前型号支持',
+  unsupported_parameter_for_model: '参数不被当前型号支持',
+  conflicting_parameter: '参数互相冲突',
+  invalid_prompt: '提示词不符合要求',
+  reference_asset_not_found: '参考图已被删除',
+  too_many_references: '参考图数量超过上限',
+  too_many_reference_images: '参考图数量超过上限',
+  reference_images_too_large: '参考图过大',
+  anchor_not_succeeded: '锚图未成功',
+  media_storage_unavailable: '存储服务暂不可用',
+  upstream_unavailable: '上游服务暂不可用',
+  rate_limited: '请求太频繁，请稍后再试',
+  queue_timeout: '排队超时，请重试',
+  // Client-side status only (anchor failed → dependents cancelled in composer/send.ts); never a server code.
+  anchor_failed: '锚图失败',
 }
 export const failureText = (code: string | null) => code ? FAILURE_MESSAGES[code] ?? `生成失败（${code}）` : '生成失败'
 
 export const itemIdOf = (r: Pick<GenerationRecord, 'idempotency_key'>) => r.idempotency_key?.startsWith('q:') ? r.idempotency_key.slice(2) : null
 
+/** Drop MissingAsset entries (deleted references / results) — the bubble renders only real media. */
+const present = (xs: RecordAsset[] | undefined): MediaAsset[] => (xs ?? []).filter((a): a is Exclude<RecordAsset, MissingAsset> => !('missing' in a))
+
 export function fromRecord(r: GenerationRecord): ItemView {
   return {
     key: r.id, record_id: r.id, item_id: itemIdOf(r), kind: r.kind, model: r.model, prompt: r.prompt, prompt_doc: r.prompt_doc ?? null,
-    mentions: r.mentions ?? [], params: r.params, references: r.references ?? [], batch_id: r.batch_id, batch_position: r.batch_position ?? 1,
+    mentions: r.mentions ?? [], params: r.params, references: present(r.references), batch_id: r.batch_id, batch_position: r.batch_position ?? 1,
     thread_id: r.thread_id, anchor_record_id: r.anchor_record_id, anchor: false, status: r.status, progress: r.progress ?? null,
     failure: r.status === 'failed' || r.status === 'cancelled' ? failureText(r.failure_code) : null,
-    charged_points: r.charged_points, results: r.results ?? [], created_at: r.created_at,
+    charged_points: r.charged_points, results: present(r.results), created_at: r.created_at,
   }
 }
 
 /**
  * Server records + in-flight submissions → items, without duplicates. A submission disappears as soon as a record
- * with its record_id or idempotency key (`q:item_id`) is listed; accepted-but-unlisted ones show as 排队中 (no flicker).
+ * with its idempotency key (`q:item_id`) is listed (submit responses carry no record id); accepted-but-unlisted ones show as 排队中 (no flicker).
  * Several mutations for the same item (retries) → the latest wins.
  */
 export function mergeItems(records: GenerationRecord[], pendings: PendingState[]): ItemView[] {
-  const recordIds = new Set(records.map(r => r.id))
   const itemIds = new Set(records.map(itemIdOf).filter(Boolean))
   const latest = new Map<string, PendingState>()
   for (const p of pendings) latest.set(p.item.item_id, p)
   const items = records.map(fromRecord)
   for (const p of latest.values()) {
-    const rid = p.result?.status === 'accepted' ? p.result.record_id : undefined
-    if (itemIds.has(p.item.item_id) || (rid && recordIds.has(rid))) continue
+    if (itemIds.has(p.item.item_id)) continue
     const out = p.error?.outcome
     const v = p.item
     items.push({
-      key: `p:${v.item_id}`, record_id: rid ?? null, item_id: v.item_id, kind: v.kind, model: v.model, prompt: v.prompt, prompt_doc: v.prompt_doc,
+      key: `p:${v.item_id}`, record_id: null, item_id: v.item_id, kind: v.kind, model: v.model, prompt: v.prompt, prompt_doc: v.prompt_doc,
       mentions: v.mentions, params: v.params, references: v.references, batch_id: v.batch_id, batch_position: v.batch_position ?? 0, thread_id: v.thread_id,
       anchor_record_id: v.anchor_record_id, anchor: false, status: p.status === 'success' ? 'queued' : p.status === 'error' ? 'submit_failed' : 'submitting', progress: null,
       failure: p.status === 'error' ? (out && out.status !== 'accepted' ? out.error.message : '提交失败') : null,
@@ -128,14 +144,15 @@ export function chargeLabel(items: Pick<ItemView, 'status' | 'charged_points'>[]
 
 /** Anchors that reached a terminal state → composer calls. `watched` (record_id → item_id) is consumed, so repeat calls are no-ops. */
 export function anchorCalls(records: Pick<GenerationRecord, 'id' | 'status' | 'results'>[], watched: Map<string, string>) {
-  const calls: { itemId: string; assetId: string | null }[] = []
+  const calls: { itemId: string; recordId: string; assetId: string | null }[] = []
   for (const r of records) {
     const itemId = watched.get(r.id)
     if (!itemId || !TERMINAL.has(r.status)) continue
-    const assetId = r.status === 'succeeded' ? r.results[0]?.id ?? null : null
+    const first = r.results.find(a => !('missing' in a))
+    const assetId = r.status === 'succeeded' ? first?.id ?? null : null
     if (r.status === 'succeeded' && !assetId) continue // not archived yet
     watched.delete(r.id)
-    calls.push({ itemId, assetId })
+    calls.push({ itemId, recordId: r.id, assetId })
   }
   return calls
 }

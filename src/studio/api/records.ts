@@ -3,11 +3,10 @@ import { get, set } from 'idb-keyval'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { request } from '@/shared/api'
 import { queryClient } from '@/shared/query'
-import type { GenerationParams, MediaKind } from '@/shared/contracts'
+import type { GenerationParams, GenerationRecord as GenRecord, Page, Thread } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
 import { isMock, mockDelay, mockFailRate } from './catalog'
 import { GENERATION_SUBMIT_KEY, type PendingGeneration, type SubmitOutcome } from './generation'
-import type { Mention } from './queue'
 import { onAnchorFailed, onAnchorSucceeded, sender } from '../composer/send'
 import { useComposer } from '../store'
 import { anchorCalls, itemIdOf, todayTitle } from '../create/lib'
@@ -20,42 +19,27 @@ import { anchorCalls, itemIdOf, todayTitle } from '../create/lib'
  *   GET/POST/PATCH/DELETE /api/me/threads[/:id] → Thread / { items }
  */
 
-export type GenerationStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
-export type ResultAsset = MediaAsset & { thumb_state?: 'none' | 'queued' | 'running' | 'done' | 'skipped' | 'failed' }
+export type { GenerationStatus, Page, Thread } from '@/shared/contracts'
+export type ResultAsset = MediaAsset
 
-export interface GenerationRecord {
-  id: string
-  thread_id: string | null
-  batch_id: string | null
-  batch_position: number | null
-  anchor_record_id: string | null
-  parent_record_id: string | null
-  idempotency_key?: string | null
-  kind: MediaKind
-  model: string
-  prompt: string
+/**
+ * Generated `GenerationRecord`, narrowed where the website knows more: `prompt_doc` is a TipTap doc, params are primitives.
+ * `references` / `results` may contain MissingAsset (deleted) — create/lib.ts fromRecord drops those before rendering.
+ * `progress` is website-only (mock); the gateway doesn't send it, so real running records show no percentage.
+ */
+export interface GenerationRecord extends Omit<GenRecord, 'prompt_doc' | 'params'> {
   prompt_doc: JSONContent | null
-  mentions: Mention[]
   params: GenerationParams
-  source: 'studio' | 'template' | 'canvas'
-  status: GenerationStatus
-  failure_code: string | null
   progress?: number | null
-  /** Decimal string; null → 「结算中」. */
-  charged_points: string | null
-  references: MediaAsset[]
-  results: ResultAsset[]
-  created_at: string
-  updated_at: string
 }
 
-export interface Thread { id: string; title: string; created_at: string; updated_at: string }
-export interface Page<T> { items: T[]; next_cursor: string | null }
 export interface RecordQuery { thread?: string; status?: 'active'; cursor?: string | null }
 
 export interface RecordsApi {
   list: (q: RecordQuery) => Promise<Page<GenerationRecord>>
   get: (id: string) => Promise<GenerationRecord>
+  /** Record id for a submitted item via `?idempotency_key=q:{item_id}` (the submit response carries none). */
+  findByItem: (itemId: string) => Promise<string | null>
   move: (id: string, thread_id: string) => Promise<void>
   remove: (id: string) => Promise<void>
   removeBatch: (batch_id: string) => Promise<void>
@@ -70,6 +54,7 @@ const qs = (o: Record<string, string | null | undefined>) => new URLSearchParams
 const realApi: RecordsApi = {
   list: q => request(`/api/me/generations?${qs({ thread: q.thread, status: q.status, cursor: q.cursor })}`),
   get: id => request(`/api/me/generations/${id}`),
+  findByItem: async itemId => (await request<Page<GenerationRecord>>(`/api/me/generations?${qs({ idempotency_key: `q:${itemId}` })}`)).items[0]?.id ?? null,
   move: async (id, thread_id) => { await request(`/api/me/generations/${id}`, { method: 'PATCH', body: { thread_id } }) },
   remove: async id => { await request(`/api/me/generations/${id}`, { method: 'DELETE' }) },
   removeBatch: async batch_id => { await request(`/api/me/generations?${qs({ batch_id })}`, { method: 'DELETE' }) },
@@ -81,7 +66,7 @@ const realApi: RecordsApi = {
 
 /* ---------- mock (?mock=1): IndexedDB, time-driven status so a refresh resumes where it was ---------- */
 
-type MockRecord = GenerationRecord & { _dur: number; _fail: boolean; _deleted?: boolean }
+export type MockRecord = GenerationRecord & { _dur: number; _fail: boolean; _deleted?: boolean }
 interface MockDb { records: MockRecord[]; threads: (Thread & { _deleted?: boolean })[] }
 const DB_KEY = 'ipzsk.mock.generations.v1'
 let dbPromise: Promise<MockDb> | undefined
@@ -90,13 +75,13 @@ const save = async () => { await set(DB_KEY, await db()) }
 
 const RATIO: Record<string, [number, number]> = { '16:9': [16, 9], '9:16': [9, 16], '3:2': [3, 2], '2:3': [2, 3], '4:3': [4, 3], '3:4': [3, 4], '4:5': [4, 5], '5:4': [5, 4], '21:9': [21, 9] }
 
-function mockResults(r: MockRecord): ResultAsset[] {
+function mockResults(r: MockRecord): GenRecord['results'] {
   const [rw, rh] = RATIO[String(r.params.aspect_ratio)] ?? [1, 1]
   const h = (w: number) => Math.round((w * rh) / rw)
   return Array.from({ length: r.kind === 'video' ? 1 : Number(r.params.n ?? 1) }, (_, i) => {
     const pic = (w: number) => `https://picsum.photos/seed/gen-${r.id}-${i}/${w}/${h(w)}`
     return {
-      id: `${r.id}-r${i}`, kind: r.kind, status: 'ready', width: 1200, height: h(1200), duration_ms: r.kind === 'video' ? 5000 : null, thumb_state: 'done',
+      id: `${r.id}-r${i}`, kind: r.kind, source: 'generation', status: 'ready', width: 1200, height: h(1200), duration_ms: r.kind === 'video' ? 5000 : null, thumb_state: 'done', created_at: r.updated_at,
       urls: r.kind === 'video'
         ? { orig: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4', poster: pic(960), w480: pic(480) }
         : { w480: pic(480), w960: pic(960), orig: pic(1200) },
@@ -111,7 +96,7 @@ function advance(r: MockRecord, now = Date.now()): GenerationRecord {
   const at = (ms: number) => new Date(Date.parse(r.created_at) + ms).toISOString()
   if (t < 1000) return { ...rec, status: 'queued', progress: null }
   if (t < _dur) return { ...rec, status: 'running', progress: Math.min(99, Math.round(((t - 1000) / (_dur - 1000)) * 100)), updated_at: at(t) }
-  if (_fail) return { ...rec, status: 'failed', failure_code: 'content_moderation', charged_points: '0', progress: null, updated_at: at(_dur) }
+  if (_fail) return { ...rec, status: 'failed', failure_code: 'upstream_unavailable', charged_points: '0', progress: null, updated_at: at(_dur) }
   const price = (r.model === 'z-image-turbo' ? 2 : 6) * Number(r.params.n ?? 1)
   return { ...rec, status: 'succeeded', progress: null, results: mockResults(r), charged_points: t > _dur + 1500 ? String(price) : null, updated_at: at(t > _dur + 1500 ? _dur + 1500 : _dur) }
 }
@@ -131,6 +116,10 @@ const mockApi: RecordsApi = {
     const r = (await db()).records.find(x => x.id === id && !x._deleted)
     if (!r) throw new Error('not found')
     return advance(r)
+  },
+  async findByItem(itemId) {
+    await mockDelay(50)
+    return (await db()).records.find(r => !r._deleted && r.idempotency_key === `q:${itemId}`)?.id ?? null
   },
   async move(id, thread_id) {
     const r = (await db()).records.find(x => x.id === id)
@@ -173,17 +162,23 @@ const mockApi: RecordsApi = {
   },
 }
 
-async function mockCreate(v: PendingGeneration & { parent_record_id?: string | null }, id: string) {
-  const d = await db()
-  if (d.records.some(r => r.id === id)) return
-  const now = new Date().toISOString()
-  d.records.push({
+/** Pure: the mock gateway's record for a submit (exported for contracts/mocks.test.ts). */
+export function mockRecord(v: PendingGeneration, id: string, now = new Date().toISOString()): MockRecord {
+  return {
     id, thread_id: v.thread_id, batch_id: v.batch_id, batch_position: v.batch_position, anchor_record_id: v.anchor_record_id,
     parent_record_id: v.parent_record_id ?? null, idempotency_key: `q:${v.item_id}`, kind: v.kind, model: v.model, prompt: v.prompt,
     prompt_doc: v.prompt_doc, mentions: v.mentions, params: v.params, source: 'studio', status: 'queued', failure_code: null,
-    charged_points: null, references: v.references, results: [], created_at: now, updated_at: now,
+    charged_points: null, request_id: null, task_id: null, references: v.references.map(a => ({ source: 'upload' as const, thumb_state: 'done' as const, created_at: now, ...a })),
+    results: [], created_at: now, updated_at: now,
     _dur: 3000 + Math.random() * 5000, _fail: Math.random() < mockFailRate() * 2,
-  })
+  }
+}
+export const advanceMockRecord = (r: MockRecord, now?: number) => advance(r, now)
+
+async function mockCreate(v: PendingGeneration, id: string) {
+  const d = await db()
+  if (d.records.some(r => r.id === id || r.idempotency_key === `q:${v.item_id}`)) return
+  d.records.push(mockRecord(v, id))
   await save()
 }
 
@@ -246,9 +241,11 @@ export function ensureTodayThread(): Promise<Thread> {
 async function onAccepted(v: PendingGeneration, out: SubmitOutcome) {
   if (out.status !== 'accepted' || accepted.has(v.item_id)) return
   accepted.add(v.item_id)
-  const id = out.record_id
+  if (isMock) await mockCreate(v, crypto.randomUUID())
+  // Submit responses are the upstream body passed through (no record id): look the record up by idempotency key.
+  const id = await recordsApi.findByItem(v.item_id).catch(() => null)
   if (id && sender.waitingFor(v.item_id).length) watchedAnchors.set(id, v.item_id)
-  if (isMock && id) await mockCreate(v, id)
+  else if (!id && sender.waitingFor(v.item_id).length) onAnchorFailed(v.item_id) // ponytail: no retry on lookup miss; dependents cancelled, user resends
   if (!v.thread_id && id) {
     try {
       const t = await ensureTodayThread()
@@ -261,7 +258,7 @@ async function onAccepted(v: PendingGeneration, out: SubmitOutcome) {
 
 function fireAnchors(records: GenerationRecord[]) {
   for (const c of anchorCalls(records, watchedAnchors)) {
-    if (c.assetId) void onAnchorSucceeded(c.itemId, c.assetId)
+    if (c.assetId) void onAnchorSucceeded(c.itemId, c.assetId, c.recordId)
     else onAnchorFailed(c.itemId)
   }
 }
