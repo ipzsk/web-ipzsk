@@ -36,7 +36,7 @@
 | A8 导入案例、回填旧归档（写 R2 和数据库） | §5.2、§5.3 | 生产写入 |
 | A9 真实环境验证：会产生**真实扣费**的生成（图片、视频、HeyGen 各一单） | §6 | 充值扣款 |
 | A10 网站 dev→main 合并（Vercel 会自动发布生产） | §1.3、§7 | 发布 |
-| A11 Vercel 切换（打 cutover patch 并合 main） | §7 | 发布 |
+| A11 Vercel 切换（已在 `studio-rebuild` 分支上应用，随合 main 生效） | §7 | 发布 |
 | A12 删除旧文件 | §9 | 不可逆 |
 
 前置检查（负责人：执行人，本机即可）：
@@ -111,8 +111,8 @@ git commit -m "feat(heygen): Avatar III 型号与 4.83/0.99 价目、avatars/voi
    `BASE_URL=<preview-url> API_URL=https://api.ipzsk.com node scripts/smoke/prod-smoke.cjs`（这是对生产 API 的只读请求，需要 A9 里的「只读冒烟」授权）。
 6. 开 PR `release/studio → main`，合并 **必须在 §4 网关发布之后**。原因：合并后 `/studio`、`/admin` 就会在生产上线（隐藏入口），旧网关没有这些接口，页面会报错。
 
-**预期**：Vercel Production 构建成功；`/`、`/account`、`/developer`、`/workspace`、`/workstation` 仍是旧页面（切换在 §7）。
-**验证**：`curl -sI https://www.ipzsk.com/studio` 返回 200 且有 CSP 头；旧页面正常。
+**预期**：Vercel Production 构建成功。注意 `studio-rebuild` 分支上 §7.2 的 vercel.json 切换**已经应用**（旧 `image.html`、`video.html`、`video.css` 已删），合入后 `/`、`/account`、`/developer`、`/workspace`、`/workstation` 直接是新页面，`/image`、`/video` 跳 `/studio?kind=`；案例库默认走网关 API。
+**验证**：`curl -sI https://www.ipzsk.com/studio` 返回 200 且有 CSP 头；再跑 §7.4 的「S2 验证」。
 **回滚**：Vercel Dashboard → Deployments → 上一个生产部署 → **Instant Rollback**；然后 `git revert -m 1 <merge>` 推到 main。
 
 ---
@@ -505,12 +505,14 @@ node scripts/smoke/prod-smoke.cjs > /tmp/smoke.json; echo "exit=$?"; jq '.failur
 
 ### 7.1 开关
 
-1. Vercel → Project → Settings → Environment Variables：**Production** 加 `VITE_CASES_SOURCE=api`（这个变量在构建时生效，要重新部署）。Preview 先加，先验证。
+1. 案例库**默认走网关 API**，不需要设置任何变量（`VITE_CASES_SOURCE=api` 已经不用加）。只有要退回静态清单时才在 Vercel → Environment Variables 设 `VITE_CASES_SOURCE=static`（构建时生效，要 Redeploy）。
    - 验证：`/studio` 灵感页总数不再显示 561（API 模式不返回 total），分类计数来自 `/api/public/case-categories`；DevTools 能看到 `api.ipzsk.com/api/public/cases` 请求。
-   - 回滚：删掉这个变量并 Redeploy（回到静态清单）。
+   - 回滚：设 `VITE_CASES_SOURCE=static` 并 Redeploy（回到静态清单）。
 2. mock：`isMock` 必须只在 DEV 生效（B-1）。验证：生产上 `prod-smoke.cjs` 不报 `mock_active`；另外用 `grep -o "get(\"mock\")" dist/assets/*.js` 检查生产构建里有没有这个判断（修复后 Vite 会把 `import.meta.env.DEV` 常量折叠掉，这段代码应该消失或者变成死代码）。
 
 ### 7.2 vercel.json 切换（patch）
+
+> **`studio-rebuild` 分支上已经应用了这个 patch**（连同 `.vercelignore`），并删掉了 `image.html`、`video.html`、`video.css`。合入 main 即切换，下面的「执行」步骤不用再做（patch 在当前 vercel.json 上也 apply 不上）。
 
 文件：`docs/cutover/vercel-cutover.patch`（正向），`docs/cutover/vercel-rollback.patch`（反向）。内容：
 - rewrites：`/` → `/dist/pages/home.html`；`/account`、`/developer`、`/workspace`、`/workstation` → `/dist/pages/*.html`；删除 `/image`、`/video` rewrites。
@@ -533,18 +535,16 @@ BASE_URL=<preview-url> node scripts/smoke/prod-smoke.cjs
 
 ### 7.3 导航合并
 
-新页面统一用 `src/studio/SiteHeader.tsx`：`首页 · 下载`、`创作工作台`、`内容工作台`，外加有角色时显示的「管理中台」。旧 `site-nav.js` 里的「生图」「生视频」随切换消失，入口改为 `/studio?kind=`。切换后检查：所有新页面顶栏一致；`/workspace` 里「去生图」打开的是 `/studio`（`src/pages/workspace/views/Images.tsx`）。
+新页面统一用 `src/studio/SiteHeader.tsx`：`首页 · 下载`、`图片`、`视频`、`数字人`（分别是 `/studio?kind=image|video|avatar`）、`内容工作台`，外加有角色时显示的「管理中台」。旧 `site-nav.js` 里的「生图」「生视频」随切换消失，入口改为 `/studio?kind=`。切换后检查：所有新页面顶栏一致；`/workspace` 里「去生图」打开的是 `/studio`（`src/pages/workspace/views/Images.tsx`）。
 
 ### 7.4 分阶段顺序
 
 | 阶段 | 内容 | 观察时长 | 回滚 |
 |---|---|---|---|
-| S0 | §1.3 合 main（`/studio`、`/admin` 作为隐藏入口上线），`VITE_CASES_SOURCE` 仍是静态 | 24h | Instant Rollback |
-| S1 | 生产开启 `VITE_CASES_SOURCE=api` 并 Redeploy | 24h | 删变量，Redeploy |
-| S2 | 合 `cutover/pages`（patch） | 48h | 见下 |
+| S0–S2 | 合 `studio-rebuild`：切换已在分支上，`/studio`、`/admin` 上线、案例库走 API、页面切换一次完成 | 48h | 见下 |
 | S3 | 旧代码保留两周（§16）→ §9 清理 | — | — |
 
-**S2 回滚**（2 分钟内）：Vercel Instant Rollback 到 S1 的部署；然后 `git apply docs/cutover/vercel-rollback.patch && git commit -am "revert: 页面切换回旧版" && push`（或者 `git revert <cutover commit>`）。验证：`curl -s https://www.ipzsk.com/ | grep -o '<title>[^<]*'` = `IPZSK · 桌面客户端下载`；`curl -sI https://www.ipzsk.com/image` = 200。
+**S2 回滚**（2 分钟内）：Vercel Instant Rollback 到合并前的部署；然后 `git revert -m 1 <merge>` 推到 main。只回退 vercel.json 的 `vercel-rollback.patch` 不够：`image.html`、`video.html` 已删，`/image` 会 404。验证：`curl -s https://www.ipzsk.com/ | grep -o '<title>[^<]*'` = `IPZSK · 桌面客户端下载`；`curl -sI https://www.ipzsk.com/image` = 200。
 
 **S2 验证**：
 ```sh
@@ -593,9 +593,7 @@ node scripts/smoke/prod-smoke.cjs
 - `developer.html`、`developer.js`、`developer.css`、`api.js`
 - `workspace.html`、`workspace.js`、`workspace.css`
 - `workstation.html`、`workstation.js`、`workstation.css`
-- `image.html`、`video.html`、`video.css`
 - `site-nav.js`、`site-nav.css`
-- `image-library.js`、`image-library.css`、`image-library-i18n.css`（仓库里没有引用）
 - `lib/gateway.js`、`workstation-release.json`（没有引用）
 - `dev-server.mjs`（已被 Vite 代理取代；同时删 `vite.config.ts` 注释里对它的引用）
 - `tests/captcha-ui.test.mjs`、`tests/points-wallet.test.mjs`、`tests/recharge.test.mjs`（测的是上面删掉的文件）
@@ -603,7 +601,7 @@ node scripts/smoke/prod-smoke.cjs
 
 **另外满足条件后再删**：
 - Vercel 函数 `api/image-prompt.js`、`api/image-result.js`、`api/tasks.js`、`api/images/generations.js`、`api/prompts/translate.js`、`api/v1/chat/`、`api/videos/generations.js`、`api/videos/tasks.js` 以及 `test/chat-completions.test.js`、`test/video-api.test.js`：它们只服务于旧 `/image`、`/video`（`image-studio/assets/*.js`）。条件：Vercel Functions 日志 14 天调用为 0。**保留** `api/desktop-release.js` 和 `tests/desktop-release.test.cjs`（新首页和下载页在用）。
-- `image-studio/` 整个目录：条件是 (1) §5.2 导入完成（35 张站内原图已经进 R2）；(2) 生产 `VITE_CASES_SOURCE=api` 稳定 14 天。同时删掉静态清单回退：`scripts/build-cases-manifest.mjs`（读 `image-studio/assets/catalog.json`）、`src/studio/inspiration/data/cases.manifest.json` 以及 `inspiration/api.ts` 里的 manifest 分支。注意 `THIRD_PARTY_NOTICES` 和 dsh-imagegen NOTICE（§14）。
+- `image-studio/` 整个目录：条件是 (1) §5.2 导入完成（35 张站内原图已经进 R2）；(2) 生产案例库走 API（默认）稳定 14 天。同时删掉静态清单回退：`scripts/build-cases-manifest.mjs`（读 `image-studio/assets/catalog.json`）、`src/studio/inspiration/data/cases.manifest.json` 以及 `inspiration/api.ts` 里的 manifest 分支。注意 `THIRD_PARTY_NOTICES` 和 dsh-imagegen NOTICE（§14）。
 - `.vercelignore` 里 `image-studio/*` 那几行随目录一起删。
 
 **不删**：`media-demo.html`（开发用演示页）、`studio.html`、`admin.html`、`pages/`、`assets/`、`IPZSK_logo_exact.svg`、`docs/`。
