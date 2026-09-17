@@ -165,7 +165,7 @@ function ZoomImage({ c }: { c: CaseItem }) {
       <div className="transition-transform duration-base ease-standard motion-reduce:transition-none" style={{ transform: zoom ? 'scale(2.5)' : undefined, transformOrigin: origin }}>
         {/* thumb (usually cached from the feed) under the full image, so something shows instantly */}
         <MediaImage urls={{ orig: c.image.urls.w480 ?? c.image.urls.w960 ?? c.image.urls.orig }} width={c.image.width} height={c.image.height} alt="" hideBadge className="w-full" />
-        <MediaImage urls={{ orig: c.image.urls.orig }} width={c.image.width} height={c.image.height} alt={c.title} sizes="orig" priority hideBadge className="absolute inset-0 w-full bg-transparent" onLoad={() => setSettledId(c.id)} onError={() => setSettledId(c.id)} />
+        <MediaImage key={c.id} urls={{ orig: c.image.urls.orig }} width={c.image.width} height={c.image.height} alt={c.title} sizes="orig" priority hideBadge className="absolute inset-0 w-full bg-transparent" onLoad={() => setSettledId(c.id)} onError={() => setSettledId(c.id)} />
       </div>
       {spinning && (
         <span role="status" className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink/60 p-2 text-white">
