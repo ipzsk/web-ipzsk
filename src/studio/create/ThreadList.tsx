@@ -6,7 +6,7 @@ import {
   ErrorState, Input, Skeleton, cn, focusRing, toast,
 } from '@/ui'
 import { ApiError } from '@/shared/api'
-import { queryClient } from '@/shared/query'
+import { queryClient, useCurrentUser } from '@/shared/query'
 import { recordKeys, recordsApi, useThreads, type Thread } from '../api/records'
 import { deleteWithUndo, useHidden } from './actions'
 import { useLegacy } from './LegacyImport'
@@ -23,7 +23,8 @@ export function useThreadList() {
   const threadId = useMatch('/studio/create/:threadId')?.params.threadId ?? null
   const list = (threads.data ?? []).filter(t => !hidden.has(`thread:${t.id}`))
   const legacyListed = useLegacy().marker?.state === 'imported'
-  const signedOut = threads.error instanceof ApiError && (threads.error.status === 401 || threads.error.status === 403)
+  const me = useCurrentUser() // useThreads is disabled while signed out, so a null user is the signal (401 covers expiry)
+  const signedOut = (me.isSuccess && !me.data) || threads.error instanceof ApiError && (threads.error.status === 401 || threads.error.status === 403)
   const go = (id: string | null, replace = false) => navigate({ pathname: id ? `/studio/create/${id}` : '/studio/create', search }, { replace })
 
   const [renaming, setRenaming] = useState<Thread | null>(null)

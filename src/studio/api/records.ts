@@ -218,7 +218,7 @@ export const useActiveGenerations = () => useQuery({
   staleTime: 0,
 })
 
-export const useThreads = () => useQuery({ queryKey: recordKeys.threads, queryFn: recordsApi.threads, staleTime: 60_000 })
+export const useThreads = () => useQuery({ queryKey: recordKeys.threads, enabled: isMock || !!useCurrentUser().data, queryFn: recordsApi.threads, staleTime: 60_000 })
 
 /* ---------- glue: accepted submits → records, default thread, anchors ---------- */
 
