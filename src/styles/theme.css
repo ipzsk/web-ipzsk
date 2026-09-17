@@ -2,16 +2,17 @@
 
 /* IPZSK design tokens — single source for every new page (docs/studio-redesign.md §3.1). */
 @theme {
-  --color-paper: #f4f2eb;
-  --color-card: #fffefb;
-  --color-subtle: #ebe8de;
-  --color-line: #e3e4da;
+  --color-paper: #f9f8f6;
+  --color-card: #ffffff;
+  --color-subtle: #eeece8;
+  --color-line: #e2e1dd;
   --color-ink: #161916;
   /* WCAG AA: #686b62 = 4.85:1 on paper, 5.38 on card, 4.51 on subtle. */
   --color-muted: #686b62;
-  --color-label: #4e651e;
-  --color-acid: #c9ff4a;
-  --color-acid-deep: #89bd13;
+  /* Accent from designer commit 479bf1e (IPZSK blue). #1558d6 = 5.9:1 on paper; #1d71fb only as fill (white text on it). */
+  --color-label: #1558d6;
+  --color-acid: #1d71fb;
+  --color-acid-deep: #1558d6;
   --color-danger: #a63c2f;
   /* #855a0d = 5.06:1 on its own 12% tint (4.5 on the 20% hover tint). */
   --color-warning: #855a0d;

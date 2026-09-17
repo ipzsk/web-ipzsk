@@ -50,26 +50,26 @@ export function SiteHeader() {
     <header className="h-16 border-b border-line bg-paper/95 backdrop-blur-md max-[720px]:h-[104px]">
       <nav aria-label="主导航" className="grid h-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-7 px-6 lg:px-8 max-[720px]:grid-cols-[minmax(0,1fr)_auto] max-[720px]:px-4 max-[720px]:grid-rows-[52px_44px] max-[720px]:gap-x-2 max-[720px]:gap-y-0">
         <a href="/" className={cn('rounded-control', focusRing)}>
-          {/* 420×61 webp (5KB) derived from assets/ipzsk-wordmark.png; fixed box → no layout shift. */}
-          <img src="/assets/ipzsk-wordmark-420.webp" alt="IPZSK" width={138} height={20} decoding="async" className="block h-5 w-[138px] max-w-none max-[720px]:h-[15px] max-[720px]:w-[104px]" />
+          {/* Designer lockup (479bf1e); 787×644 source, fixed box → no layout shift. */}
+          <img src="/assets/ipzsk-lockup.png" alt="IPZSK" width={71} height={58} decoding="async" className="block h-[58px] w-[71px] max-w-none object-contain mix-blend-multiply max-[720px]:h-11 max-[720px]:w-[54px]" />
         </a>
         <div className="flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] max-[720px]:col-span-full max-[720px]:row-start-2">
           {links.map(l => {
             const current = l.href === '/' ? location.pathname === '/' : location.pathname.startsWith(l.href)
-            return <a key={l.href} href={l.href} aria-current={current ? 'page' : undefined} className={cn(linkClass, current && 'bg-acid font-bold hover:bg-acid')}>{l.text}</a>
+            return <a key={l.href} href={l.href} aria-current={current ? 'page' : undefined} className={cn(linkClass, current && 'bg-acid font-bold text-white hover:bg-acid')}>{l.text}</a>
           })}
         </div>
         <div className="flex min-w-0 items-center gap-2 max-[720px]:gap-1">
           {user && <PointsPill />}
           {user && <RechargeHost />}
           {user && !!roles?.length && (
-            <a href="/admin" aria-current={onAdmin ? 'page' : undefined} aria-label="管理中台" title="管理中台" className={cn(linkClass, 'inline-flex items-center gap-1.5', onAdmin && 'bg-acid font-bold hover:bg-acid')}>
+            <a href="/admin" aria-current={onAdmin ? 'page' : undefined} aria-label="管理中台" title="管理中台" className={cn(linkClass, 'inline-flex items-center gap-1.5', onAdmin && 'bg-acid font-bold text-white hover:bg-acid')}>
               <ShieldCheck aria-hidden className="size-4 shrink-0" /><span className="max-[720px]:sr-only">管理中台</span>
             </a>
           )}
           {isPending ? null : user
             ? <a href="/account" className={linkClass}>我的</a>
-            : <a href={loginUrl()} className={cn(linkClass, 'bg-ink font-bold text-acid hover:bg-ink/88')}>登录 / 注册</a>}
+            : <a href={loginUrl()} className={cn(linkClass, 'bg-ink font-bold text-white hover:bg-ink/88')}>登录 / 注册</a>}
         </div>
       </nav>
     </header>
