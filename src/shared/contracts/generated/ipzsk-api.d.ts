@@ -6,6 +6,199 @@ export type IsoTime = string
 export type Decimal = string
 export interface Page<T> { items: T[]; next_cursor: string | null }
 
+export interface AdminCase {
+  title: string
+  prompt: string
+  category: string
+  category_zh: string | null
+  tags: string[]
+  model: string | null
+  params: Record<string, unknown>
+  template: CaseTemplate | null
+  author: string | null
+  author_url: string | null
+  source_repo: string | null
+  source_url: string | null
+  license_note: string | null
+  id: string
+  cover: MediaAsset | null
+  references: MediaAsset[] // max 8 items
+  status: CaseStatus
+  position: number
+  created_at: IsoTime
+  updated_at: IsoTime
+}
+export interface AdminCaseCreate {
+  title: string
+  prompt: string
+  category: string
+  category_zh?: string | null
+  tags?: string[]
+  model?: string | null
+  params?: Record<string, unknown>
+  template?: CaseTemplate | null
+  author?: string | null
+  author_url?: string | null
+  source_repo?: string | null
+  source_url?: string | null
+  license_note?: string | null
+  id?: string | null
+  cover_asset_id: Uuid
+}
+export interface AdminCasePage {
+  items: AdminCase[]
+  next_cursor: string | null
+  total: number // integer 0..
+}
+export interface AdminCasePatch {
+  title?: string
+  prompt?: string
+  category?: string
+  category_zh?: string | null
+  tags?: string[]
+  model?: string | null
+  params?: Record<string, unknown>
+  template?: CaseTemplate | null
+  author?: string | null
+  author_url?: string | null
+  source_repo?: string | null
+  source_url?: string | null
+  license_note?: string | null
+  status?: CaseStatus
+  expected_updated_at?: IsoTime | null
+}
+export interface AdminCaseQuery {
+  status?: CaseStatus
+  category?: string
+  q?: string
+  cursor?: string
+  limit?: number // integer 1..100
+}
+export interface AdminGeneration {
+  id: Uuid
+  user: UserRef
+  kind: MediaKind
+  model: string
+  prompt: string
+  params: GenerationParams
+  status: GenerationStatus
+  failure_code: string | null
+  charged_points: Decimal | null
+  source: "studio" | "template" | "canvas"
+  batch_id: Uuid | null
+  batch_position: number | null // integer 0..11
+  created_at: IsoTime
+  updated_at: IsoTime
+}
+export interface AdminGenerationDetail {
+  id: Uuid
+  user: UserRef
+  kind: MediaKind
+  model: string
+  prompt: string
+  params: GenerationParams
+  status: GenerationStatus
+  failure_code: string | null
+  charged_points: Decimal | null
+  source: "studio" | "template" | "canvas"
+  batch_id: Uuid | null
+  batch_position: number | null // integer 0..11
+  created_at: IsoTime
+  updated_at: IsoTime
+  failure_message: string | null
+  request_id: Uuid | null
+  idempotency_key: string | null
+  upstream: {
+    provider: string | null
+    request_id: string | null
+    task_id: string | null
+    task_status: string | null
+    last_synced_at: IsoTime | null
+  }
+  billing: {
+    mode: "lanehub" | "local"
+    state: "pending" | "charged" | "released"
+    cost_cny: Decimal | null
+  }
+  thread_id: Uuid | null
+  anchor_record_id: Uuid | null
+  parent_record_id: Uuid | null
+  source_case_id: string | null
+  references: RecordAsset[]
+  results: RecordAsset[]
+  deleted_at: IsoTime | null
+}
+export interface AdminGenerationQuery {
+  user?: string
+  model?: string
+  status?: string
+  kind?: MediaKind
+  from?: string
+  to?: string
+  cursor?: string
+  limit?: number // integer 1..100
+}
+export interface AdminMe {
+  user: UserRef
+  roles: Role[]
+  session: {
+    created_at: IsoTime
+    expires_at: IsoTime
+  }
+}
+export interface AdminStaff {
+  items: {
+    user: UserRef
+    roles: RoleGrant[]
+  }[]
+}
+export interface AdminUserDetail {
+  user: {
+    id: Uuid
+    email: string | null
+    name: string
+    email_verified: boolean
+    created_at: IsoTime
+    last_sign_in_at: IsoTime | null
+  }
+  roles: RoleGrant[]
+  developer: {
+    state: ("pending" | "approved" | "rejected" | "disabled") | null
+  }
+  wallet: {
+    available_points: Decimal
+    frozen_points: Decimal
+  } | null
+  wallet_error: string | null
+  usage: {
+    last_30d: {
+      generations: number // integer 0..
+      succeeded: number // integer 0..
+      failed: number // integer 0..
+      cancelled: number // integer 0..
+      charged_points: Decimal
+    }
+    total_generations: number // integer 0..
+    storage: {
+      assets: number // integer 0..
+      bytes: number // integer 0..
+    }
+  }
+  recent_generations: AdminGeneration[] // max 10 items
+}
+export interface AdminUserQuery {
+  q: string
+  cursor?: string
+  limit?: number // integer 1..100
+}
+export interface AdminUserSummary {
+  id: Uuid
+  email: string | null
+  name: string
+  email_verified: boolean
+  created_at: IsoTime
+  roles: Role[]
+}
 export interface ApiError {
   code: string
   message: string
@@ -13,6 +206,8 @@ export interface ApiError {
   field?: string
   request_id?: Uuid
   status?: string
+  fields?: PublishIssue[]
+  reason?: string
 }
 export interface ApiErrorBody {
   error: ApiError
@@ -28,6 +223,47 @@ export interface AssetUrls {
   w480?: string
   w960?: string
   poster?: string
+}
+export interface AuditEvent {
+  id: number // integer 1..
+  action: string
+  actor: UserRef | null
+  legacy_administrator_id: number | null // integer 0..
+  target_id: string | null
+  details: Record<string, unknown> | null
+  created_at: IsoTime
+}
+export interface AuditQuery {
+  actor?: string
+  action?: string
+  target?: string
+  from?: string
+  to?: string
+  cursor?: string
+  limit?: number // integer 1..100
+}
+export type BulkStatusItem = {
+  id: string
+  ok: true
+  case: {
+    id: string
+    status: CaseStatus
+    updated_at: IsoTime
+  }
+} | {
+  id: string
+  ok: false
+  error: {
+    code: string
+    fields?: PublishIssue[]
+  }
+}
+export interface BulkStatusRequest {
+  ids: string[] // max 200 items
+  status: CaseStatus
+}
+export interface BulkStatusResult {
+  items: BulkStatusItem[] // max 200 items
 }
 export interface CanvasConflict {
   error: ApiError
@@ -86,6 +322,13 @@ export interface CaseCategory {
   category_zh: string | null
   count: number // integer 0..
 }
+export interface CaseConflict {
+  error: ApiError
+  case: AdminCase
+}
+export interface CaseCoverPut {
+  asset_id: Uuid
+}
 export interface CaseImage {
   width: number | null // integer 0..
   height: number | null // integer 0..
@@ -101,19 +344,34 @@ export interface CaseListQuery {
   cursor?: string
   limit?: number // integer 1..60
 }
+export interface CasePosition {
+  id: string
+  position: number
+}
+export interface CasePositionPatch {
+  after_id?: string | null
+  before_id?: string | null
+}
+export interface CaseReferencesPut {
+  asset_ids: Uuid[] // max 8 items
+}
+export type CaseStatus = "draft" | "published" | "hidden"
 export interface CaseTemplate {
   items: CaseTemplateItem[] // max 12 items
-  [extra: string]: unknown
 }
 export interface CaseTemplateItem {
   key?: string
   label: string
   description?: string
   count?: number // integer 1..12
+  params?: {
+    aspect_ratio?: string
+    resolution?: string
+  }
+  anchor?: boolean
   references?: {
     slot: string
   }[]
-  [extra: string]: unknown
 }
 export interface DeletedCount {
   deleted: number // integer 0..
@@ -163,6 +421,9 @@ export interface GenerationBody {
   prompt_doc?: Record<string, unknown> | null
   source?: "studio" | "template" | "canvas"
   [extra: string]: unknown
+}
+export interface GenerationCancel {
+  reason: string
 }
 export interface GenerationListQuery {
   thread?: Uuid
@@ -287,6 +548,10 @@ export interface ParamSpec {
   default: (string | number) | null
   unit?: "s"
 }
+export interface PublishIssue {
+  field: string
+  code: string
+}
 export interface Queue {
   items: QueueItem[] // max 12 items
   revision: number // integer 0..
@@ -331,6 +596,11 @@ export interface QuoteResponse {
 }
 export type RecordAsset = MediaAsset | MissingAsset
 export type Role = "admin" | "operator" | "viewer"
+export interface RoleGrant {
+  role: Role
+  granted_at: IsoTime
+  granted_by: UserRef | null
+}
 export interface RolesResponse {
   roles: Role[]
 }
@@ -414,6 +684,11 @@ export interface UploadTicket {
   expires_at: IsoTime
 }
 export type UpstreamPassthrough = unknown
+export interface UserRef {
+  id: Uuid
+  email: string | null
+  name?: string | null
+}
 export interface UserTemplate {
   id: Uuid
   name: string
@@ -438,6 +713,27 @@ export interface UserTemplatePatch {
 
 /** Typed endpoints (only routes with a routeMeta entry). */
 export interface Endpoints {
+  "GET /api/admin/audit": { body: never; response: Page<AuditEvent> }
+  "GET /api/admin/case-categories": { body: never; response: CaseCategories }
+  "GET /api/admin/cases": { body: never; response: AdminCasePage }
+  "POST /api/admin/cases": { body: AdminCaseCreate; response: AdminCase }
+  "DELETE /api/admin/cases/:id": { body: never; response: void }
+  "GET /api/admin/cases/:id": { body: never; response: AdminCase }
+  "PATCH /api/admin/cases/:id": { body: AdminCasePatch; response: AdminCase }
+  "PUT /api/admin/cases/:id/cover": { body: CaseCoverPut; response: AdminCase }
+  "PATCH /api/admin/cases/:id/position": { body: CasePositionPatch; response: CasePosition }
+  "PUT /api/admin/cases/:id/references": { body: CaseReferencesPut; response: AdminCase }
+  "POST /api/admin/cases/bulk-status": { body: BulkStatusRequest; response: BulkStatusResult }
+  "GET /api/admin/generations": { body: never; response: Page<AdminGeneration> }
+  "GET /api/admin/generations/:id": { body: never; response: AdminGenerationDetail }
+  "POST /api/admin/generations/:id/cancel": { body: GenerationCancel; response: AdminGenerationDetail }
+  "POST /api/admin/generations/:id/resync": { body: never; response: AdminGenerationDetail }
+  "GET /api/admin/me": { body: never; response: AdminMe }
+  "GET /api/admin/roles": { body: never; response: AdminStaff }
+  "GET /api/admin/users": { body: never; response: Page<AdminUserSummary> }
+  "GET /api/admin/users/:id": { body: never; response: AdminUserDetail }
+  "DELETE /api/admin/users/:id/roles/:role": { body: never; response: RolesResponse }
+  "PUT /api/admin/users/:id/roles/:role": { body: never; response: RolesResponse }
   "GET /api/me/assets": { body: never; response: Page<MediaAsset> }
   "DELETE /api/me/assets/:id": { body: never; response: void }
   "GET /api/me/canvas": { body: never; response: Page<CanvasProjectSummary> }

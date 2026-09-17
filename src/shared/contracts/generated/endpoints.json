@@ -15,6 +15,7 @@
       "common_errors": [
         "customer_login_required",
         "origin_denied",
+        "origin_not_allowed",
         "rate_limited",
         "forbidden_role",
         "admin_session_expired"
@@ -63,6 +64,447 @@
       "errors": [],
       "method": "GET",
       "path": "/api/account/status"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "customer_login_required",
+        "forbidden_role",
+        "invalid_action",
+        "invalid_actor",
+        "invalid_cursor",
+        "invalid_date_range",
+        "invalid_limit",
+        "invalid_target"
+      ],
+      "method": "GET",
+      "path": "/api/admin/audit",
+      "query": "AuditQuery",
+      "response": "Page<AuditEvent>",
+      "roles": [
+        "admin",
+        "operator",
+        "viewer"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "customer_login_required",
+        "forbidden_role"
+      ],
+      "method": "GET",
+      "path": "/api/admin/case-categories",
+      "response": "CaseCategories",
+      "roles": [
+        "admin",
+        "operator",
+        "viewer"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "customer_login_required",
+        "forbidden_role",
+        "invalid_category",
+        "invalid_cursor",
+        "invalid_limit",
+        "invalid_query",
+        "invalid_status",
+        "media_storage_unavailable"
+      ],
+      "method": "GET",
+      "path": "/api/admin/cases",
+      "query": "AdminCaseQuery",
+      "response": "AdminCasePage",
+      "roles": [
+        "admin",
+        "operator",
+        "viewer"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "body": "AdminCaseCreate",
+      "body_shape": "{ title: string prompt: string category: string category_zh?: string | null tags?: string[] model?: string | null params?: Record<string, unknown> template?: CaseTemplate | null author?: string | null author_url?: string | null source_repo?: string | null source_url?: string | null license_note?: string | null id?: string | null cover_asset_id: Uuid }",
+      "errors": [
+        "admin_session_expired",
+        "asset_not_found",
+        "asset_not_image",
+        "asset_not_ready",
+        "case_id_taken",
+        "case_not_found",
+        "customer_login_required",
+        "forbidden_role",
+        "idempotency_conflict",
+        "invalid_case_id",
+        "invalid_category",
+        "invalid_idempotency_key",
+        "invalid_json",
+        "invalid_params",
+        "invalid_prompt",
+        "invalid_tags",
+        "invalid_title",
+        "media_storage_unavailable",
+        "storage_copy_failed",
+        "unknown_field"
+      ],
+      "headers": [
+        "Idempotency-Key"
+      ],
+      "method": "POST",
+      "path": "/api/admin/cases",
+      "response": "AdminCase",
+      "roles": [
+        "admin",
+        "operator"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "case_not_draft",
+        "case_not_found",
+        "customer_login_required",
+        "forbidden_role"
+      ],
+      "method": "DELETE",
+      "path": "/api/admin/cases/:id",
+      "response": "Empty",
+      "roles": [
+        "admin",
+        "operator"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "case_not_found",
+        "customer_login_required",
+        "forbidden_role",
+        "media_storage_unavailable"
+      ],
+      "method": "GET",
+      "path": "/api/admin/cases/:id",
+      "response": "AdminCase",
+      "roles": [
+        "admin",
+        "operator",
+        "viewer"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "body": "AdminCasePatch",
+      "body_shape": "{ title?: string prompt?: string category?: string category_zh?: string | null tags?: string[] model?: string | null params?: Record<string, unknown> template?: CaseTemplate | null author?: string | null author_url?: string | null source_repo?: string | null source_url?: string | null license_note?: string | null status?: CaseStatus expected_updated_at?: IsoTime | null }",
+      "conflict": "CaseConflict",
+      "errors": [
+        "admin_session_expired",
+        "case_conflict",
+        "case_not_found",
+        "case_publish_invalid",
+        "customer_login_required",
+        "forbidden_role",
+        "invalid_expected_updated_at",
+        "invalid_json",
+        "invalid_params",
+        "invalid_status",
+        "invalid_tags",
+        "media_storage_unavailable",
+        "unknown_field"
+      ],
+      "method": "PATCH",
+      "path": "/api/admin/cases/:id",
+      "response": "AdminCase",
+      "roles": [
+        "admin",
+        "operator"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "body": "CaseCoverPut",
+      "body_shape": "{ asset_id: Uuid }",
+      "errors": [
+        "admin_session_expired",
+        "asset_not_found",
+        "asset_not_image",
+        "asset_not_ready",
+        "case_not_found",
+        "customer_login_required",
+        "forbidden_role",
+        "invalid_json",
+        "media_storage_unavailable",
+        "storage_copy_failed"
+      ],
+      "method": "PUT",
+      "path": "/api/admin/cases/:id/cover",
+      "response": "AdminCase",
+      "roles": [
+        "admin",
+        "operator"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "body": "CasePositionPatch",
+      "body_shape": "{ after_id?: string | null before_id?: string | null }",
+      "errors": [
+        "admin_session_expired",
+        "case_not_found",
+        "case_order_conflict",
+        "customer_login_required",
+        "forbidden_role",
+        "invalid_json",
+        "invalid_position"
+      ],
+      "method": "PATCH",
+      "path": "/api/admin/cases/:id/position",
+      "response": "CasePosition",
+      "roles": [
+        "admin",
+        "operator"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "body": "CaseReferencesPut",
+      "body_shape": "{ asset_ids: Uuid[] }",
+      "errors": [
+        "admin_session_expired",
+        "asset_not_found",
+        "asset_not_image",
+        "asset_not_ready",
+        "case_not_found",
+        "customer_login_required",
+        "duplicate_asset",
+        "forbidden_role",
+        "invalid_asset_ids",
+        "invalid_json",
+        "media_storage_unavailable",
+        "storage_copy_failed"
+      ],
+      "method": "PUT",
+      "path": "/api/admin/cases/:id/references",
+      "response": "AdminCase",
+      "roles": [
+        "admin",
+        "operator"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "body": "BulkStatusRequest",
+      "body_shape": "{ ids: string[] status: CaseStatus }",
+      "errors": [
+        "admin_session_expired",
+        "case_not_found",
+        "case_publish_invalid",
+        "customer_login_required",
+        "forbidden_role",
+        "invalid_ids",
+        "invalid_json",
+        "invalid_status"
+      ],
+      "method": "POST",
+      "path": "/api/admin/cases/bulk-status",
+      "response": "BulkStatusResult",
+      "roles": [
+        "admin",
+        "operator"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "customer_login_required",
+        "forbidden_role",
+        "invalid_cursor",
+        "invalid_date_range",
+        "invalid_kind",
+        "invalid_limit",
+        "invalid_model",
+        "invalid_status",
+        "invalid_user"
+      ],
+      "method": "GET",
+      "path": "/api/admin/generations",
+      "query": "AdminGenerationQuery",
+      "response": "Page<AdminGeneration>",
+      "roles": [
+        "admin",
+        "operator",
+        "viewer"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "customer_login_required",
+        "forbidden_role",
+        "generation_not_found"
+      ],
+      "method": "GET",
+      "path": "/api/admin/generations/:id",
+      "response": "AdminGenerationDetail",
+      "roles": [
+        "admin",
+        "operator",
+        "viewer"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "body": "GenerationCancel",
+      "body_shape": "{ reason: string }",
+      "errors": [
+        "admin_session_expired",
+        "customer_login_required",
+        "forbidden_role",
+        "generation_not_cancellable",
+        "generation_not_found",
+        "insufficient_balance",
+        "invalid_json",
+        "invalid_reason"
+      ],
+      "method": "POST",
+      "path": "/api/admin/generations/:id/cancel",
+      "response": "AdminGenerationDetail",
+      "roles": [
+        "admin",
+        "operator"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "customer_login_required",
+        "forbidden_role",
+        "generation_not_found",
+        "generation_not_syncable",
+        "insufficient_balance",
+        "upstream_unavailable"
+      ],
+      "method": "POST",
+      "path": "/api/admin/generations/:id/resync",
+      "response": "AdminGenerationDetail",
+      "roles": [
+        "admin",
+        "operator"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "customer_login_required",
+        "forbidden_role"
+      ],
+      "method": "GET",
+      "path": "/api/admin/me",
+      "response": "AdminMe",
+      "roles": [
+        "admin",
+        "operator",
+        "viewer"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "customer_login_required",
+        "forbidden_role"
+      ],
+      "method": "GET",
+      "path": "/api/admin/roles",
+      "response": "AdminStaff",
+      "roles": [
+        "admin",
+        "operator",
+        "viewer"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "customer_login_required",
+        "forbidden_role",
+        "invalid_cursor",
+        "invalid_limit",
+        "invalid_query"
+      ],
+      "method": "GET",
+      "path": "/api/admin/users",
+      "query": "AdminUserQuery",
+      "response": "Page<AdminUserSummary>",
+      "roles": [
+        "admin",
+        "operator",
+        "viewer"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "customer_login_required",
+        "forbidden_role",
+        "user_not_found"
+      ],
+      "method": "GET",
+      "path": "/api/admin/users/:id",
+      "response": "AdminUserDetail",
+      "roles": [
+        "admin",
+        "operator",
+        "viewer"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "cannot_revoke_own_admin",
+        "customer_login_required",
+        "forbidden_role",
+        "invalid_role",
+        "last_admin",
+        "user_not_found"
+      ],
+      "method": "DELETE",
+      "path": "/api/admin/users/:id/roles/:role",
+      "response": "RolesResponse",
+      "roles": [
+        "admin"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "admin_session_expired",
+        "customer_login_required",
+        "email_not_verified",
+        "forbidden_role",
+        "invalid_role",
+        "user_not_found"
+      ],
+      "method": "PUT",
+      "path": "/api/admin/users/:id/roles/:role",
+      "response": "RolesResponse",
+      "roles": [
+        "admin"
+      ]
     },
     {
       "auth": "public",
@@ -2299,9 +2741,21 @@
       ]
     },
     {
+      "code": "asset_not_image",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "asset_not_owned",
       "status": [
         422
+      ]
+    },
+    {
+      "code": "asset_not_ready",
+      "status": [
+        409
       ]
     },
     {
@@ -2383,6 +2837,12 @@
       ]
     },
     {
+      "code": "cannot_revoke_own_admin",
+      "status": [
+        409
+      ]
+    },
+    {
       "code": "canvas_asset_forbidden",
       "status": [
         422
@@ -2425,9 +2885,39 @@
       ]
     },
     {
+      "code": "case_conflict",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "case_id_taken",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "case_not_draft",
+      "status": [
+        409
+      ]
+    },
+    {
       "code": "case_not_found",
       "status": [
         404
+      ]
+    },
+    {
+      "code": "case_order_conflict",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "case_publish_invalid",
+      "status": [
+        422
       ]
     },
     {
@@ -2505,6 +2995,12 @@
       ]
     },
     {
+      "code": "duplicate_asset",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "email_account_link_ambiguous",
       "status": [
         409
@@ -2520,6 +3016,12 @@
       "code": "email_login_required",
       "status": [
         403
+      ]
+    },
+    {
+      "code": "email_not_verified",
+      "status": [
+        409
       ]
     },
     {
@@ -2565,9 +3067,21 @@
       ]
     },
     {
+      "code": "generation_not_cancellable",
+      "status": [
+        409
+      ]
+    },
+    {
       "code": "generation_not_found",
       "status": [
         404
+      ]
+    },
+    {
+      "code": "generation_not_syncable",
+      "status": [
+        409
       ]
     },
     {
@@ -2623,6 +3137,18 @@
       "code": "internal_error",
       "status": [
         500
+      ]
+    },
+    {
+      "code": "invalid_action",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_actor",
+      "status": [
+        400
       ]
     },
     {
@@ -2752,6 +3278,12 @@
       ]
     },
     {
+      "code": "invalid_case_id",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "invalid_category",
       "status": [
         400
@@ -2812,6 +3344,12 @@
       ]
     },
     {
+      "code": "invalid_expected_updated_at",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "invalid_expiry",
       "status": [
         400
@@ -2855,6 +3393,12 @@
     },
     {
       "code": "invalid_idempotency_key",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_ids",
       "status": [
         400
       ]
@@ -2908,6 +3452,12 @@
       ]
     },
     {
+      "code": "invalid_json",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "invalid_kind",
       "status": [
         400
@@ -2933,6 +3483,12 @@
     },
     {
       "code": "invalid_messages",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_model",
       "status": [
         400
       ]
@@ -3164,7 +3720,13 @@
       ]
     },
     {
-      "code": "invalid_template",
+      "code": "invalid_tags",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_target",
       "status": [
         400
       ]
@@ -3195,6 +3757,12 @@
     },
     {
       "code": "invalid_upstream_key",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_user",
       "status": [
         400
       ]
@@ -3278,6 +3846,12 @@
       ]
     },
     {
+      "code": "last_admin",
+      "status": [
+        409
+      ]
+    },
+    {
       "code": "media_storage_unavailable",
       "status": [
         503
@@ -3333,6 +3907,12 @@
     },
     {
       "code": "origin_denied",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "origin_not_allowed",
       "status": [
         403
       ]
@@ -3530,6 +4110,12 @@
       ]
     },
     {
+      "code": "storage_copy_failed",
+      "status": [
+        502
+      ]
+    },
+    {
       "code": "storage_quota_exceeded",
       "status": [
         403
@@ -3591,6 +4177,12 @@
     },
     {
       "code": "too_many_references",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "unknown_field",
       "status": [
         400
       ]
@@ -3686,9 +4278,21 @@
       ]
     },
     {
+      "code": "upstream_unavailable",
+      "status": [
+        502
+      ]
+    },
+    {
       "code": "use_stateless_responses",
       "status": [
         400
+      ]
+    },
+    {
+      "code": "user_not_found",
+      "status": [
+        404
       ]
     },
     {

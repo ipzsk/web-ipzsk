@@ -95,33 +95,33 @@ const qs = (o: object) => {
 const enc = encodeURIComponent
 
 export const realApi: AdminApi = {
-  me: () => request('/api/admin/me'), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
+  me: () => request('/api/admin/me'),
   cases: {
-    list: q => request(`/api/admin/cases?${qs(q)}`), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
+    list: q => request(`/api/admin/cases?${qs(q)}`),
     categories: async () => (await request<{ items: CategoryCount[] }>('/api/admin/case-categories')).items,
-    get: id => request(`/api/admin/cases/${enc(id)}`), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
-    create: body => request('/api/admin/cases', { body, headers: { 'Idempotency-Key': crypto.randomUUID() } }), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
-    update: (id, patch) => request(`/api/admin/cases/${enc(id)}`, { method: 'PATCH', body: patch }), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
-    move: (id, to) => request(`/api/admin/cases/${enc(id)}/position`, { method: 'PATCH', body: to }), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
-    bulkStatus: (ids, status) => request('/api/admin/cases/bulk-status', { body: { ids, status } }), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
-    setCover: (id, asset_id) => request(`/api/admin/cases/${enc(id)}/cover`, { method: 'PUT', body: { asset_id } }), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
-    setReferences: (id, asset_ids) => request(`/api/admin/cases/${enc(id)}/references`, { method: 'PUT', body: { asset_ids } }), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
-    remove: async id => { await request(`/api/admin/cases/${enc(id)}`, { method: 'DELETE' }) }, // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
+    get: id => request(`/api/admin/cases/${enc(id)}`),
+    create: body => request('/api/admin/cases', { body, headers: { 'Idempotency-Key': crypto.randomUUID() } }),
+    update: (id, patch) => request(`/api/admin/cases/${enc(id)}`, { method: 'PATCH', body: patch }),
+    move: (id, to) => request(`/api/admin/cases/${enc(id)}/position`, { method: 'PATCH', body: to }),
+    bulkStatus: (ids, status) => request('/api/admin/cases/bulk-status', { body: { ids, status } }),
+    setCover: (id, asset_id) => request(`/api/admin/cases/${enc(id)}/cover`, { method: 'PUT', body: { asset_id } }),
+    setReferences: (id, asset_ids) => request(`/api/admin/cases/${enc(id)}/references`, { method: 'PUT', body: { asset_ids } }),
+    remove: async id => { await request(`/api/admin/cases/${enc(id)}`, { method: 'DELETE' }) },
   },
   users: {
-    search: (q, cursor) => request(`/api/admin/users?${qs({ q, cursor })}`), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
-    get: id => request(`/api/admin/users/${enc(id)}`), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
+    search: (q, cursor) => request(`/api/admin/users?${qs({ q, cursor })}`),
+    get: id => request(`/api/admin/users/${enc(id)}`),
     staff: async () => (await request<{ items: { user: UserRef; roles: RoleGrant[] }[] }>('/api/admin/roles')).items,
-    grant: (id, role) => request(`/api/admin/users/${enc(id)}/roles/${role}`, { method: 'PUT' }), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
-    revoke: (id, role) => request(`/api/admin/users/${enc(id)}/roles/${role}`, { method: 'DELETE' }), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
+    grant: (id, role) => request(`/api/admin/users/${enc(id)}/roles/${role}`, { method: 'PUT' }),
+    revoke: (id, role) => request(`/api/admin/users/${enc(id)}/roles/${role}`, { method: 'DELETE' }),
   },
   generations: {
-    list: q => request(`/api/admin/generations?${qs(q)}`), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
-    get: id => request(`/api/admin/generations/${enc(id)}`), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
-    resync: id => request(`/api/admin/generations/${enc(id)}/resync`, { body: {} }), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
-    cancel: (id, reason) => request(`/api/admin/generations/${enc(id)}/cancel`, { body: { reason } }), // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
+    list: q => request(`/api/admin/generations?${qs(q)}`),
+    get: id => request(`/api/admin/generations/${enc(id)}`),
+    resync: id => request(`/api/admin/generations/${enc(id)}/resync`, { body: {} }),
+    cancel: (id, reason) => request(`/api/admin/generations/${enc(id)}/cancel`, { body: { reason } }),
   },
-  audit: { list: q => request(`/api/admin/audit?${qs(q)}`) }, // contracts-ignore: B5 not deployed yet (docs/admin-api.md)
+  audit: { list: q => request(`/api/admin/audit?${qs(q)}`) },
 }
 
 /* ───────────────────────────── mock ───────────────────────────── */
