@@ -17,7 +17,8 @@
   --color-danger: #a63c2f;
   /* #855a0d = 5.06:1 on its own 12% tint (4.5 on the 20% hover tint). */
   --color-warning: #855a0d;
-  --color-success: #4e651e;
+  /* Neutral green: #1a6e44 = 5.9:1 on paper, 6.3 on card; 5.0 on its 12% tint over paper (5.3 over card), 4.65 on a 20% tint over card. */
+  --color-success: #1a6e44;
   --radius-control: 10px;
   --radius-card: 16px;
   --radius-panel: 24px;

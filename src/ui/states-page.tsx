@@ -66,7 +66,7 @@ export function StatesPage() {
             ]} />
             <Row name="SegmentedControl" cells={[
               <SegmentedControl label="类型" value={seg} onValueChange={setSeg} options={[{ value: 'image', label: '图片' }, { value: 'video', label: '视频' }]} />,
-              null, null, null, <span className="text-xs text-muted">见默认列（ink 底 acid 字）</span>,
+              null, null, null, <span className="text-xs text-muted">见默认列（浅蓝底蓝字）</span>,
               <SegmentedControl label="类型（禁用项）" value="image" onValueChange={() => {}} options={[{ value: 'image', label: '图片' }, { value: 'video', label: '视频', disabledReason: '当前账号未开通视频' }]} />,
               null, null,
             ]} />
@@ -106,7 +106,7 @@ export function StatesPage() {
               null, null,
             ]} />
             <Row name="Badge" cells={[
-              <Badge>默认</Badge>, null, null, null, <Badge tone="ink">选中</Badge>, <Badge tone="outline">已取消</Badge>,
+              <Badge>默认</Badge>, null, null, null, <Badge tone="acid">选中</Badge>, <Badge tone="outline">已取消</Badge>,
               <Badge tone="warning"><LoaderCircle className="size-3 motion-safe:animate-spin-slow" />结算中</Badge>, <Badge tone="danger">失败</Badge>,
             ]} />
           </tbody>
