@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '@/shared/api'
-import { daysBetween, dayToUnix, fmtAgo, fmtBalance, fmtCny, isLowBalance, fmtLatency, logQueryFromParams, rangeOf, totalsByDay, totalsByKey, withParam } from './lib'
+import { PRICE_UNIT, fmtPriceUnit, daysBetween, dayToUnix, fmtAgo, fmtBalance, fmtCny, isLowBalance, fmtLatency, logQueryFromParams, rangeOf, totalsByDay, totalsByKey, withParam } from './lib'
 import { createMockLaneApi } from './laneApi'
 import { createMockOpsApi } from './opsApi'
 
@@ -100,12 +100,21 @@ describe('mock ops adapter', () => {
   })
 })
 
+describe('price unit', () => {
+  it('maps lanehub units to Chinese, passes unknown through', () => {
+    expect(Object.keys(PRICE_UNIT).map(fmtPriceUnit)).toEqual(['每百万 token', '每分钟成片', '按次', '按秒', '每分钟'])
+    expect(fmtPriceUnit('张')).toBe('张')
+  })
+})
+
 describe('balance', () => {
   const ch = { balance_supported: true, balance_checked_at: 100, balance_cny: 12.5, balance_raw: 12.5, balance_unit: 'CNY' as const }
   it('formats per unit', () => {
     expect(fmtBalance(ch)).toEqual({ text: '¥12.50' })
     expect(fmtBalance({ ...ch, balance_unit: 'USD', balance_raw: 1.74 })).toEqual({ text: '¥12.50' })
     expect(fmtBalance({ ...ch, balance_unit: 'raw', balance_cny: null, balance_raw: 1234.5 })).toEqual({ text: '1,234.5 上游单位', tip: '该上游余额口径未核实，原样显示' })
+    expect(fmtBalance({ ...ch, balance_unit: 'raw', balance_cny: null, balance_raw: 999999 })).toMatchObject({ text: '不限额度', muted: true })
+    expect(fmtBalance({ ...ch, balance_unit: 'raw', balance_cny: null, balance_raw: null })).toEqual({ text: '未知余额', muted: true })
     expect(fmtBalance({ ...ch, balance_supported: false })).toEqual({ text: '无余额接口', muted: true })
     expect(fmtBalance({ ...ch, balance_checked_at: null }).text).toBe('未检查')
     expect(fmtBalance({ ...ch, balance_checked_at: 0 }).text).toBe('未检查')

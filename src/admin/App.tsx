@@ -104,7 +104,7 @@ function Shell() {
   const left = Math.max(0, Date.parse(me.session.expires_at) - Date.now())
   return (
     <div className="grid grid-cols-[220px_1fr] max-md:grid-cols-1">
-      <aside aria-label="管理中台" className="sticky top-16 flex h-[calc(100dvh-64px)] flex-col gap-1 border-r border-line p-3 max-md:static max-md:h-auto max-md:flex-row max-md:overflow-x-auto max-md:border-b max-md:border-r-0">
+      <aside aria-label="管理中台" className="sticky top-16 flex h-[calc(100dvh-64px)] flex-col gap-1 border-r border-line p-3 max-md:static max-md:h-auto max-md:flex-row max-md:flex-wrap max-md:gap-x-0.5 max-md:px-3 max-md:py-2 max-md:border-b max-md:border-r-0">
         <div className="mb-2 grid gap-1.5 rounded-card bg-subtle px-3 py-2.5 max-md:hidden">
           <span className="truncate text-xs text-ink/80">{me.user.email}</span>
           <span className="flex flex-wrap gap-1" aria-label="当前角色">{me.roles.map(r => <Badge key={r} tone={r === 'admin' ? 'ink' : r === 'operator' ? 'acid' : 'outline'}>{ROLE_LABEL[r]}</Badge>)}</span>
@@ -113,12 +113,12 @@ function Shell() {
         {nav.map(({ group, items }) => [
           group && <p key={group} className="mt-3 px-3 pb-1 text-[11px] font-semibold text-muted max-md:hidden">{group}</p>,
           ...items.map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} className={({ isActive }) => cn('flex h-10 shrink-0 items-center gap-2.5 rounded-control px-3 text-sm font-semibold transition-colors duration-(--duration-fast) hover:bg-subtle', isActive ? 'bg-acid-soft text-label hover:bg-acid-soft' : 'text-ink/80', focusRing)}>
+          <NavLink key={to} to={to} className={({ isActive }) => cn('flex h-10 shrink-0 items-center gap-2.5 rounded-control px-3 text-sm font-semibold max-md:h-8 max-md:gap-1.5 max-md:px-2.5 max-md:text-[13px] transition-colors duration-(--duration-fast) hover:bg-subtle', isActive ? 'bg-acid-soft text-label hover:bg-acid-soft' : 'text-ink/80', focusRing)}>
             <Icon className="size-[18px]" aria-hidden />{label}
           </NavLink>
         ))])}
         <div className="mt-auto max-md:mt-0">
-          <a href={LEGACY_ADMIN_URL} target="_blank" rel="noopener noreferrer" className={cn('flex h-10 shrink-0 items-center gap-2.5 rounded-control px-3 text-sm text-muted hover:bg-subtle', focusRing)}>
+          <a href={LEGACY_ADMIN_URL} target="_blank" rel="noopener noreferrer" className={cn('flex h-10 shrink-0 items-center gap-2.5 rounded-control px-3 text-sm text-muted hover:bg-subtle max-md:h-8 max-md:gap-1.5 max-md:px-2.5 max-md:text-[13px]', focusRing)}>
             <ExternalLink className="size-[18px]" aria-hidden />旧版管理后台
           </a>
           <p className="px-3 text-[11px] leading-5 text-muted max-md:hidden">充值码、计费、开发者审核、插件、分成暂在旧版；上游渠道见「运维」</p>

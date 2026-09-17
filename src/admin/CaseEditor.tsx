@@ -198,7 +198,7 @@ function Form({ initial }: { initial: AdminCase | null }) {
           <Section title="内容">
             <Input id="f-title" label="标题" value={draft.title} onChange={e => set('title', e.target.value)} error={err('title')} maxLength={100} />
             <Textarea id="f-prompt" label="提示词" value={draft.prompt} onChange={e => set('prompt', e.target.value)} error={err('prompt')} className="max-h-[calc(16lh+1rem)] font-mono text-[13px]" />
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid items-start gap-4 sm:grid-cols-2">
               <Input id="f-category" label="分类 id" list="case-cats" value={draft.category} onChange={e => { const v = e.target.value; const hit = cats.data?.find(c => c.category === v); setDraft(d => ({ ...d, category: v, category_zh: hit?.category_zh ?? d.category_zh })); setIssues(xs => xs.filter(i => i.field !== 'category')) }} error={err('category')} hint="小写字母、数字、连字符；可选已有分类" />
               <datalist id="case-cats">{cats.data?.map(c => <option key={c.category} value={c.category}>{c.category_zh}</option>)}</datalist>
               <Input id="f-category_zh" label="分类中文名" value={draft.category_zh ?? ''} onChange={e => set('category_zh', nil(e.target.value))} />
@@ -261,7 +261,7 @@ function Form({ initial }: { initial: AdminCase | null }) {
           </Section>
 
           <Section title="来源与授权" hint="发布必填：授权说明，以及来源仓库或原帖链接之一（§14）">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid items-start gap-4 sm:grid-cols-2">
               <Input id="f-author" label="作者" value={draft.author ?? ''} onChange={e => set('author', nil(e.target.value))} />
               <Input id="f-author_url" label="作者主页" type="url" value={draft.author_url ?? ''} onChange={e => set('author_url', nil(e.target.value))} error={err('author_url')} placeholder="https://" />
               <Input id="f-source_repo" label="来源仓库" value={draft.source_repo ?? ''} onChange={e => set('source_repo', nil(e.target.value))} placeholder="例如 awesome-gpt-image-2" />

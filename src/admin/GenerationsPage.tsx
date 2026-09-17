@@ -78,7 +78,7 @@ export function GenerationsPage() {
             <div role="row" className={cn(COLS, 'h-10 border-b border-line text-xs font-semibold text-muted')}>
               {['时间', '提示词', '用户', '型号', '状态', '扣点'].map(h => <span key={h} role="columnheader">{h}</span>)}
             </div>
-            <div ref={scroller} className="h-[calc(100dvh-300px)] min-h-80 overflow-y-auto">
+            <div ref={scroller} className="h-[calc(100dvh-300px)] min-h-80 min-w-[820px] overflow-y-auto">
               <div role="rowgroup" style={{ height: v.getTotalSize(), position: 'relative' }}>
                 {vItems.map(vi => {
                   const r = rows[vi.index]!

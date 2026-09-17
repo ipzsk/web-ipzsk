@@ -72,7 +72,7 @@ export function LogsPage() {
                     <td className={td}><Badge tone={typeTone[l.type]}>{LOG_TYPE[l.type]}</Badge></td>
                     <td className={td}>{l.username}{l.token_name && <span className="text-xs text-muted"> / {l.token_name}</span>}</td>
                     <td className={cn(td, 'max-w-48 truncate')}>{l.model || <span className="text-muted">—</span>}</td>
-                    <td className={cn(td, 'max-w-44 truncate text-xs')}>{l.channel ? <><span className="text-muted tabular-nums">#{l.channel.id}</span> {l.channel.name}</> : <span className="text-muted">—</span>}</td>
+                    <td className={cn(td, 'max-w-44 truncate text-xs')} title={l.channel?.name}>{l.channel ? <><span className="text-muted tabular-nums">#{l.channel.id}</span> {l.channel.name}</> : <span className="text-muted">—</span>}</td>
                     <td className={cn(td, 'text-right tabular-nums')}>{fmtCny(l.amount_cny)} <span className="text-xs text-muted">/ {fmtCny(l.cost_cny)}{l.cost_source === 'estimated' && '*'}</span></td>
                     <td className={cn(td, 'text-right text-xs tabular-nums')}>{l.prompt_tokens || l.completion_tokens ? `${fmtInt(l.prompt_tokens)} → ${fmtInt(l.completion_tokens)}` : '—'}</td>
                     <td className={cn(td, 'text-right tabular-nums', l.latency_ms >= 60_000 && 'text-warning')}>{l.latency_ms ? fmtLatency(l.latency_ms) : '—'}</td>

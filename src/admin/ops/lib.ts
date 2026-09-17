@@ -105,11 +105,22 @@ export const CHANNEL_STATUS: Record<LaneChannel['status'], string> = { 1: '启�
 type BalanceFields = Pick<LaneChannel, 'balance_supported' | 'balance_checked_at' | 'balance_cny' | 'balance_raw' | 'balance_unit'>
 export const LOW_BALANCE_CNY = 20
 export const RAW_BALANCE_TIP = '该上游余额口径未核实，原样显示'
+/** lanehub providers/apimart/balance.go writes 999999 (raw unit) when upstream reports unlimited_quota. */
+export const UNLIMITED_BALANCE_RAW = 999999
+export const UNLIMITED_BALANCE_TIP = '上游返回不限额度（unlimited_quota），lanehub 以 999999 记录，不是真实余额'
+
+/** Upstream billing unit (lanehub price.unit) → Chinese label; unknown units pass through. */
+export const PRICE_UNIT: Record<string, string> = {
+  per_1m_tokens: '每百万 token', per_minute_output: '每分钟成片', per_call: '按次', per_second: '按秒', per_minute: '每分钟',
+}
+export const fmtPriceUnit = (u: string) => PRICE_UNIT[u] ?? u
 
 /** One balance label for matrix cell, drawer and channels page. muted = grey; tip = tooltip for raw units. */
 export function fmtBalance(c: BalanceFields): { text: string; muted?: true; tip?: string } {
   if (!c.balance_supported) return { text: '无余额接口', muted: true }
   if (!c.balance_checked_at) return { text: '未检查', muted: true }
+  if (c.balance_unit === 'raw' && c.balance_raw === UNLIMITED_BALANCE_RAW) return { text: '不限额度', muted: true, tip: UNLIMITED_BALANCE_TIP }
+  if (c.balance_unit === 'raw' && c.balance_raw == null) return { text: '未知余额', muted: true }
   if (c.balance_unit === 'raw') return { text: `${c.balance_raw == null ? '—' : c.balance_raw.toLocaleString('zh-CN', { maximumFractionDigits: 4 })} 上游单位`, tip: RAW_BALANCE_TIP }
   return { text: fmtCny(c.balance_cny) }
 }

@@ -12,7 +12,7 @@ import { useCan } from '../App'
 import { Confirm, Drawer, FilterInput, PageHeader, Select, adminErrorText } from '../ui'
 import { laneApi } from './laneApi'
 import { opsApi } from './opsApi'
-import { fmtCny as fmtMoney, isLowBalance } from './lib'
+import { fmtCny as fmtMoney, fmtPriceUnit, isLowBalance } from './lib'
 import { BalanceText } from './ChannelsPage'
 import { applyPatch, applyReorder, canRemoveFromLane, cellIds, changeCount, diffRows, effectiveChannels, rowChannelIds, toChanges, type Draft } from './laneDraft'
 import type { LaneChannel, LaneMatrix } from './types'
@@ -35,7 +35,7 @@ const STATUS: Record<number, { label: string; dot: string }> = {
 const Dot = ({ status }: { status: number }) => <span aria-hidden className={cn('inline-block size-2 shrink-0 rounded-full', STATUS[status]?.dot)} />
 
 const fmtCny = (n: number) => `¥${n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}`
-const fmtPrice = (p: Price | undefined) => p ? `${fmtCny(p.cny)}/${p.unit}` : '无价格'
+const fmtPrice = (p: Price | undefined) => p ? `${fmtCny(p.cny)} ${fmtPriceUnit(p.unit)}` : '无价格'
 function fmtAgo(unix: number | null, now = Date.now()) {
   if (unix == null) return '未检查'
   const m = Math.max(0, Math.round((now / 1000 - unix) / 60))
@@ -179,7 +179,7 @@ export function LaneMatrixPage() {
                 return (
                   <div key={r.model} role="row" style={{ ...style, gridTemplateColumns: cols }} className="grid border-b border-line text-sm">
                     <span role="rowheader" className="sticky left-0 z-10 flex min-w-0 flex-col justify-center bg-card px-3">
-                      <span className="truncate font-semibold">{r.model}</span>
+                      <span className="truncate font-semibold" title={r.model}>{r.model}</span>
                       <span className="text-xs text-muted">{r.modalities.map(x => MODALITY[x] ?? x).join(' · ')}</span>
                     </span>
                     {m.lanes.map(l => <Cell key={l.symbol} row={r} lane={l} chans={chans} server={m} active={cellKey === `${l.symbol}|${r.model}`} onOpen={() => setSp(cur => { const p = new URLSearchParams(cur); p.set('cell', `${l.symbol}|${r.model}`); return p })} />)}
@@ -248,11 +248,13 @@ function Cell({ row, lane, chans, server, active, onOpen }: { row: Row; lane: La
       {primary ? <>
         <span className="flex min-w-0 items-center gap-1.5">
           <Dot status={primary.status} />
-          <span className={cn('truncate font-medium', primary.status !== 1 && 'text-muted line-through')}>{primary.name}</span>
+          <span className={cn('truncate font-medium', primary.status !== 1 && 'text-muted line-through')} title={primary.name}>{primary.name}</span>
           {ids.length > 1 && <span className="shrink-0 text-xs text-muted">+{ids.length - 1}</span>}
-          <span className="ml-auto shrink-0 text-xs tabular-nums">{fmtPrice(row.prices[primary.id])}</span>
         </span>
-        {hint ? <span className="text-[11px] text-warning">{hint}</span> : <span className="text-[11px] text-muted"><BalanceText c={primary} inButton className="text-[11px] text-muted" />{primary.balance_supported && !!primary.balance_checked_at && ` · ${fmtAgo(primary.balance_checked_at)}`}</span>}
+        <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted">
+          <span className="shrink-0 tabular-nums text-ink">{fmtPrice(row.prices[primary.id])}</span>
+          {hint ? <span className="truncate text-warning">{hint}</span> : <span className="truncate"><BalanceText c={primary} inButton className="text-[11px] text-muted" />{primary.balance_supported && !!primary.balance_checked_at && ` · ${fmtAgo(primary.balance_checked_at)}`}</span>}
+        </span>
       </> : <span className="text-xs text-muted">待采购</span>}
     </button>
   )
@@ -351,7 +353,7 @@ function ChannelRow({ c, price, writable, note, probing, onProbe, onStatus, hand
       <span className={cn('flex items-center gap-1', !handle && 'pl-2')}>{handle}<Dot status={c.status} /></span>
       <div className="min-w-0">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
-          <span className={cn('truncate font-semibold', c.status !== 1 && 'text-muted')}>{c.name}</span>
+          <span className={cn('truncate font-semibold', c.status !== 1 && 'text-muted')} title={c.name}>{c.name}</span>
           <span className="text-xs text-muted">#{c.id}</span>
           {c.status !== 1 && <Badge tone={c.status === 3 ? 'danger' : 'outline'} className="h-5">{STATUS[c.status]!.label}</Badge>}
           <span className="tabular-nums">{fmtPrice(price)}</span>

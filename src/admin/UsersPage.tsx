@@ -50,21 +50,24 @@ export function UsersPage() {
 }
 
 function UserTable({ rows, onOpen, extraLabel }: { rows: { id: string; email: string | null; name: string; roles: Role[]; extra: string }[]; onOpen: (id: string) => void; extraLabel: string }) {
-  const th = 'border-b border-line py-2 text-left text-xs font-semibold text-muted'
+  const th = 'border-b border-line py-2 pr-4 text-left text-xs font-semibold text-muted whitespace-nowrap'
   return (
-    <table className="w-full border-separate border-spacing-0 text-sm">
+    // Phones: scroll inside its own box instead of widening the page.
+    <div className="overflow-x-auto">
+    <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
       <thead><tr><th className={th}>邮箱</th><th className={th}>昵称</th><th className={th}>角色</th><th className={th}>{extraLabel}</th></tr></thead>
       <tbody>
         {rows.map(u => (
           <tr key={u.id} className="hover:bg-card">
-            <td className="border-b border-line py-2.5"><button type="button" onClick={() => onOpen(u.id)} className={cn('rounded-[4px] font-semibold hover:underline', focusRing)}>{u.email ?? u.name ?? u.id}</button></td>
-            <td className="border-b border-line py-2.5 text-muted">{u.name}</td>
-            <td className="border-b border-line py-2.5"><span className="flex flex-wrap gap-1">{u.roles.length ? u.roles.map(r => <Badge key={r} tone={roleTone(r)}>{ROLE_LABEL[r]}</Badge>) : <span className="text-muted">普通用户</span>}</span></td>
-            <td className="border-b border-line py-2.5 text-xs text-muted">{u.extra}</td>
+            <td className="border-b border-line py-2.5 pr-4"><button type="button" onClick={() => onOpen(u.id)} className={cn('rounded-[4px] font-semibold hover:underline', focusRing)}>{u.email ?? u.name ?? u.id}</button></td>
+            <td className="border-b border-line py-2.5 pr-4 text-muted">{u.name}</td>
+            <td className="border-b border-line py-2.5 pr-4"><span className="flex flex-wrap gap-1">{u.roles.length ? u.roles.map(r => <Badge key={r} tone={roleTone(r)}>{ROLE_LABEL[r]}</Badge>) : <span className="text-muted">普通用户</span>}</span></td>
+            <td className="border-b border-line py-2.5 pr-4 text-xs text-muted">{u.extra}</td>
           </tr>
         ))}
       </tbody>
     </table>
+    </div>
   )
 }
 
