@@ -41,6 +41,7 @@ e2eDescribe('a11y (axe serious/critical)', () => {
     expect(await axe(page)).toEqual([])
     await gotoMock(page, '/studio?kind=video')
     await page.getByText('暂无视频案例', { exact: false }).waitFor()
+    await page.waitForTimeout(400) // view fade-in
     expect(await axe(page)).toEqual([])
   })
 })
