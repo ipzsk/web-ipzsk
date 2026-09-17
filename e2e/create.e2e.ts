@@ -89,7 +89,8 @@ e2eDescribe('create view', () => {
     expect(page.url()).toBe(url)
     await expect.poll(() => sections().count(), { timeout: 15_000 }).toBe(3)
     await sections().nth(1).getByText('3 项 · 完成 3').waitFor()
-    expect(await labels(page, 1)).toEqual(MODELS.map((m, i) => `${String.fromCharCode(0x2460 + i)} ${m}`))
+    // Model names resolve once the catalog query settles (ids show for ~250ms after a reload).
+    await expect.poll(() => labels(page, 1), { timeout: 10_000 }).toEqual(MODELS.map((m, i) => `${String.fromCharCode(0x2460 + i)} ${m}`))
     expect(await sections().locator('figure').count()).toBeGreaterThanOrEqual(5)
   })
 
