@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
-import { NavLink, Outlet, Route, Routes, useLocation, useParams } from 'react-router'
+import { NavLink, Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
 import { ArrowUp, Clapperboard, FolderOpen, Image, LayoutDashboard, MessagesSquare, Sparkles, type LucideIcon } from 'lucide-react'
 import { Button, OfflineBanner, SessionExpiredBanner, SegmentedControl, cn, focusRing } from '@/ui'
 import { StatesPage } from '@/ui/states-page'
 import { MediaDndProvider } from '@/media'
 import { useOnline, useUnauthorizedBroadcast } from '@/shared/query'
 import { loginUrl } from '@/shared/api'
-import { SiteHeader } from './SiteHeader'
+import { SiteHeader, type StudioKind } from './SiteHeader'
+import { useComposer } from './store'
 import { Composer } from './composer/Composer'
 import { InspirationView } from './inspiration/InspirationView'
 import { CreateView } from './create/CreateView'
@@ -65,13 +66,21 @@ function Layout() {
   const sessionExpired = useUnauthorizedBroadcast()
   useScrollMemory(viewKey)
   const canvasAdd = useCanvasAddListener()
+  const navigate = useNavigate()
+  const studioKind: StudioKind = useComposer(s => s.mode === 'avatar' ? 'avatar' : s.kind)
+  // Header 图片/视频/数字人: switch the composer in place and go to the (kind-aware) inspiration feed.
+  const onStudioKind = (k: StudioKind) => {
+    if (k === 'avatar') useComposer.setState({ kind: 'video', mode: 'avatar' })
+    else useComposer.getState().setKind(k)
+    navigate(`/studio?kind=${k}`)
+  }
   return (
     <MediaDndProvider>
     <div className="min-h-dvh">
       <div className="sticky top-0 z-40">
         {!online && <OfflineBanner />}
         {sessionExpired && <SessionExpiredBanner loginHref={loginUrl()} />}
-        <SiteHeader />
+        <SiteHeader studioKind={studioKind} onStudioKind={onStudioKind} />
       </div>
       <div className="md:grid md:grid-cols-[208px_1fr]">
         <aside aria-label="工作台" className="sticky top-16 hidden h-[calc(100dvh-64px)] flex-col gap-1 border-r border-line p-3 md:flex">
