@@ -8,7 +8,8 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "contracts:sync": "node scripts/contracts-sync.mjs",
-    "contracts:check": "node scripts/contracts-sync.mjs --check"
+    "contracts:check": "node scripts/contracts-sync.mjs --check",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
