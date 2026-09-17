@@ -28,8 +28,12 @@ const studioFallback: Plugin = {
   name: 'studio-fallback',
   configureServer(server) {
     server.middlewares.use((req, _res, next) => {
+      const q = req.url?.split('?')[1]
       const m = req.url && /^\/(studio|admin)(\/|\?|$)/.exec(req.url)
-      if (m) req.url = `/${m[1]}.html` + (req.url!.split('?')[1] ? '?' + req.url!.split('?')[1] : '')
+      if (m) req.url = `/${m[1]}.html` + (q ? '?' + q : '')
+      // F9 previews of migrated pages: /next/<page> → pages/<page>.html
+      const n = req.url && /^\/next\/(home|account|developer|workstation|workspace)(\/|\?|$)/.exec(req.url)
+      if (n) req.url = `/pages/${n[1]}.html` + (q ? '?' + q : '')
       next()
     })
   },
@@ -48,6 +52,8 @@ export default defineConfig(({ command }) => ({
       input: {
         studio: fileURLToPath(new URL('./studio.html', import.meta.url)),
         admin: fileURLToPath(new URL('./admin.html', import.meta.url)),
+        ...Object.fromEntries(['home', 'account', 'developer', 'workstation', 'workspace'].map(p =>
+          [`page-${p}`, fileURLToPath(new URL(`./pages/${p}.html`, import.meta.url))])),
       },
     },
   },
