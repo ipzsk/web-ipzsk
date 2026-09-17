@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { UserRound } from 'lucide-react'
 import { ArrowUp, ChevronDown, Clapperboard, Image, Info, ListPlus, LogIn, RefreshCw, Sparkles, UserPlus, Wallet, X } from 'lucide-react'
 import type { GenerationParams, MediaKind, ModelSpec } from '@/shared/contracts'
-import { loginUrl } from '@/shared/api'
+import { ApiError, loginUrl } from '@/shared/api'
 import { openRecharge } from '@/shared/recharge/RechargeDialog'
 import { useOnline } from '@/shared/query'
 import { queryClient } from '@/shared/query'
@@ -89,7 +89,10 @@ function useComposerFill() {
   const [confirm, setConfirm] = useState<FillPlan | null>(null)
   useEffect(() => {
     const onFill = async (detail: FillDetail) => {
-      const models = await queryClient.fetchQuery({ queryKey: ['media', 'models'], queryFn: fetchModels, staleTime: 10 * 60_000 }).catch(() => [])
+      // Signed out, the catalog 401s and never caches: refetching it on every fill held the fill for a full round trip.
+      const catalog = queryClient.getQueryState(['media', 'models'])
+      const models = catalog?.error instanceof ApiError && catalog.error.status === 401 ? []
+        : await queryClient.ensureQueryData({ queryKey: ['media', 'models'], queryFn: fetchModels, staleTime: 10 * 60_000 }).catch(() => [])
       const s = useComposer.getState()
       if (detail.source === 'record' && isAvatarParams(detail.params)) { // 数字人记录「编辑后重发」→ 数字人草稿
         hydrateAvatarDraft(detail.model ?? '', detail.params ?? {}, detail.prompt ?? '', null, detail.reference_assets)
@@ -161,7 +164,7 @@ function SubjectVarPicker({ token, subjects }: { token: string; subjects: Subjec
 
 /**
  * Publishes how much of the viewport bottom the floating composer covers (incl. queue bar and, on mobile, the tab bar under it)
- * as `--composer-inset` on <html>: views pad their content with it and toasts sit above it.
+ * as `--composer-inset` on <html>: views pad their content with it.
  */
 function useComposerInset(hidden: boolean, expanded: boolean) {
   const ref = useRef<HTMLDivElement>(null)

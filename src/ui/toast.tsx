@@ -29,7 +29,7 @@ const remove = (id: number) => useToasts.setState(s => ({ items: s.items.filter(
 export function Toaster() {
   const items = useToasts(s => s.items)
   return (
-    <T.Provider duration={4000} label="通知">
+    <T.Provider duration={4000} label="通知" swipeDirection="up">
       {items.map(t => (
         <T.Root
           key={t.id}
@@ -54,7 +54,7 @@ export function Toaster() {
           </T.Close>
         </T.Root>
       ))}
-      <T.Viewport className="fixed bottom-[calc(var(--composer-inset,0px)+16px)] right-4 z-[60] max-md:bottom-[calc(var(--composer-inset,64px)+16px)] flex w-[calc(100vw-32px)] max-w-sm flex-col gap-2 outline-none" />
+      <T.Viewport className="fixed left-1/2 top-4 z-[60] flex w-[calc(100vw-32px)] max-w-sm -translate-x-1/2 flex-col gap-2 outline-none" />
     </T.Provider>
   )
 }
