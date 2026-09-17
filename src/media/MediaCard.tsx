@@ -86,7 +86,7 @@ export function MediaCard({ asset, title, overlay, state, priority, onOpen, sele
 
       {/* hover / focus overlay */}
       {(overlay || title) && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-gradient-to-t from-ink/80 to-transparent p-3 pt-10 text-card opacity-0 transition-opacity duration-fast group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:none)]:hidden">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-gradient-to-t from-ink/90 via-ink/60 to-transparent p-3 pt-10 text-card opacity-0 transition-opacity duration-fast group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:none)]:hidden">
           <p className="truncate text-sm font-medium">{title}</p>
           {overlay && <div className="pointer-events-auto" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>{overlay}</div>}
         </div>

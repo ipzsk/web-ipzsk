@@ -127,8 +127,8 @@ function CaseLibrary() {
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = cases
   const onEndReached = useCallback(() => { if (hasNextPage && !isFetchingNextPage) void fetchNextPage() }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
-  const renderItem = useCallback((c: CaseItem, index: number) => (
-    <CaseCard c={c} priority={index < 10} fav={favs.has(c.id)} onOpen={openCase} />
+  const renderItem = useCallback((c: CaseItem, index: number, size: { height: number }) => (
+    <CaseCard c={c} priority={index < 10} fav={favs.has(c.id)} onOpen={openCase} short={size.height < 200} />
   ), [favs, openCase])
 
   const mine = params.cat === MY_TEMPLATES
@@ -209,7 +209,8 @@ function CaseLibrary() {
   )
 }
 
-function CaseCard({ c, priority, fav, onOpen }: { c: CaseItem; priority: boolean; fav: boolean; onOpen: (c: CaseItem) => void }) {
+/** `short`: wide/flat cards (≲200px tall) keep only title + 做同款 in the hover overlay, so nothing crowds or truncates. */
+function CaseCard({ c, priority, fav, onOpen, short }: { c: CaseItem; priority: boolean; fav: boolean; onOpen: (c: CaseItem) => void; short: boolean }) {
   const [menu, setMenu] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const longPressed = useRef(false)
@@ -244,7 +245,7 @@ function CaseCard({ c, priority, fav, onOpen }: { c: CaseItem; priority: boolean
         onOpen={() => onOpen(c)}
         overlay={
           <div className="grid gap-1.5">
-            {c.author && <p className="truncate text-xs text-card/80">{c.author}</p>}
+            {c.author && !short && <p className="truncate text-xs text-card/80">{c.author}</p>}
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -256,7 +257,7 @@ function CaseCard({ c, priority, fav, onOpen }: { c: CaseItem; priority: boolean
               <button type="button" aria-label={fav ? '取消收藏' : '收藏'} aria-pressed={fav} onClick={() => toggleFavorite(c.id)} className={iconBtn}>
                 <Heart aria-hidden className={cn(fav && 'fill-current text-acid')} />
               </button>
-              <p className="ml-auto min-w-0 truncate text-[11px] text-card/60">{copyrightLabel(c).card}</p>
+              {!short && <p className="ml-auto min-w-0 truncate text-[11px] text-card/70">{copyrightLabel(c).card}</p>}
             </div>
           </div>
         }
