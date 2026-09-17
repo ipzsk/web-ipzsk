@@ -9,7 +9,7 @@ const PORT = Number(process.argv[2] ?? 5173);
 const UPSTREAM = process.env.IPZSK_API_BASE_URL ?? 'https://api.ipzsk.com';
 const SITE_ORIGIN = 'https://www.ipzsk.com'; // backend CORS/CSRF only trusts www
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.mp4': 'video/mp4' };
-const REWRITES = { '/workstation': '/workstation.html', '/account': '/account.html', '/developer': '/developer.html', '/workspace': '/workspace.html', '/video': '/video.html', '/image': '/image.html', '/login': '/account.html', '/register': '/account.html' };
+const REWRITES = { '/workstation': '/workstation.html', '/account': '/account.html', '/developer': '/developer.html', '/workspace': '/workspace.html', '/login': '/account.html', '/register': '/account.html' };
 
 async function proxy(req, res) {
   const headers = { ...req.headers, host: new URL(UPSTREAM).host, origin: SITE_ORIGIN, referer: SITE_ORIGIN + '/' };
