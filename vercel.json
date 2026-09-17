@@ -1,5 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "npm run build",
   "redirects": [
     {
       "source": "/video",
@@ -106,6 +108,14 @@
     {
       "source": "/image",
       "destination": "/image.html"
+    },
+    {
+      "source": "/studio",
+      "destination": "/dist/studio.html"
+    },
+    {
+      "source": "/studio/(.*)",
+      "destination": "/dist/studio.html"
     }
   ],
   "headers": [
@@ -211,6 +221,57 @@
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
+        }
+      ]
+    },
+    {
+      "source": "/studio(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/dist/studio.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/dist/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
         }
       ]
     }
