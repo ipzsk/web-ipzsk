@@ -1,6 +1,13 @@
-# IPZSK 创作工作台改造方案（v3）
+# IPZSK 创作工作台改造方案（v4）
 
-> 状态：已定稿 · 2026-09-17（v3）
+> 状态：已定稿 · 2026-09-17（v4，按架构评审修订）
+> 相对 v3 的变化：
+> - **媒体访问改为私有 bucket + 签名 URL**，不做公开读、不绑自定义域名、不用 Cloudflare 图片变换；缩略图由后端归档时生成（§7）。DNS 不需要迁移。
+> - 计费段按 lanehub 模式重写：网关不冻结不扣款，报价用用户自己的 lanehub key（§10.3）。
+> - 数据库：所有外键改 `uuid`，数组引用改联结表，大小校验改 `octet_length`；去掉「顺带修复 v11 回填」（§8）。
+> - B1 增加 CORS 扩展、R2 客户端补预签名 PUT / Range GET / DELETE、用户配额（§10、§13）。
+> - 案例三套数据与旧归档的宽高回填、会话时区、电商批次卡片、工期重估（§2、§8、§13）。
+> - 新增 §16 灰度、回滚、日志与限流。
 > 适用仓库：`ipzsk`（官网，Vercel）与 `ipzsk-api-gateway`（后端，腾讯云）
 > 相对 v2 的变化（按 2026-09-16 评审意见）：
 > - 创作视图改为**对话式**：每条消息就是一次独立生成请求，不携带上下文；对话历史保存在后端（§2.4、§8.5）。
@@ -29,11 +36,11 @@
 2. **生成方式**：提交时判断，界面上不显示模式。有参考图就是图生，没有就是文生。
 3. **前端技术栈**：Vite + React 19 + TypeScript + Tailwind v4 + shadcn/ui（Radix）+ **Lucide 图标**。无限画布用 @xyflow/react。以上全是 MIT/ISC/Apache 协议。
 4. **媒体**：
-   - 复用后端已配置的 R2 bucket，新增自定义域名和 CDN 缓存。
-   - 对象 key 带内容哈希，设为永久缓存（`immutable`）。
-   - 缩略图用 Cloudflare 图片变换生成，固定 4 档宽度。
+   - 复用后端已配置的私有 R2 bucket，全部走网关签发的签名 URL，不公开读。
+   - 签名 URL 按 6 小时时间片对齐，让浏览器缓存生效。
+   - 缩略图由独立 worker 在归档时生成两档 WebP。
    - 前端统一使用媒体组件：图片、视频、瀑布流、预览、上传。
-5. **数据**：在后端 `schema.sql` 按现有幂等方式增加到 v18–v21。新增 5 张表：媒体资产、文件夹、收藏、生成记录、画布项目；以及两项改造：用户角色、案例库。
+5. **数据**：在后端 `schema.sql` 按现有幂等方式增加到 v18–v21。新增 9 张表：用户角色、媒体资产、文件夹、文件夹项、收藏、生成记录、生成引用、会话、画布项目、案例库（案例库与角色算改造）。所有外键类型与现有表一致（`uuid`）。
 6. **权限**：用户体系统一用 better-auth。角色至少有 `user` 和 `admin`（admin 下再分 superadmin、operator、viewer）。管理中台放在官网 `/admin`，技术栈与设计系统和工作台一致，逐步替换现有的 `api.ipzsk.com/admin`。
 7. **交互**：所有写操作默认乐观更新。每个组件都要完整定义以下状态，不允许出现「看不出在干什么」的状态：
    - 悬停、按下、聚焦、选中、禁用（附原因）
@@ -115,7 +122,8 @@
 | 视频 | 没有 | 文生视频 |
 | 视频 | 有 | 图生视频。**目前所有视频型号都不支持**（见 §10.4）；型号不支持时，视频类型下隐藏添加按钮 |
 
-- **换型号后有残留素材**（新型号不支持参考图）：素材变半透明，并提示「当前型号不使用参考图」，提交时不带。**不自动删除用户的素材。**
+- **换型号后有残留素材**（新型号不支持参考图）：隐藏添加按钮，但保留已有槽位；素材变半透明，并提示「当前型号不使用参考图」，提交时不带。**不自动删除用户的素材。**
+- **报价请求**：参数变化后 300ms 防抖，按请求体哈希去重，避免每次点击都打 lanehub。
 - **参数超出新型号范围**：改成该型号的默认值，对应的参数小按钮高亮 1.2 秒。
 - **快捷键**：Enter 换行，Cmd/Ctrl+Enter 提交，输入法组字时不触发。
 - **未登录**：点发送后保存草稿，跳转登录，回来后恢复。
@@ -224,7 +232,7 @@
 - **输出**：一次生成一套图，先出主图，其余图片自动以主图为参考保证一致（沿用现有「锚定生成」逻辑）。
 - **结果**：以套为单位展示，可整套下载、单张重做、整套放到画布。
 - **复用**：输入框组件、型号目录、任务队列、媒体组件都与主工作台共用；只有表单和结果布局不同。
-- 每张图仍是一条独立生成请求，记录在创作视图的同一会话里，`source=ecommerce`。
+- 每张图仍是一条独立生成请求，`source=ecommerce`，同一套共用 `batch_id`；创作视图按批次渲染成一张卡，不刷屏。
 
 ---
 
@@ -399,50 +407,43 @@
 - **存储内容**：只归档生成的图片，key 为 `users/{user_id}/imagegen/{task_id}/{index}-{sha256}.{ext}`（`src/image-archive.mjs`）。没有缩略图，没有缓存头，没有清理。
 - **读取**：`GET /api/me/images` 返回 5 分钟签名 URL，URL 每次都不同，浏览器和 CDN 都缓存不上。
 
-### 7.2 目标方案
+### 7.2 目标方案：私有 bucket + 签名 URL
 
-1. **绑定自定义域名**：给现有 bucket 绑定 `media.ipzsk.com`（Cloudflare R2 Custom Domain）。
-   - 只有自定义域名才走 Cloudflare CDN 缓存，r2.dev 和预签名域名都不缓存。
-2. **缓存规则**：
-   - Cache Rule：`media.ipzsk.com/*` 全部可缓存，边缘缓存 1 年；开启 Tiered Cache。
-   - 对象写入时带 `Cache-Control: public, max-age=31536000, immutable`。
-3. **对象 key 规则**：内容寻址，永不覆盖；需要修改时写新 key。
+**决定**：第一期用户媒体和案例都**不公开读**。现有 bucket 保持私有，浏览器只通过网关签发的 URL 读取。不绑自定义域名，不用 Cloudflare 图片变换，因此 `ipzsk.com` 的 DNS 不需要迁到 Cloudflare。
+
+1. **对象 key 规则**（永不覆盖，需要修改时写新 key）：
 
 ```text
-cases/{sha256}.{ext}                         # 案例封面（公开）
-u/{user_hash}/gen/{sha256}.{ext}             # 生成结果
-u/{user_hash}/up/{sha256}.{ext}              # 用户上传
-u/{user_hash}/poster/{sha256}.webp           # 视频封面
-canvas/{project_id}/thumb/{sha256}.webp      # 画布缩略图
+cases/{asset_id}/orig.{ext}  cases/{asset_id}/w480.webp  cases/{asset_id}/w960.webp
+u/{user_id}/{asset_id}/orig.{ext}   u/{user_id}/{asset_id}/w480.webp   u/{user_id}/{asset_id}/w960.webp
+u/{user_id}/{asset_id}/poster.webp  canvas/{project_id}/thumb.webp
 ```
 
-   `user_hash` 是用户 id 加服务端密钥做的 HMAC，不暴露真实用户 id。
+   `asset_id` 为 uuid（上传前就能确定），`sha256` 只作为去重字段写进 `media_assets`。bucket 私有，key 是否可猜无所谓。
 
-4. **访问控制：采用方案 A**。
-   - 案例：公开读。
-   - 用户媒体：对象 key 含 256 位内容哈希 + 用户 HMAC，无法枚举、无法猜测，公开读。
-   - 效果：URL 不可猜，但拿到链接的人可以打开，与主流 AIGC 平台的分享链接一致。
-   - 方案 B（边缘限时令牌）暂不做。两者区别：A 靠「链接不可猜」保护，零成本、缓存最好；B 靠「链接会过期」保护，需要 Cloudflare 付费套餐并且要处理缓存 key，适合以后有「私密作品」需求时再加。
-5. **缩略图（Cloudflare 图片变换）**
-   - **它是做什么的**：浏览器请求 `https://media.ipzsk.com/cdn-cgi/image/width=480,format=auto/u/…/gen/abc.png` 时，Cloudflare 在边缘把原图缩成 480 宽、按浏览器能力转成 AVIF/WebP，再缓存。我们不用自己生成和存储多个尺寸。
-   - **为什么需要**：生成结果是 1K–4K 原图（2–10MB）。瀑布流一屏 30 张如果直接加载原图，要下载几十 MB；用 480 宽缩略图只需约 1MB，并且列表滚动时的解码内存也小得多。
-   - **用法约定**：只允许 4 档宽度（240/480/960/1920）+ 占位图 1 档（`width=32,blur=20`）。列表用 ≤480，详情用 960/1920，原图只用于下载。
-   - **费用**：每月前 5,000 个唯一变换免费，之后每千个 $0.50；同一 URL 重复访问只算一次。按当前规模远低于免费额度。
-   - **开启方式**：在 `ipzsk.com` zone 打开 Images → Transformations，`media.ipzsk.com` 是同 zone 的子域即可使用。
-6. **上传（参考图、素材）**：
-   1. `POST /api/me/uploads` → 服务端校验类型（png/jpeg/webp/mp4）和大小（图片 ≤20MB、视频 ≤200MB），创建 `pending` 资产，返回 10 分钟有效的预签名 PUT URL。
+2. **签名 URL 的缓存策略**（签名 URL 不经过 CDN，所以要让浏览器缓存生效）：
+   - 网关签发 GET URL 时，过期时间对齐到**固定的 6 小时时间片**（例如 00/06/12/18 点整），签名的 `X-Amz-Date` 也用时间片起点。同一对象在同一时间片内签出的 URL 完全相同，浏览器和 TanStack Query 都能命中缓存。
+   - 时间片剩余不足 30 分钟时，签发下一个时间片的 URL，避免用户刚拿到就过期。
+   - 对象写入时带 `Cache-Control: private, max-age=21600`，浏览器缓存 6 小时。
+   - 列表接口一次返回整页的签名 URL（每张 3 档：w480 / w960 / orig），不逐张签。签名是本地 HMAC 计算，每张约 0.1ms。
+   - 前端图片失败重试时先刷新元数据拿新 URL 再重试。
+3. **缩略图**：归档或上传完成时由后端生成 w480、w960 两档 WebP 和视频 poster。网关规则「不新增生产依赖」，因此**由 lanehub 或独立 worker 生成**（§15-5 待定）：
+   - 方案 1：网关归档时调用 lanehub 的图片处理端点（lanehub 是 Go，可以用标准库解码 PNG/JPEG，WebP 编码需要 cgo 或纯 Go 库，待评估）。
+   - 方案 2：在网关 compose 里加一个独立的缩略图 worker 容器（Node + sharp），只读 R2、写 R2，不改网关主进程依赖。**推荐方案 2**，它不违反网关规则。
+   - 缩略图未生成前，前端用 `orig` 兜底，卡片显示「处理中」角标。
+4. **上传（参考图、素材）**：
+   1. `POST /api/me/uploads`（body：`kind`、`content_type`、`bytes`）→ 校验类型（png/jpeg/webp/mp4）、大小（图片 ≤20MB、视频 ≤200MB）、**用户配额**（第一期每人 2GB / 2,000 个）、速率（每分钟 20 次），创建 `pending` 资产，返回 10 分钟有效的预签名 PUT URL。预签名把 `content-type` 和 `content-length` 签进 SignedHeaders，超出即被 R2 拒绝。
    2. 浏览器直接 PUT 到 R2，带进度。bucket CORS 只允许 `https://www.ipzsk.com` 的 PUT。
-   3. `POST /api/me/uploads/:id/complete` → 服务端 HEAD 校验大小和类型，读取文件头得到宽高或时长，资产变为 `ready`。
-   4. 生成请求只传资产 id。后端换成 R2 的 1 小时签名 URL 放进 `image_urls` 发给 lanehub（已确认 lanehub 接受我们 R2 的签名 URL），替代现在「data URL 上传到 APIMart、总计 ≤3MB」的做法。方案 A 下也可以直接用公开 URL，签名 URL 只是多一层保险。
-7. **生成结果归档**：图片沿用现有的归档任务，改为按上面的 key 规则写入，带缓存头，并写入 `media_assets`。视频新增同样的归档（当前只归档图片）。
-8. **清理**：
-   - `pending` 超过 24 小时的上传：删除对象和记录。
-   - 软删除超过 30 天的资产：删除对象。
-   - 由后端现有的定时循环执行。
+   3. `POST /api/me/uploads/:id/complete` → 网关 HEAD 取实际大小；用 Range GET 读文件头识别真实类型和宽高（PNG/JPEG/WebP 头部；MP4 的 `moov` 可能在尾部，需要 Range 读尾部），不信任客户端声明的 content-type；资产变 `ready`，触发缩略图。
+   4. 生成请求只传 `reference_asset_ids`。网关校验资产属于当前用户且 `ready`，换成 **1 小时签名 GET URL** 放进 `image_urls` 发给 lanehub。**永远不给上游公开 URL。** lanehub 是否接受外部 https URL，B1 第一天用真实型号实测（lanehub 侧目前没有 URL 校验代码，但也没有证据证明上游一定能拉取）。
+5. **生成结果归档**：沿用现有归档任务，改写到新 key 规则并写入 `media_assets`；视频新增同样的归档（当前只归档图片）。现有 `archived_images` 的旧对象**复制到新 key**（旧 key 含真实用户 id 的路径不再对外签发），复制时顺带解析宽高。
+6. **清理**：`pending` 超过 24 小时的上传删除对象和记录；软删除超过 30 天的资产删除对象。由网关现有的定时循环执行。
+7. **R2 客户端**（`r2-storage.mjs`）需要补：预签名 PUT（带 content-length/type 约束）、HEAD、Range GET、DELETE、Copy。仍然自实现 SigV4，不新增依赖。
+8. **以后要公开分享时**：再新建一个公开 bucket，把用户主动分享的对象复制过去，并绑定自定义域名。私有 bucket 的规则不变。
 
 ### 7.3 浏览器端缓存
 
-- **媒体文件**：依靠 HTTP 永久缓存加 CDN，不引入 Service Worker。
+- **媒体文件**：签名 URL 在 6 小时时间片内稳定，配合 `Cache-Control: private, max-age=21600` 由浏览器缓存；不引入 Service Worker。
 - **元数据**：用 TanStack Query 缓存。
   - 案例列表：新鲜期 10 分钟。
   - 素材和生成记录：新鲜期 30 秒，窗口重新聚焦时刷新。
@@ -464,9 +465,7 @@ canvas/{project_id}/thumb/{sha256}.webp      # 画布缩略图
   - 冻结和结算放在事务里，并保证幂等。
   - 迁移和部署都需要明确授权。
 - **本次迁移**：按功能拆成 v18–v21，每个版本一段，追加在 `schema.sql` 末尾。
-- **顺带修复**两个现有问题：
-  - v14 和 v15 的版本记录各重复写了一次。
-  - v11 的回填因为版本号先写入而永远不会执行。
+- **现有问题不在本次处理**：v14/v15 版本号重复写入无实际影响；v11 回填从未执行，修复它会在生产跑一次历史数据回填，需要单独立项评估，不「顺带」做。
 - **部署前**：
   - 先执行 `ops/backup.sh` 备份。
   - 在 `gateway_test` 上跑完整集成测试。
@@ -476,9 +475,9 @@ canvas/{project_id}/thumb/{sha256}.webp      # 画布缩略图
 
 ```sql
 CREATE TABLE IF NOT EXISTS user_roles (
-  user_id     bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   role        text   NOT NULL CHECK (role IN ('admin','operator','viewer')),
-  granted_by  bigint REFERENCES users(id),
+  granted_by  uuid REFERENCES users(id),
   granted_at  timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, role)
 );
@@ -492,7 +491,7 @@ CREATE TABLE IF NOT EXISTS user_roles (
 ```sql
 CREATE TABLE IF NOT EXISTS media_assets (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id      bigint REFERENCES users(id) ON DELETE CASCADE,   -- 案例资产为 NULL
+  user_id      uuid REFERENCES users(id) ON DELETE CASCADE,     -- 案例资产为 NULL
   kind         text NOT NULL CHECK (kind IN ('image','video')),
   source       text NOT NULL CHECK (source IN ('upload','generation','case','poster')),
   status       text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','ready','failed','deleted')),
@@ -502,7 +501,8 @@ CREATE TABLE IF NOT EXISTS media_assets (
   sha256       text,
   width        int, height int, duration_ms int,
   poster_id    uuid REFERENCES media_assets(id),
-  task_id      text,                                   -- 关联 media_tasks，生成结果使用
+  task_id      uuid REFERENCES media_tasks(id),      -- 生成结果使用
+  result_index int,                                    -- 同一任务的第几张
   created_at   timestamptz NOT NULL DEFAULT now(),
   deleted_at   timestamptz
 );
@@ -511,7 +511,7 @@ CREATE INDEX IF NOT EXISTS media_assets_pending ON media_assets (created_at) WHE
 
 CREATE TABLE IF NOT EXISTS asset_folders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 60),
   position double precision NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -525,14 +525,14 @@ CREATE TABLE IF NOT EXISTS asset_folder_items (
 );
 ```
 
-- **回填**：把现有 `archived_images` 的每一行写入 `media_assets`（source=`generation`）。旧对象 key 保持不变继续可读，新写入的对象使用 §7.2 的 key 规则。
+- **回填**：把现有 `archived_images` 逐行写入 `media_assets`（source=`generation`），对象复制到新 key，并解析宽高。`archived_images` 也没有宽高字段，必须逐个读取文件头。
 - **排序**：`position` 用浮点数，插入到中间时取前后两项的中点，拖动排序只需要更新一行。
 
 ### 8.4 v20 收藏
 
 ```sql
 CREATE TABLE IF NOT EXISTS favorites (
-  user_id     bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   target_type text   NOT NULL CHECK (target_type IN ('case','asset')),
   target_id   text   NOT NULL,
   created_at  timestamptz NOT NULL DEFAULT now(),
@@ -547,19 +547,18 @@ CREATE TABLE IF NOT EXISTS favorites (
 ```sql
 CREATE TABLE IF NOT EXISTS generation_records (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id         bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  request_id      bigint UNIQUE,                       -- 关联 requests（类型以实际为准）
-  task_id         text UNIQUE,                         -- 关联 media_tasks
+  user_id         uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  request_id      uuid UNIQUE REFERENCES requests(id),
+  task_id         uuid UNIQUE REFERENCES media_tasks(id),
+  batch_id        uuid,                                -- 电商套图等一次多张时共用，聊天流按批次渲染一张卡
   kind            text NOT NULL CHECK (kind IN ('image','video')),
   model           text NOT NULL,
   prompt          text NOT NULL,
   params          jsonb NOT NULL DEFAULT '{}',
-  reference_ids   uuid[] NOT NULL DEFAULT '{}',        -- media_assets
-  result_ids      uuid[] NOT NULL DEFAULT '{}',        -- media_assets
   status          text NOT NULL CHECK (status IN ('queued','running','succeeded','failed','cancelled')),
   failure_code    text,
   charged_points  numeric(20,8),                       -- 结算后写入；未结算为 NULL，前端显示「结算中」
-  thread_id       uuid,                                -- 会话分组（见下方 generation_threads）
+  thread_id       uuid REFERENCES generation_threads(id) ON DELETE SET NULL,
   source          text NOT NULL DEFAULT 'studio' CHECK (source IN ('studio','ecommerce','canvas')),
   source_case_id  text,                                -- 做同款来源
   canvas_node     jsonb,                               -- {project_id,node_id}，来自画布时写入
@@ -570,9 +569,17 @@ CREATE TABLE IF NOT EXISTS generation_records (
 CREATE INDEX IF NOT EXISTS generation_records_user_recent ON generation_records (user_id, created_at DESC) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS generation_records_thread ON generation_records (thread_id, created_at) WHERE deleted_at IS NULL;
 
+CREATE TABLE IF NOT EXISTS generation_references (   -- 替代 uuid[]，保证引用完整性
+  record_id uuid NOT NULL REFERENCES generation_records(id) ON DELETE CASCADE,
+  asset_id  uuid NOT NULL REFERENCES media_assets(id),
+  position  int  NOT NULL,
+  PRIMARY KEY (record_id, position)
+);
+-- 结果不单独存：由 media_assets.task_id + result_index 反查
+
 CREATE TABLE IF NOT EXISTS generation_threads (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title      text NOT NULL DEFAULT '' CHECK (char_length(title) <= 80),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
@@ -582,7 +589,7 @@ CREATE INDEX IF NOT EXISTS generation_threads_user ON generation_threads (user_i
 CREATE INDEX IF NOT EXISTS generation_records_active ON generation_records (user_id) WHERE status IN ('queued','running');
 ```
 
-- **会话**：记录只是按 `thread_id` 分组，生成请求不读取任何历史记录。缺省会话按「用户 + 日期」自动创建。
+- **会话**：记录只是按 `thread_id` 分组，生成请求不读取任何历史记录。缺省会话由**客户端**按本地日期决定并创建（服务端不猜时区）；`generation_threads` 表要先于 `generation_records` 创建。
 - **写入**：生成入口在创建 `requests` 的同一个事务里写入记录；`syncMediaTasks` 更新状态时同步更新；结算完成后写入 `charged_points`。
 - **幂等**：沿用 `requests (user_id, idempotency_key)` 唯一约束。**同时补上官网已经在调用、但后端缺失的 `GET /api/me/generations?idempotency_key=`**，用来替代不存在的 `/api/me/image-requests/:key`。
 
@@ -591,7 +598,7 @@ CREATE INDEX IF NOT EXISTS generation_records_active ON generation_records (user
 ```sql
 CREATE TABLE IF NOT EXISTS canvas_projects (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title       text NOT NULL DEFAULT '未命名画布' CHECK (char_length(title) <= 80),
   document    jsonb NOT NULL,             -- {version,nodes,edges,groups,viewport}
   revision    int  NOT NULL DEFAULT 1,
@@ -599,7 +606,7 @@ CREATE TABLE IF NOT EXISTS canvas_projects (
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),
   deleted_at  timestamptz,
-  CHECK (pg_column_size(document) < 2000000)
+  CHECK (octet_length(document::text) <= 2500000)   -- 与 content_workspaces 一致
 );
 CREATE INDEX IF NOT EXISTS canvas_projects_user_recent ON canvas_projects (user_id, updated_at DESC) WHERE deleted_at IS NULL;
 ```
@@ -629,17 +636,17 @@ CREATE TABLE IF NOT EXISTS inspiration_cases (
 CREATE INDEX IF NOT EXISTS inspiration_cases_feed ON inspiration_cases (status, category, position);
 ```
 
-- **导入**：一次性脚本读取现有 `cases.json` 等文件，把封面上传到 R2（`cases/{sha256}`），写入 `media_assets`（带宽高）和本表。
-- **公开读取**：`GET /api/public/cases?cat=&q=&cursor=` 使用游标分页，`Cache-Control: public, max-age=300`，并加入 CORS 白名单。
+- **导入**：一次性脚本读取三套数据：`cases.json`（441）、`canghe-cases.json`（541，前者是其子集，按 id 去重）、`punk-cases.json`（38）。封面是本地文件名，**没有宽高**，导入时逐张解析后上传到 `cases/{asset_id}/`，写入 `media_assets` 和本表。
+- **读取**：`GET /api/public/cases?cat=&q=&cursor=` 游标分页；响应里的封面是签名 URL，所以整体 `Cache-Control: private, max-age=300`（要显式覆盖 `app.mjs` 全局的 `no-store`）。
 - **搜索**：第一期用 `ILIKE` 加分类过滤（案例量在千级以内）。量大以后再加 `pg_trgm` 索引（PostgreSQL 自带扩展，不属于新增依赖）。
 
 ### 8.8 数据流一览
 
 ```text
 上传：浏览器 ─POST uploads→ 网关(media_assets pending) ─预签名 PUT→ R2 ─complete→ 网关(ready, 宽高)
-生成：浏览器 ─POST generations(资产id)→ 网关(requests + generation_records + 冻结) → 上游
+生成：浏览器 ─POST generations(资产id)→ 网关(requests + generation_records，不冻结) → lanehub(扣额度) → 上游
       同步任务 → 网关(media_tasks) → 归档 R2(media_assets) → generation_records.result_ids → 结算
-读取：浏览器 ─GET→ 网关(元数据, TanStack 缓存) ；媒体文件 ─GET→ media.ipzsk.com(CDN 永久缓存)
+读取：浏览器 ─GET→ 网关(元数据 + 6 小时时间片签名 URL) ；媒体文件 ─GET→ R2 签名 URL(浏览器缓存 6 小时)
 ```
 
 ---
@@ -651,7 +658,7 @@ CREATE INDEX IF NOT EXISTS inspiration_cases_feed ON inspiration_cases (status, 
 | 角色 | 来源 | 能力 |
 |---|---|---|
 | `user` | 所有已验证邮箱的用户（默认） | 工作台、账户、自己的数据 |
-| `developer` | `developer_profiles.status='approved'`（现有） | 开发者中心 |
+| `developer` | `developer_profiles.state='approved'`（现有字段名为 `state`） | 开发者中心 |
 | `viewer` | `user_roles` | 管理中台只读 |
 | `operator` | `user_roles` | 案例库、充值码、用户支持类操作 |
 | `admin` | `user_roles` | 全部权限，包括财务、角色授予、计费策略 |
@@ -659,8 +666,8 @@ CREATE INDEX IF NOT EXISTS inspiration_cases_feed ON inspiration_cases (status, 
 - **统一身份**：管理员也使用 better-auth 账户登录。原有 `administrators` 表的 superadmin/operator/viewer 映射为 `admin`/`operator`/`viewer`。迁移期内两套登录并存，新中台达到同等功能后停用旧登录。
 - **服务端校验**：新增 `requireRole(req, ...roles)` 钩子，用于 `/api/admin/*`。每次请求都查询 `user_roles`（可以做 30 秒进程内缓存，角色变更时清除）。**前端隐藏入口只是体验层，不作为安全措施。**
 - **管理员登录**：与普通用户相同的邮箱 + 密码登录，不做两步验证。区别只在角色：
-  - 管理接口的会话有效期 12 小时（用户会话仍为 7 天）。
-  - 所有写操作写入现有的 `audit_events`。
+  - 管理接口的会话有效期 12 小时：better-auth 会话全局 7 天，`requireRole` 额外检查 session 创建时间。
+  - 所有写操作写入现有的 `audit_events`，该表目前没有操作者列，v18 增加 `actor_user_id uuid`。
   - 管理员账户密码长度要求提高到 16 位（服务端校验）。
 - **CORS**：`/api/admin/*` 只允许 `https://www.ipzsk.com`，带凭据，非 GET 请求校验 Origin（与现有 `/api/me/*` 一致）。
 
@@ -702,7 +709,7 @@ CREATE INDEX IF NOT EXISTS inspiration_cases_feed ON inspiration_cases (status, 
 
 - **错误格式**：统一为 `{ error: { code, message } }`，`code` 为稳定的英文标识，官网维护中文映射。
 - **分页**：统一为 `{ items, next_cursor }`。
-- **新接口 CORS**：`/api/public/*` 只加入 GET；`/api/me/*`、`/api/admin/*` 沿用现有规则。
+- **CORS 必须扩展**（现有 `app.mjs` 只匹配 `/api/(auth|me|account)/`，只放行 GET/POST，只允许 `Content-Type` 头）：前缀加入 `/api/public/`、`/api/admin/`；方法加入 PUT/PATCH/DELETE；头加入 `Idempotency-Key`。放在 B1，配预检测试。
 
 ### 10.3 型号目录与价格的真源是 lanehub；`gpt-image-2.5-flare` 已在其中
 
@@ -713,8 +720,10 @@ CREATE INDEX IF NOT EXISTS inspiration_cases_feed ON inspiration_cases (status, 
 - **因此本方案不在网关新增型号 JSON**。要做的是：
   1. 确认生产的 `app_settings.lanehub_mode` 已开启，且 lanehub 渠道白名单包含 flare 系列。
   2. 网页型号目录接口 `GET /api/me/media/models` 直接由 lanehub 目录派生（复用桌面端 bootstrap 的转换，补上 `references` 能力字段）。
-  3. **报价**：网关的 `POST /api/me/media/quote` 透传 lanehub `POST /v1/quote`（请求体就是真实生成请求体），再叠加用户级折扣。不在网关另算一套档位，避免「界面报 12、实扣 20」再次发生（lanehub 文档记录的事故）。
-  4. 旧模式的 `resolveTier` / `model-catalog.json` 只保留给尚未切换的桌面客户端，网页不再依赖。
+  3. **报价**：网关的 `POST /api/me/media/quote` 透传 lanehub `POST /v1/quote`（已存在：`lanehub/controller/quote.go`），请求体就是真实生成请求体。**必须用该用户自己的 lanehub key**（`lanehub_accounts.key_id`）调用，因为 lanehub 按令牌所在档位报价。网关不另算档位、不加折扣。
+  4. **计费事实**：lanehub 模式下网关**不冻结、不扣款**（`gateway.mjs:237` 只在非 lanehub 时 `reserveRequest`），额度在 lanehub。`generation_records.charged_points` 由 `recordLanehubCharge` 异步回填，回填前前端显示「结算中」。
+  5. **对账**：B2 验收改为「quote 金额 == lanehub 消费日志实扣」，并在日志里记录每次差异。
+  6. 旧模式的 `resolveTier` / `model-catalog.json` 只保留给尚未切换的桌面客户端，网页不再依赖。
 
 ### 10.4 图生视频
 
@@ -734,7 +743,7 @@ CREATE INDEX IF NOT EXISTS inspiration_cases_feed ON inspiration_cases (status, 
 
 **共享契约的做法：**
 
-1. **类型文件**：网关新增 `scripts/export-contracts.mjs`，从 `model-catalog.json`、错误码清单、接口清单生成 `contracts/ipzsk-api.d.ts` 和 `contracts/endpoints.json`。
+1. **类型文件**：网关新增 `scripts/export-contracts.mjs`，从 lanehub 目录快照、错误码清单、接口清单生成 `contracts/ipzsk-api.d.ts` 和 `contracts/endpoints.json`。
 2. **官网同步**：官网执行 `npm run contracts:sync` 拉取指定版本的契约文件，提交到 `src/shared/contracts/`。
 3. **契约测试**：官网 CI 检查代码里调用的每个接口都在 `endpoints.json` 中；网关 CI 检查 `endpoints.json` 中的每个接口都有路由。
 
@@ -794,8 +803,9 @@ ipzsk/
 - **自动构建**：Vercel 已绑定 main 分支。`vercel.json` 配置 `buildCommand: vite build`、`outputDirectory: dist`，`api/` 目录的 Functions 不受影响。
 - **过渡期**：未迁移的静态页也作为 Vite 入口一起构建。打包产物不再提交。
 - **CSP**：为 `/studio(.*)`、`/admin(.*)` 配置：
-  - `img-src`、`media-src`：`https://media.ipzsk.com`
-  - `connect-src`：`https://api.ipzsk.com`，以及 R2 预签名上传域名 `https://*.r2.cloudflarestorage.com`
+  - `img-src`、`media-src`：`https://*.r2.cloudflarestorage.com blob: data:`（blob 用于本地预览和首帧截取）
+  - `connect-src`：`https://api.ipzsk.com https://*.r2.cloudflarestorage.com`
+  - 深路径（`/studio/create/:id` 等）需要 `vercel.json` rewrite 到 `studio.html`
 - **本地开发**：`vite dev` 通过代理转发 `/api` 并改写 Cookie，替代 `dev-server.mjs`。
 
 ---
@@ -806,36 +816,36 @@ ipzsk/
 
 | 步 | 内容 | 估时 | 验收 |
 |---|---|---|---|
-| B1 | 迁移 v18–v19（角色、媒体资产、文件夹）+ 修复重复的版本号；`requireRole`；上传预签名；R2 自定义域名、缓存规则、CORS；归档改为新 key 规则并带缓存头 | 3 天 | 集成测试全部通过；上传 → 完成 → 读取的完整链路；`curl -I` 能看到 `cf-cache-status: HIT` |
+| B1 | 迁移 v18–v19（角色、媒体资产、文件夹、audit actor）；`requireRole`；**CORS 扩展**；R2 客户端补预签名 PUT/HEAD/Range GET/DELETE/Copy；上传接口与配额；时间片签名 URL；缩略图 worker 容器；归档改新 key；**实测 lanehub 接受 R2 签名 URL** | 5 天 | 集成测试全部通过；上传 → 完成 → 缩略图 → 读取完整链路；同一时间片内两次列表返回相同 URL |
 | B2 | 网页型号目录接口（由 lanehub 目录派生）、报价透传 lanehub `/v1/quote`、生成接口支持资产 id 并转成 R2 签名 URL | 2 天 | 报价与实际冻结金额一致；flare 走 lanehub 能生成；参考图经 R2 URL 成功送达上游 |
 | B3 | v20：生成记录、收藏；`/api/me/generations`（含幂等键查询） | 2 天 | 记录状态与 `media_tasks` 一致；重复提交不重复记录 |
-| B4 | v21：画布项目（revision 冲突）、案例库表、案例导入脚本、公开案例接口 | 2.5 天 | 441 个案例导入后都有宽高；冲突时返回 409 和最新版本 |
+| B4 | v21：画布项目（revision 冲突）、案例库表、三套案例导入（解析宽高）、`archived_images` 回填与复制、公开案例接口 | 4 天 | 全部案例和旧归档都有宽高与缩略图；冲突时返回 409 和最新版本 |
 | B5 | `/api/admin/*` 第一批（案例库、用户与角色、生成记录、会话） | 2.5 天 | 权限测试覆盖每个角色 × 每个接口；未授权返回 403 |
 | B6 | 契约导出脚本、契约测试 | 1 天 | 官网或网关任一边的接口漂移都会导致 CI 失败 |
 
-后端合计约 13.5 个工作日。每一步部署前都需要备份，并获得明确授权。
+后端合计约 17 个工作日。每一步部署前都需要备份，并获得明确授权。
 
 ### 13.2 前端（ipzsk）
 
 | 步 | 内容 | 估时 | 验收 |
 |---|---|---|---|
 | F1 | 工程骨架：Vite+TS+Tailwind+shadcn+Lucide、主题、状态矩阵示例页、站点导航、api 与 contracts、Toast、Vite 代理、CSP | 2 天 | `/studio` 可以访问；示例页展示 §4.1 全部状态；其他页面行为不变 |
-| F2 | 媒体通用组件：MediaImage、MediaVideo、MasonryGrid、MediaLightbox、useUpload、MediaCard、DropTarget | 4 天 | 1000 张图瀑布流滚动 ≥ 55fps（实测记录）；布局偏移 CLS < 0.02；断网上传可以恢复 |
+| F2 | 媒体通用组件：MediaImage、MediaVideo、MasonryGrid、MediaLightbox、useUpload、MediaCard、DropTarget；先验证 @virtuoso.dev/masonry 能否按 index 恢复滚动，不行就换 @tanstack/react-virtual | 6 天 | 1000 张图瀑布流滚动 ≥ 55fps（实测记录）；布局偏移 CLS < 0.02；断网上传可以恢复 |
 | F3 | 输入框：型号目录适配、参数小按钮、槽位、提交时判断、报价、登录拦截和草稿、点数不足 | 4 天 | 对照 §2.2 逐条勾选；未登录提交不产生生成请求 |
 | F4 | 灵感：瀑布流、分类和搜索（URL 同步）、详情深链接、做同款、收藏（乐观更新） | 3 天 | 首屏 LCP < 2.5s（4G 模拟）；返回时恢复滚动位置 |
 | F5 | 创作：占位卡片、任务状态、卡片操作、服务端恢复；素材：分组、文件夹、多选、拖拽、软删除和撤销 | 4.5 天 | 同时提交 3 个任务，刷新后都能恢复；删除后 5 秒内可以撤销 |
-| F6 | 画布：节点、连线校验、运行节点、互通、编辑能力、本地优先保存和冲突处理 | 6 天 | 200 个图片节点时拖动 ≥ 50fps；撤销重做覆盖所有编辑类型；离线编辑恢复网络后能同步 |
+| F6 | 画布：节点、连线校验、运行节点、互通、编辑能力、本地优先保存和冲突处理 | 11 天 | 200 个图片节点时拖动 ≥ 50fps；撤销重做覆盖所有编辑类型；离线编辑恢复网络后能同步 |
 | F7 | 管理中台第一批：案例库、用户与角色、生成记录 | 3.5 天 | 按角色显示入口；viewer 看不到任何写操作按钮 |
 | F8 | 替换 `/image`、`/video`；旧本地历史导入 | 1.5 天 | 旧 URL 正确跳转；旧历史可以一键导入 |
 | F9 | 其他页面迁移到 TS + Tailwind | 5–7 天 | 每页有冒烟测试；删除旧 JS/CSS |
 
-前端合计约 34–36 个工作日。依赖关系：F3 依赖 B2，F4 依赖 B4，F5 依赖 B1 和 B3，F6 的云端保存依赖 B4，F7 依赖 B5。F1、F2 可以和后端并行开始。
+前端合计约 46–48 个工作日。依赖关系：F3 依赖 B2，F4 依赖 B4，F5 依赖 B1 和 B3，F6 的云端保存依赖 B4，F7 依赖 B5。F1、F2 可以和后端并行开始。
 
 ---
 
 ## 14. 版权与合规
 
-- **100xspeed**：代码中存在从第三方产品反编译移植的内容。本项目**不复制它的任何代码、样式、组件结构或视觉设计**，型号参数完全基于 IPZSK 自己的 `model-catalog.json` 实现。
+- **100xspeed**：代码中存在从第三方产品反编译移植的内容。本项目**不复制它的任何代码、样式、组件结构或视觉设计**，型号参数完全基于 lanehub 目录实现。
 - **市面产品**（Lovart、Flora、Krea、Freepik、Figma Weave、Midjourney、Pinterest、即梦、Higgsfield 等）：只参考公开可见的交互模式，不复制界面细节、图标、文案和配色。
 - **开源依赖**：只用 MIT/ISC/Apache-2.0 协议，在 `THIRD_PARTY_NOTICES` 中列出。AGPL 项目（Immich、PhotoPrism）只阅读设计，不复制代码。
 - **dsh-imagegen**（Apache-2.0）：旧工作台下线后，如果仍保留派生内容，保留 NOTICE。
@@ -856,11 +866,26 @@ ipzsk/
 | 构建 | Vercel 跟随 main 自动构建，产物不提交 |
 | 案例 | 第一期只做图片案例；awesome-gpt-image-2 按 §14 展示并标明来源，不另行联系作者 |
 | 创作视图 | 对话式；一条消息一次请求，不带上下文；历史存后端 |
-| 媒体访问 | 方案 A；R2 自定义域名 `media.ipzsk.com`；开启 Cloudflare 图片变换 |
+| 媒体访问 | ~~方案 A；自定义域名；图片变换~~（v4 撤销，见下） |
 | 型号与价格 | 真源为 lanehub，生产已开启 lanehub 模式；报价透传 `/v1/quote` |
 | 参考图 | 上传到 R2，以签名 URL 交给 lanehub |
 | 管理员 | 普通邮箱登录 + 角色，不做两步验证 |
 | 电商 | 独立视图 `/studio/ecommerce`，模板复用现有电商案例 |
+| 媒体访问 | **改为**：私有 bucket + 签名 URL，不公开读，不绑域名，不用图片变换 |
+
+仍待确认：
+5. **缩略图生成方式**：推荐在网关 compose 里加独立 worker 容器（Node + sharp），不改网关主进程依赖；是否同意？
+
+---
+
+## 16. 灰度、回滚、观测与限流
+
+- **灰度开关**：`/studio` 先作为隐藏入口上线；替换 `/image`、`/video` 时通过 `vercel.json` 的 redirect 切换，回退只需改回 redirect。旧页面代码保留两周。
+- **数据库回滚**：schema 只增不减；回滚代码不回滚 schema，新表留空无害。
+- **日志与指标**（网关）：上传成功率与耗时、缩略图生成失败数、quote 与实扣差异（每日汇总）、签名 URL 401 次数（过期问题）、生成失败按错误码分布。
+- **限流**：上传每分钟 20 次、报价每分钟 60 次、生成沿用现有 rpm；超限返回 `rate_limited`。
+- **无障碍测试**：状态矩阵示例页跑 axe；键盘走完提交、做同款、画布连线三条路径。
+- **国际化**：第一期只做中文；文案集中在一个模块，不散落在组件里。
 
 ---
 
