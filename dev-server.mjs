@@ -18,8 +18,8 @@ async function proxy(req, res) {
   const r = await fetch(UPSTREAM + req.url, { method: req.method, headers, body, redirect: 'manual' });
   const out = {};
   r.headers.forEach((v, k) => { if (!['content-encoding', 'content-length', 'transfer-encoding', 'set-cookie'].includes(k) && !k.startsWith('access-control-')) out[k] = v; });
-  // Drop Domain/Secure so the browser keeps the session cookie on http://localhost
-  const cookies = r.headers.getSetCookie().map(c => c.replace(/;\s*Domain=[^;]*/i, '').replace(/;\s*Secure/i, ''));
+  // Drop Domain only; keep Secure (__Secure- prefixed cookies are rejected without it; localhost is a secure context)
+  const cookies = r.headers.getSetCookie().map(c => c.replace(/;\s*Domain=[^;]*/i, ''));
   if (cookies.length) out['set-cookie'] = cookies;
   res.writeHead(r.status, out).end(Buffer.from(await r.arrayBuffer()));
 }

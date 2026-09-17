@@ -18,7 +18,9 @@ const api: ProxyOptions = {
     })
     proxy.on('proxyRes', res => {
       const cookies = res.headers['set-cookie']
-      if (cookies) res.headers['set-cookie'] = cookies.map(c => c.replace(/;\s*Domain=[^;]*/i, '').replace(/;\s*Secure/i, ''))
+      // Drop Domain only. Keep Secure: the session cookie is `__Secure-ipzsk_customer.*`, and browsers reject a __Secure- cookie
+      // without it (login looked successful but the cookie was silently discarded). http://localhost counts as a secure context.
+      if (cookies) res.headers['set-cookie'] = cookies.map(c => c.replace(/;\s*Domain=[^;]*/i, ''))
     })
   },
 }
