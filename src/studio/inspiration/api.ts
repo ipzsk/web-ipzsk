@@ -17,7 +17,7 @@ const loadManifest = () =>
 
 const qs = (o: Record<string, string | null | undefined>) => new URLSearchParams(Object.entries(o).filter((e): e is [string, string] => !!e[1])).toString()
 
-/** `total` only from the manifest (the public API pages without a count). */
+/** `cat` may list several categories (`a,b`). `total` only from the manifest (the public API pages without a count). */
 export async function listCases({ cat, q, cursor }: CaseFilter & { cursor?: string | null }): Promise<Page<CaseItem> & { total?: number }> {
   if (casesFromApi) return request<Page<CaseItem>>(`/api/public/cases?${qs({ cat, q, cursor })}`)
   return pageCases(await loadManifest(), { cat, q }, cursor ?? null)
@@ -53,8 +53,9 @@ export const caseKeys = {
   similar: (id: string) => ['cases', 'similar', id] as const,
 }
 
-export const useCases = (f: CaseFilter) => useInfiniteQuery({
+export const useCases = (f: CaseFilter, enabled = true) => useInfiniteQuery({
   queryKey: caseKeys.list(f),
+  enabled,
   queryFn: ({ pageParam }) => listCases({ ...f, cursor: pageParam }),
   initialPageParam: null as string | null,
   getNextPageParam: (last) => last.next_cursor,
@@ -68,8 +69,9 @@ export const useCase = (id: string | null) => useQuery({
   staleTime: 5 * 60_000,
 })
 
-export const useCategories = (q: string) => useQuery({
+export const useCategories = (q: string, enabled = true) => useQuery({
   queryKey: caseKeys.categories(q),
+  enabled,
   queryFn: () => listCategories(q),
   placeholderData: keepPreviousData,
   staleTime: 5 * 60_000,

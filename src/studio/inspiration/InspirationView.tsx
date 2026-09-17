@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
-import { Copy, Ellipsis, ExternalLink, Heart, Search, SearchX, WandSparkles, X } from 'lucide-react'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, EmptyState, cn, focusRing } from '@/ui'
+import { Clapperboard, Copy, Ellipsis, ExternalLink, Heart, SearchX, UserRound, WandSparkles } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, EmptyState, OptionsCombobox, cn, focusRing, type ComboGroup } from '@/ui'
 import { MasonryGrid, MediaCard, type MasonryGridHandle } from '@/media'
 import { toggleFavorite, useCases, useCategories, useFavorites } from './api'
-import { caseAspect, copyrightLabel, patchParams, readParams, type CaseItem } from './lib'
+import { caseAspect, copyrightLabel, patchParams, readParams, splitCats, toggleCat, type CaseItem } from './lib'
 import { caseAsset, copyPrompt, fillComposer } from './actions'
 import { CaseDetail } from './CaseDetail'
 import { TemplatesPanel } from '../templates/TemplatesPanel'
+import { useComposer } from '../store'
+import { ChipScroller } from './ChipScroller'
 
 /** §2.8: pseudo-category showing the user's own templates instead of cases. */
 const MY_TEMPLATES = 'my-templates'
@@ -20,7 +22,37 @@ const focusCard = (id: string, tries = 10) => {
 
 type OverlayState = { caseOverlay?: boolean } | null
 
+/* recent searches (localStorage, newest first, max 8) */
+const RECENT_KEY = 'ipzsk:studio:recent-searches'
+const readRecent = (): string[] => { try { const v = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, 8) : [] } catch { return [] } }
+function useRecentSearches() {
+  const [recent, setRecent] = useState(readRecent)
+  const save = (next: string[]) => { setRecent(next); try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)) } catch { /* private mode: memory only */ } }
+  return {
+    recent,
+    add: (q: string) => { if (q && recent[0] !== q) save([q, ...recent.filter((x) => x !== q)].slice(0, 8)) },
+    remove: (q: string) => save(recent.filter((x) => x !== q)),
+    clear: () => save([]),
+  }
+}
+
+/** All cases are image cases: video / 数字人 composer modes show a lightweight empty state and fetch nothing. */
 export function InspirationView() {
+  const kind = useComposer((s) => (s.mode === 'avatar' ? 'avatar' : s.kind))
+  if (kind === 'image') return <CaseLibrary />
+  return (
+    <section aria-labelledby="inspiration-title">
+      <h1 id="inspiration-title" className="sr-only">灵感</h1>
+      <EmptyState
+        icon={kind === 'avatar' ? UserRound : Clapperboard}
+        text={kind === 'avatar' ? '暂无数字人案例，可以直接在下方输入框开始创作' : '暂无视频案例，可以直接在下方输入框开始创作'}
+        action={{ label: '看看图片案例', onClick: () => useComposer.getState().setKind('image') }}
+      />
+    </section>
+  )
+}
+
+function CaseLibrary() {
   const [sp, setSp] = useSearchParams()
   const navigate = useNavigate()
   const location = useLocation()
@@ -79,6 +111,15 @@ export function InspirationView() {
   }, [params.case]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const setCat = (cat: string) => setSp((cur) => patchParams(cur, { cat, case: null }))
+  // 我的模板 is exclusive; 全部 ('') clears; other categories toggle (multi-select → `cat=a,b`).
+  // Read the live URL: quick successive toggles must not start from a stale render's `cat`.
+  const pickChip = (id: string) => {
+    const cur = readParams(window.location.search).cat
+    const wasMine = cur === MY_TEMPLATES
+    setCat(id === MY_TEMPLATES ? (wasMine ? '' : MY_TEMPLATES) : toggleCat(wasMine ? '' : cur, id))
+  }
+  const recent = useRecentSearches()
+  const commitSearch = () => recent.add(text.trim())
   const clearFilters = () => { setText(''); setSp((cur) => patchParams(cur, { cat: '', q: '', case: null })) }
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = cases
@@ -90,39 +131,42 @@ export function InspirationView() {
 
   const mine = params.cat === MY_TEMPLATES
   const chips = [{ id: '', label: '全部', count: cats.data?.total }, { id: MY_TEMPLATES, label: '我的模板', count: undefined as number | undefined }, ...(cats.data?.categories ?? [])]
+  const selectedCats = mine ? [] : splitCats(params.cat)
+  const groups: ComboGroup[] = [
+    {
+      id: 'recent', label: '最近搜索',
+      extra: <button type="button" onClick={recent.clear} className={cn('rounded-[6px] px-1.5 py-0.5 text-xs text-muted hover:bg-subtle hover:text-ink', focusRing)}>清空</button>,
+      options: recent.recent.map((q) => ({ value: q, label: q, action: true, onRemove: () => recent.remove(q) })),
+    },
+    { id: 'cats', label: '分类（可多选）', options: (cats.data?.categories ?? []).map((c) => ({ value: c.id, label: c.label, count: c.count })) },
+  ]
 
   return (
     <section aria-labelledby="inspiration-title">
       <h1 id="inspiration-title" className="sr-only">灵感</h1>
-      <div className="sticky top-16 z-30 -mx-4 -mt-6 mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur-md max-[720px]:top-[104px] md:-mx-8 md:px-8">
-        <label className="relative w-full md:order-last md:w-64">
-          <span className="sr-only">搜索案例</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
-          <input
-            type="search"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="搜索标题、提示词、标签"
-            className={cn(
-              'h-9 w-full rounded-control border border-line bg-card pl-9 pr-9 text-sm text-ink placeholder:text-muted transition-colors duration-(--duration-fast) hover:border-muted focus:border-acid focus:ring-3 focus:ring-acid/10 [&::-webkit-search-cancel-button]:hidden',
-              focusRing, 'focus-visible:outline-offset-0',
-            )}
-          />
-          {text && (
-            <button type="button" aria-label="清空搜索" onClick={() => setText('')} className={cn('absolute right-1.5 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-[8px] text-muted hover:bg-subtle active:scale-[.98]', focusRing)}>
-              <X aria-hidden />
-            </button>
-          )}
-        </label>
-        <div role="group" aria-label="分类" className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-0.5 [scrollbar-width:none]">
+      <div className="sticky top-16 z-30 -mx-4 -mt-6 mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur-md max-[720px]:top-[104px] md:flex-nowrap md:-mx-8 md:px-8">
+        <OptionsCombobox
+          label="搜索案例"
+          placeholder="搜索标题、提示词、标签"
+          value={text}
+          onValueChange={setText}
+          groups={groups}
+          selected={selectedCats}
+          onToggle={pickChip}
+          onPick={(q) => { setText(q); recent.add(q) }}
+          onSubmit={commitSearch}
+          onBlur={commitSearch}
+          className="w-full md:w-80 md:shrink-0"
+        />
+        <ChipScroller label="分类" revealKey={params.cat}>
           {chips.map((ch) => {
-            const on = params.cat === ch.id
+            const on = ch.id ? (ch.id === MY_TEMPLATES ? mine : selectedCats.includes(ch.id)) : !params.cat
             return (
               <button
                 key={ch.id || 'all'}
                 type="button"
                 aria-pressed={on}
-                onClick={() => setCat(ch.id)}
+                onClick={() => pickChip(ch.id)}
                 className={cn(
                   'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-[background-color,border-color,transform] duration-(--duration-fast) active:scale-[.98] motion-reduce:active:scale-100',
                   on ? 'border-acid bg-acid text-white' : 'border-line bg-card text-ink hover:border-muted hover:bg-subtle',
@@ -134,7 +178,7 @@ export function InspirationView() {
               </button>
             )
           })}
-        </div>
+        </ChipScroller>
       </div>
 
       {mine ? <TemplatesPanel /> : <MasonryGrid

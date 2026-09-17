@@ -18,7 +18,7 @@ e2eDescribe('inspiration', () => {
     await page.waitForURL(u => u.searchParams.get('cat') === 'ecommerce')
     await expect.poll(() => cards().count()).toBeGreaterThan(0)
 
-    await page.getByRole('searchbox', { name: '搜索案例' }).fill('香水')
+    await page.getByRole('combobox', { name: '搜索案例' }).fill('香水')
     await page.waitForURL(u => u.searchParams.get('q') === '香水')
     // Wait for the searched feed to render (the unfiltered ecommerce feed also contains this case, so check the size).
     // Going back before this render leaves the input stale — see report (race, not user-speed).
@@ -27,7 +27,7 @@ e2eDescribe('inspiration', () => {
 
     await page.goBack()
     await page.waitForURL(u => !u.searchParams.has('q') && u.searchParams.get('cat') === 'ecommerce')
-    await expect.poll(() => page.getByRole('searchbox', { name: '搜索案例' }).inputValue()).toBe('')
+    await expect.poll(() => page.getByRole('combobox', { name: '搜索案例' }).inputValue()).toBe('')
     await page.goBack()
     await page.waitForURL(u => !u.searchParams.has('cat'))
     await expect.poll(() => page.getByRole('button', { name: /^全部/ }).getAttribute('aria-pressed')).toBe('true')
@@ -88,5 +88,89 @@ e2eDescribe('inspiration', () => {
     expect(q[0]!.anchor_of).toBeNull()
     expect(q.slice(1).every(i => i.anchor_of === q[0]!.item_id)).toBe(true)
     expect(await queue.getByText('引用①').count()).toBe(3)
+  })
+  it('header 图片/视频/数字人 switch the composer kind; video/数字人 show an empty library without fetching', async () => {
+    const { page } = t
+    const nav = page.getByRole('navigation', { name: '主导航' })
+    expect(await nav.getByRole('link', { name: '图片', exact: true }).getAttribute('aria-current')).toBe('page')
+    await nav.getByRole('link', { name: '视频', exact: true }).click()
+    await page.getByText('暂无视频案例', { exact: false }).waitFor()
+    await page.waitForURL(u => u.searchParams.get('kind') === 'video')
+    expect(await nav.getByRole('link', { name: '视频', exact: true }).getAttribute('aria-current')).toBe('page')
+    expect(await page.getByRole('radio', { name: '视频' }).getAttribute('aria-checked')).toBe('true')
+    expect(await cards().count()).toBe(0)
+    // The composer's own switch drives the header and the library too.
+    await page.getByRole('radio', { name: '数字人' }).click()
+    await page.getByText('暂无数字人案例', { exact: false }).waitFor()
+    expect(await nav.getByRole('link', { name: '数字人', exact: true }).getAttribute('aria-current')).toBe('page')
+    await page.getByRole('button', { name: '看看图片案例' }).click()
+    await cards().first().waitFor()
+    expect(await nav.getByRole('link', { name: '图片', exact: true }).getAttribute('aria-current')).toBe('page')
+
+    await gotoMock(page, '/studio?kind=avatar')
+    await page.getByText('暂无数字人案例', { exact: false }).waitFor()
+    expect(await nav.getByRole('link', { name: '数字人', exact: true }).getAttribute('aria-current')).toBe('page')
+  })
+
+  it('search combobox: recent searches + multi-select categories synced with the chips (cat=a,b)', async () => {
+    const { page } = t
+    const box = page.getByRole('combobox', { name: '搜索案例' })
+    const chip = (name: RegExp) => page.getByRole('group', { name: '分类' }).getByRole('button', { name })
+    await box.fill('香水')
+    await box.press('Enter')
+    await page.waitForURL(u => u.searchParams.get('q') === '香水')
+    await box.fill('')
+    await page.waitForURL(u => !u.searchParams.has('q'))
+    await box.press('ArrowDown')
+    await page.getByRole('listbox', { name: '最近搜索' }).getByRole('option', { name: '香水' }).waitFor()
+    expect(await box.getAttribute('aria-expanded')).toBe('true')
+    expect(await page.getByRole('listbox', { name: /^分类/ }).getAttribute('aria-multiselectable')).toBe('true')
+    // Row 0 = recent 「香水」, rows 1.. = categories; select two with the keyboard.
+    await box.press('ArrowDown')
+    await box.press('Enter')
+    await expect.poll(() => new URL(page.url()).searchParams.get('cat')?.split(',').length).toBe(1)
+    await box.press('ArrowDown')
+    await box.press('Enter')
+    await expect.poll(() => new URL(page.url()).searchParams.get('cat')?.split(',').length).toBe(2)
+    const cats = new URL(page.url()).searchParams.get('cat')!.split(',')
+    const active = await page.evaluate(() => document.querySelector('[role=combobox]')!.getAttribute('aria-activedescendant'))
+    await expect.poll(() => page.locator(`[id="${active}"]`).getAttribute('aria-selected')).toBe('true')
+    await expect.poll(() => page.getByRole('group', { name: '分类' }).getByRole('button', { pressed: true }).count()).toBe(2)
+    await expect.poll(() => cards().count()).toBeGreaterThan(0)
+    await box.press('Escape')
+    expect(await box.getAttribute('aria-expanded')).toBe('false')
+    // Backspace on the empty input removes the last selected category.
+    await box.press('Backspace')
+    await page.waitForURL(u => u.searchParams.get('cat') === cats[0])
+    // Chips add to the selection; 全部 clears.
+    await chip(/^电商与产品/).click()
+    await page.waitForURL(u => (u.searchParams.get('cat') ?? '').split(',').length === (cats[0] === 'ecommerce' ? 0 : 2))
+    await chip(/^全部/).click()
+    await page.waitForURL(u => !u.searchParams.has('cat'))
+    await expect.poll(() => page.getByRole('button', { name: /^移除「/ }).count()).toBe(0)
+  })
+
+  it('category row shows chevrons only on the overflowing side and pages with them', async () => {
+    const { page } = t
+    const left = page.getByRole('button', { name: '向左滚动分类' })
+    const right = page.getByRole('button', { name: '向右滚动分类' })
+    await page.setViewportSize({ width: 1024, height: 800 })
+    try {
+      await right.waitFor()
+      expect(await left.count()).toBe(0)
+      await right.click()
+      await left.waitFor()
+      const row = page.getByRole('group', { name: '分类' })
+      const x = await row.evaluate(el => el.scrollLeft)
+      expect(x).toBeGreaterThan(0)
+      // Vertical wheel over the row scrolls it sideways while it can.
+      await row.hover()
+      await page.mouse.wheel(0, -2000)
+      await expect.poll(() => row.evaluate(el => el.scrollLeft)).toBe(0)
+      await expect.poll(() => left.count()).toBe(0)
+      await shot(page, 'inspiration-chevrons')
+    } finally {
+      await page.setViewportSize({ width: 1440, height: 900 })
+    }
   })
 })

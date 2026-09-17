@@ -41,7 +41,16 @@ export const caseAspect = (img: CaseImage) => img.width && img.height ? img.heig
 const primitiveParams = (p: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(p).filter(([, v]) => ['string', 'number', 'boolean'].includes(typeof v))) as Record<string, string | number | boolean>
 
+/** `cat` is a comma-separated list (`a,b` = either category), same as the gateway's `cat=a,b`. */
 export type CaseFilter = { cat: string; q: string }
+
+export const splitCats = (cat: string) => cat.split(',').filter(Boolean)
+/** Toggle one category in a `cat` list; '' clears. */
+export function toggleCat(cat: string, id: string): string {
+  if (!id) return ''
+  const cats = splitCats(cat)
+  return (cats.includes(id) ? cats.filter((c) => c !== id) : [...cats, id]).join(',')
+}
 
 /* ---------- URL (?cat=&q=&case=) ---------- */
 
@@ -65,7 +74,7 @@ export function patchParams(search: URLSearchParams | string, patch: Partial<Ins
 /* ---------- filter / search ---------- */
 
 export function matchesCase(c: CaseItem, { cat, q }: CaseFilter): boolean {
-  if (cat && c.category !== cat) return false
+  if (cat && !splitCats(cat).includes(c.category)) return false
   const terms = q.toLowerCase().split(/\s+/).filter(Boolean)
   if (!terms.length) return true
   const hay = `${c.title}\n${c.prompt}\n${c.tags.join(' ')}`.toLowerCase()

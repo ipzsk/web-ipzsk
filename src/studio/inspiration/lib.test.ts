@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { getCase, listCases, listCategories } from './api'
 import {
-  COMPOSER_FILL_EVENT, copyrightLabel, dispatchComposerFill, fillDetail, pageCases, patchParams, readParams, similarCases, fromManifest, type CaseItem, type ManifestCase,
+  COMPOSER_FILL_EVENT, copyrightLabel, dispatchComposerFill, fillDetail, pageCases, patchParams, readParams, similarCases, fromManifest, toggleCat, type CaseItem, type ManifestCase,
 } from './lib'
 
 const mk = (id: string, over: Partial<CaseItem> = {}): CaseItem => ({
@@ -44,6 +44,9 @@ describe('manifest adapter', () => {
     expect(pageCases(all, { cat: '', q: 'neon' }, null).items.map((c) => c.id)).toEqual(['1', '2', '3'])
     expect(pageCases(all, { cat: '', q: 'neon city' }, null).items.map((c) => c.id)).toEqual(['1', '3'])
     expect(pageCases(all, { cat: 'ui', q: '' }, null).total).toBe(0)
+    const mixed = [...all, mk('5', { category: 'ui' }), mk('6', { category: 'food' })]
+    expect(pageCases(mixed, { cat: 'ui,posters', q: '' }, null).total).toBe(5) // OR across categories
+    expect(pageCases(mixed, { cat: 'ui,food', q: 'neon' }, null).total).toBe(0) // AND with q
     const p = pageCases(all, { cat: '', q: '' }, '2', 1)
     expect(p.items.map((c) => c.id)).toEqual(['3'])
     expect(p.next_cursor).toBe('3')
@@ -52,6 +55,13 @@ describe('manifest adapter', () => {
 })
 
 describe('URL params', () => {
+  it('toggleCat adds/removes in order; empty id clears', () => {
+    expect(toggleCat('', 'ui')).toBe('ui')
+    expect(toggleCat('ui', 'posters')).toBe('ui,posters')
+    expect(toggleCat('ui,posters', 'ui')).toBe('posters')
+    expect(toggleCat('ui,posters', '')).toBe('')
+  })
+
   it('reads with defaults and patches without dropping unrelated params', () => {
     expect(readParams('')).toEqual({ cat: '', q: '', case: null })
     expect(readParams('?cat=ui&q=%20neon%20&case=12')).toEqual({ cat: 'ui', q: 'neon', case: '12' })
