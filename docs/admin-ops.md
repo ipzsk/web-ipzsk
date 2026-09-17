@@ -115,6 +115,9 @@ type LaneChannel = {
   lanes: string[]                       // 只含档位分组
   vendor: string
   balance_cny: number | null; balance_checked_at: number | null
+  // 上游余额口径不统一：USD 换算成人民币、CNY 原样；raw（各家点数/额度，未核实）时 balance_cny 为 null，
+  // 只给 balance_raw，界面显示「123.4 上游单位」，不加 ¥
+  balance_raw: number | null; balance_unit: 'USD' | 'CNY' | 'raw'
   balance_supported: boolean            // lanehub 能力表：没有余额接口的上游为 false
 }
 
@@ -126,6 +129,7 @@ type Probe = {
   channel_id: number
   state: 'ok' | 'unsupported' | 'failed'   // unsupported = 上游没有余额接口/未实现
   balance_cny: number | null
+  balance_raw: number | null; balance_unit: 'USD' | 'CNY' | 'raw'
   latency_ms: number                       // 网关计时，是余额接口的耗时
   message: string                          // 失败原文，ok 时为空串
   checked_at: number
