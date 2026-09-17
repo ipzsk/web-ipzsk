@@ -4,11 +4,12 @@
 //     all required keys present, no keys the contract doesn't declare (catches extra fields TS lets through).
 import { describe, expect, it } from 'vitest'
 import type {
-  AdminCase as GenAdminCase, AdminGenerationDetail, AdminMe, AdminUserDetail, AuditEvent, Folder, GenerationRecord, InspirationCase, MediaAsset, ModelSpec, Page, Subject,
+  AdminCase as GenAdminCase, AdminGenerationDetail, AdminMe, AdminUserDetail, AuditEvent, Folder, GenerationRecord, InspirationCase, MediaAsset, ModelSpec, Page, Subject, UserTemplateCreate,
 } from '.'
 import { MOCK_MODELS } from '@/studio/api/catalog'
 import { MOCK_MODELS as CANVAS_MODELS } from '@/studio/canvas/mock'
 import { MOCK_SUBJECTS } from '@/studio/api/subjects'
+import { buildTemplate } from '@/studio/templates/logic'
 import { advanceMockRecord, mockRecord } from '@/studio/api/records'
 import { createMockApi as createAssetsMock } from '@/studio/assets/mock'
 import { createMockApi as createAdminMock } from '@/admin/api'
@@ -67,7 +68,15 @@ describe('mocks match generated contracts', () => {
     const created = '2026-09-17T10:00:00.000Z'
     const done = advanceMockRecord({ ...mockRecord(pending, 'r1', created), _fail: false }, Date.parse(created) + 60_000) satisfies GenerationRecord
     expect(done.status).toBe('succeeded')
-    expect([...check('GenerationRecord', done, ['progress']), ...done.results.flatMap(asset)]).toEqual([])
+    expect([...check('GenerationRecord', done), ...done.results.flatMap(asset)]).toEqual([])
+  })
+
+  it('user template body (存为模板)', () => {
+    const body = buildTemplate({
+      name: 't', cover_id: null, refMode: 'slot', variables: [{ name: 'c', label: '颜色', default: '', required: true }],
+      items: [{ item_id: 'i1', kind: 'image', model: 'gpt-image-2', prompt: '{{c}}', params: { n: 1 }, anchor_of: null, mentions: [], prompt_doc: null, reference_asset_ids: ['a'] }],
+    }) satisfies UserTemplateCreate
+    expect(all([check('UserTemplateCreate', body), ...body.items.map(i => check('TemplateItem', i)), ...body.variables!.map(v => check('TemplateVariable', v))])).toEqual([])
   })
 
   it('assets + folders', async () => {

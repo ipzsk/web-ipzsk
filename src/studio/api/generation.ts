@@ -4,6 +4,8 @@ import type { GenerationParams, MediaKind } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
 import { isMock, mockDelay, mockFailRate } from './catalog'
 import type { Mention } from './queue'
+import { avatarSubmitBody, checkAvatarParams, guideAvatarError, isAvatarParams } from '../avatar/logic'
+import { mockAvatarError } from '../avatar/mock'
 
 export const GENERATION_SUBMIT_KEY = ['generation', 'submit'] as const
 
@@ -59,8 +61,17 @@ export function classify(error: unknown): SubmitOutcome {
   return { status: 'rejected', error: e }
 }
 
+const avatarOutcome = (error: unknown): SubmitOutcome => {
+  const out = classify(error)
+  return out.status === 'accepted' ? out : { ...out, error: guideAvatarError(out.error, error) }
+}
+
 export async function submitGeneration(item: PendingGeneration): Promise<SubmitOutcome> {
-  const body = {
+  // 数字人：不带 prompt / reference_asset_ids，发送前再查一次互斥（avatar/logic.ts）。
+  const avatar = isAvatarParams(item.params)
+  const invalid = avatar ? checkAvatarParams(item.params, item.prompt) : null
+  if (invalid) return { status: 'rejected', error: guideAvatarError(invalid) }
+  const body = avatar ? avatarSubmitBody(item) : {
     model: item.model, prompt: item.prompt, ...item.params,
     reference_asset_ids: item.reference_asset_ids, batch_id: item.batch_id, batch_position: item.batch_position,
     parent_record_id: item.parent_record_id,
@@ -70,6 +81,8 @@ export async function submitGeneration(item: PendingGeneration): Promise<SubmitO
     // QA hook: every mock request body, e.g. to assert 再生成 carries parent_record_id and no batch_id.
     ;((globalThis as { __ipzskMockSubmits?: unknown[] }).__ipzskMockSubmits ??= []).push({ path: item.kind === 'video' ? '/api/me/videos/generations' : '/api/me/images/generations', body })
     await mockDelay(400 + Math.random() * 800)
+    const mockAvatar = avatar ? mockAvatarError(item.params) : null
+    if (mockAvatar) return avatarOutcome(new ApiError('x', { status: 400, code: mockAvatar.code, body: { error: mockAvatar } }))
     const r = Math.random(), f = mockFailRate() // default 5% → 10% rejected (with a field, like the gateway), 5% retryable
     if (r < f * 2) return classify(new ApiError('参数取值不被当前型号支持，请修改后重试。', { status: 400, code: 'invalid_param_value', body: { error: { code: 'invalid_param_value', field: Object.keys(item.params)[0] } } }))
     if (r < f * 3) return { status: 'retryable', error: { code: 'network_error', message: '暂时无法连接服务，请检查网络后重试。' } }
@@ -80,7 +93,7 @@ export async function submitGeneration(item: PendingGeneration): Promise<SubmitO
     // Response is the upstream body passed through (UpstreamPassthrough) — no record id; don't read it.
     await request<unknown>(path, { body, headers: { 'Idempotency-Key': `q:${item.item_id}` } })
     return { status: 'accepted' }
-  } catch (error) { return classify(error) }
+  } catch (error) { return avatar ? avatarOutcome(error) : classify(error) }
 }
 
 /** Run `fn` over items with at most `limit` in flight (lanehub allows 3 active per user). */

@@ -18,7 +18,7 @@ export function ago(iso: string) {
   return new Date(iso).toLocaleDateString('zh-CN')
 }
 
-const FILL: Record<string, string> = { text: 'var(--color-subtle)', image: '#89bd1355', video: '#9a6a1233', 'gen-image': 'var(--color-acid)', 'gen-video': 'var(--color-acid)' }
+const FILL: Record<string, string> = { text: 'var(--color-subtle)', image: 'color-mix(in srgb, var(--color-acid-deep) 33%, transparent)', video: 'color-mix(in srgb, var(--color-warning) 20%, transparent)', 'gen-image': 'var(--color-acid)', 'gen-video': 'var(--color-acid)' }
 
 /** Local thumbnail: node bounding boxes. TODO: server thumb_id once §8.6 sync exists. */
 function Thumb({ boxes }: { boxes: CanvasProjectMeta['preview'] }) {
@@ -29,8 +29,8 @@ function Thumb({ boxes }: { boxes: CanvasProjectMeta['preview'] }) {
   return (
     <svg aria-hidden viewBox={`${x0 - pad} ${y0 - pad} ${x1 - x0 + pad * 2} ${y1 - y0 + pad * 2}`} preserveAspectRatio="xMidYMid meet" className="h-full w-full">
       {boxes.map((b, i) => b.kind === 'group'
-        ? <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} rx={16} fill="none" stroke="#767970" strokeDasharray="12 8" strokeWidth={3} vectorEffect="non-scaling-stroke" />
-        : <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} rx={12} fill={FILL[b.kind]} stroke="#161916" strokeOpacity={0.25} vectorEffect="non-scaling-stroke" />)}
+        ? <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} rx={16} fill="none" style={{ stroke: 'var(--color-muted)' }} strokeDasharray="12 8" strokeWidth={3} vectorEffect="non-scaling-stroke" />
+        : <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} rx={12} style={{ fill: FILL[b.kind], stroke: 'var(--color-ink)' }} strokeOpacity={0.25} vectorEffect="non-scaling-stroke" />)}
     </svg>
   )
 }
@@ -126,7 +126,7 @@ export function ProjectList() {
           <ErrorState reason="读取本地画布失败，浏览器存储可能不可用" action={{ label: '重试', onClick: () => void q.refetch() }} />
         ) : !q.data.length ? (
           <div className="rounded-panel border border-dashed border-line">
-            <EmptyState icon={LayoutDashboard} text="还没有画布" action={{ label: '新建画布', onClick: () => create.mutate() }} />
+            <EmptyState icon={LayoutDashboard} illustration="board" text="还没有画布" action={{ label: '新建画布', onClick: () => create.mutate() }} />
           </div>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">

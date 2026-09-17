@@ -1,6 +1,7 @@
 import { get, set } from 'idb-keyval'
 import { ApiError, errorMessage } from '@/shared/api'
 import type { MediaAsset } from '@/media'
+import { mockSignUrls } from '@/media/fresh'
 import type { Asset, AssetsApi, Folder } from './api'
 
 /*
@@ -87,7 +88,8 @@ export function createMockApi(opts: Opts = {}): AssetsApi {
       const all = live(s).filter((a) => (!q.kind || a.kind === q.kind) && (!q.source || a.source === q.source) && (!inFolder || inFolder.has(a.id)))
       const start = Number(cursor ?? 0)
       const end = start + pageSize
-      return { items: all.slice(start, end), next_cursor: end < all.length ? String(end) : null }
+      // Signed at read time like the gateway (X-Amz-Date/Expires), so a refetch after expiry returns new URLs (§7.2).
+      return { items: all.slice(start, end).map((a) => ({ ...a, urls: mockSignUrls(a.urls) })), next_cursor: end < all.length ? String(end) : null }
     },
     async deleteAsset(id) {
       await wait(); flaky()

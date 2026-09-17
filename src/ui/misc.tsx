@@ -130,12 +130,32 @@ export function SegmentedControl<V extends string>({ value, onValueChange, optio
 }
 
 /** §4.1 empty: 32px icon + one sentence + one primary action. */
-export function EmptyState({ icon: Icon, text, action }: { icon: LucideIcon; text: string; action?: { label: string; onClick: () => void } }) {
+/** Designer stickers (assets/stickers, 320px webp derived from the PNG originals). [width, height] reserve the box before load. */
+const STICKERS = { board: [320, 345], brain: [320, 267], brush: [320, 293], camera: [320, 214], video: [320, 214] } as const
+export type StickerName = keyof typeof STICKERS
+
+/** Decorative: alt="" and lazy; ≤160px wide; only a fade (no movement), which reduced motion shortens to ~0. */
+export function Sticker({ name }: { name: StickerName }) {
+  return <img src={`/assets/stickers/sticker-${name}-320.webp`} alt="" width={STICKERS[name][0]} height={STICKERS[name][1]} loading="lazy" decoding="async" draggable={false} className="h-auto w-32 max-w-40 select-none motion-safe:animate-fade-in md:w-40" />
+}
+
+export function EmptyState({ icon: Icon, text, action, illustration }: { icon: LucideIcon; text: string; action?: { label: string; onClick: () => void }; illustration?: StickerName }) {
   return (
     <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
-      <Icon className="size-8 text-muted" />
+      {illustration
+        ? <Sticker name={illustration} />
+        : <Icon className="size-8 text-muted" />}
       <p className="text-sm text-muted">{text}</p>
       {action && <Button variant="primary" size="sm" onClick={action.onClick}>{action.label}</Button>}
+    </div>
+  )
+}
+
+/** §4.2 long task without server progress: a moving sliver, never a percentage. Reduced motion → static faint track. */
+export function IndeterminateBar({ label, className }: { label: string; className?: string }) {
+  return (
+    <div role="progressbar" aria-label={label} className={cn('h-1.5 w-full max-w-72 overflow-hidden rounded-full bg-subtle', className)}>
+      <div className="h-full w-2/5 rounded-full bg-ink motion-safe:animate-indeterminate motion-reduce:w-full motion-reduce:opacity-25" />
     </div>
   )
 }

@@ -12,5 +12,7 @@
 @theme {
   --animate-fade-in: fade-in var(--duration-base) var(--ease-standard);
   --animate-spin-slow: spin 900ms linear infinite;
+  --animate-indeterminate: indeterminate 1.4s var(--ease-standard) infinite;
   @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes indeterminate { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 }

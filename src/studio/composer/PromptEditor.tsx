@@ -60,10 +60,10 @@ function ChipView({ node, selected }: NodeViewProps) {
   const { id, label, kind } = node.attrs as ChipAttrs
   const slots = useComposer(s => s.slots)
   const over = useEditorFlags(s => s.refsOver)
-  const { data: subjects } = useSubjects(kind === 'subject')
+  const { data: subjects, hasNextPage } = useSubjects(kind === 'subject')
   const subject = subjects?.find(s => s.id === id)
   const refAsset = kind === 'reference' ? slots.find(s => s.asset.id === id)?.asset : undefined
-  const missing = kind === 'subject' ? !!subjects && !subject : !refAsset
+  const missing = kind === 'subject' ? !!subjects && !subject && !hasNextPage : !refAsset
   const cover = kind === 'subject' ? (subject && presentCover(subject)) : refAsset
   const name = kind === 'reference' ? refLabel(slots, id) : `@${label}`
   const warn = (kind === 'subject' && over) || missing
@@ -112,7 +112,7 @@ function itemsFor(query: string, subjects: Subject[]): Item[] {
 }
 
 const MentionPanel = forwardRef<PanelHandle, SuggestionProps<unknown, Item>>(function MentionPanel({ query, command }, ref) {
-  const { data: subjects, isPending, isError, refetch } = useSubjects(true)
+  const { data: subjects, isPending, isError, refetch, hasNextPage, fetchNextPage, isFetchingNextPage } = useSubjects(true)
   const items = itemsFor(query, subjects ?? [])
   const [index, setIndex] = useState(0)
   useEffect(() => setIndex(0), [query])
@@ -140,7 +140,7 @@ const MentionPanel = forwardRef<PanelHandle, SuggestionProps<unknown, Item>>(fun
         <p className="px-2 pb-1 pt-1.5 text-xs text-muted">主体</p>
         {isPending ? <div className="grid gap-1 p-1"><Skeleton className="h-9" /><Skeleton className="h-9" /></div>
           : isError ? <p className="px-2 py-2 text-xs text-danger">主体加载失败 · <button type="button" className="underline" onMouseDown={e => { e.preventDefault(); void refetch() }}>重试</button></p>
-          : !subjectRows.length ? <p className="px-2 py-2 text-xs text-muted">{query ? `没有名为「${query}」的主体` : '还没有主体'}</p>
+          : !subjectRows.length ? <p className="px-2 py-2 text-xs text-muted">{query ? `已加载的主体里没有「${query}」` : '还没有主体'}</p>
           : subjectRows.map(it => {
             const s = (it as Extract<Item, { type: 'subject' }>).subject
             return row(it, items.indexOf(it), <>
@@ -149,6 +149,12 @@ const MentionPanel = forwardRef<PanelHandle, SuggestionProps<unknown, Item>>(fun
               <span className="text-xs text-muted">{SUBJECT_KIND_LABEL[s.kind]} · {s.assets.length}张</span>
             </>)
           })}
+        {hasNextPage && !isPending && (
+          <button type="button" disabled={isFetchingNextPage} onMouseDown={e => { e.preventDefault(); void fetchNextPage() }}
+            className="flex h-8 w-full cursor-pointer items-center justify-center gap-1 rounded-[8px] text-xs font-semibold text-muted hover:bg-subtle hover:text-ink disabled:cursor-wait">
+            {isFetchingNextPage ? '加载中…' : '加载更多主体'}
+          </button>
+        )}
         {refRows.length > 0 && <p className="px-2 pb-1 pt-2 text-xs text-muted">参考图</p>}
         {refRows.map(it => {
           const r = it as Extract<Item, { type: 'reference' }>

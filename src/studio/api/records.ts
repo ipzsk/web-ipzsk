@@ -5,7 +5,10 @@ import { request } from '@/shared/api'
 import { queryClient } from '@/shared/query'
 import type { GenerationParams, GenerationRecord as GenRecord, Page, Thread } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
+import { mockSignUrls } from '@/media/fresh'
 import { isMock, mockDelay, mockFailRate } from './catalog'
+import { isAvatarParams } from '../avatar/logic'
+import { mockAvatarCharge, mockAvatarResults } from '../avatar/mock'
 import { GENERATION_SUBMIT_KEY, type PendingGeneration, type SubmitOutcome } from './generation'
 import { onAnchorFailed, onAnchorSucceeded, sender } from '../composer/send'
 import { useComposer } from '../store'
@@ -25,12 +28,10 @@ export type ResultAsset = MediaAsset
 /**
  * Generated `GenerationRecord`, narrowed where the website knows more: `prompt_doc` is a TipTap doc, params are primitives.
  * `references` / `results` may contain MissingAsset (deleted) — create/lib.ts fromRecord drops those before rendering.
- * `progress` is website-only (mock); the gateway doesn't send it, so real running records show no percentage.
  */
 export interface GenerationRecord extends Omit<GenRecord, 'prompt_doc' | 'params'> {
   prompt_doc: JSONContent | null
   params: GenerationParams
-  progress?: number | null
 }
 
 export interface RecordQuery { thread?: string; status?: 'active'; cursor?: string | null }
@@ -84,7 +85,7 @@ function mockResults(r: MockRecord): GenRecord['results'] {
       id: `${r.id}-r${i}`, kind: r.kind, source: 'generation', status: 'ready', width: 1200, height: h(1200), duration_ms: r.kind === 'video' ? 5000 : null, thumb_state: 'done', created_at: r.updated_at,
       urls: r.kind === 'video'
         ? { orig: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4', poster: pic(960), w480: pic(480) }
-        : { w480: pic(480), w960: pic(960), orig: pic(1200) },
+        : mockSignUrls({ w480: pic(480), w960: pic(960), orig: pic(1200) }),
     }
   })
 }
@@ -94,11 +95,12 @@ function advance(r: MockRecord, now = Date.now()): GenerationRecord {
   void _deleted
   const t = now - Date.parse(r.created_at)
   const at = (ms: number) => new Date(Date.parse(r.created_at) + ms).toISOString()
-  if (t < 1000) return { ...rec, status: 'queued', progress: null }
-  if (t < _dur) return { ...rec, status: 'running', progress: Math.min(99, Math.round(((t - 1000) / (_dur - 1000)) * 100)), updated_at: at(t) }
-  if (_fail) return { ...rec, status: 'failed', failure_code: 'upstream_unavailable', charged_points: '0', progress: null, updated_at: at(_dur) }
-  const price = (r.model === 'z-image-turbo' ? 2 : 6) * Number(r.params.n ?? 1)
-  return { ...rec, status: 'succeeded', progress: null, results: mockResults(r), charged_points: t > _dur + 1500 ? String(price) : null, updated_at: at(t > _dur + 1500 ? _dur + 1500 : _dur) }
+  if (t < 1000) return { ...rec, status: 'queued' }
+  if (t < _dur) return { ...rec, status: 'running', updated_at: at(t) }
+  if (_fail) return { ...rec, status: 'failed', failure_code: 'upstream_unavailable', charged_points: '0', updated_at: at(_dur) }
+  const avatar = isAvatarParams(r.params)
+  const price = avatar ? mockAvatarCharge(r) : (r.model === 'z-image-turbo' ? 2 : 6) * Number(r.params.n ?? 1)
+  return { ...rec, status: 'succeeded', results: avatar ? mockAvatarResults(r) : mockResults(r), charged_points: t > _dur + 1500 ? String(price) : null, updated_at: at(t > _dur + 1500 ? _dur + 1500 : _dur) }
 }
 
 const PAGE = 30

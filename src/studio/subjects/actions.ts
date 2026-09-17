@@ -1,5 +1,7 @@
 // Optimistic cache writes for the ['subjects'] query (§6: snapshot → write → rollback + toast).
 import type { MediaAsset } from '@/media'
+import type { InfiniteData } from '@tanstack/react-query'
+import type { Page } from '@/shared/contracts'
 import { queryClient } from '@/shared/query'
 import { toast } from '@/ui'
 import {
@@ -8,8 +10,16 @@ import {
 import { copyName, undoable } from './logic'
 
 export const SUBJECTS_KEY = ['subjects'] as const
-const get = () => queryClient.getQueryData<Subject[]>(SUBJECTS_KEY)
-const set = (fn: (xs: Subject[]) => Subject[]) => queryClient.setQueryData<Subject[]>(SUBJECTS_KEY, xs => fn(xs ?? []))
+type Pages = InfiniteData<Page<Subject>, string | null>
+const get = () => queryClient.getQueryData<Pages>(SUBJECTS_KEY)?.pages.flatMap(p => p.items)
+/** Edit the flattened list, then cut it back into the loaded pages (same sizes; the last page absorbs the difference) so refetches keep their page count. */
+export const setSubjects = (fn: (xs: Subject[]) => Subject[]) => queryClient.setQueryData<Pages>(SUBJECTS_KEY, d => {
+  if (!d) return d
+  const next = fn(d.pages.flatMap(p => p.items))
+  let at = 0
+  return { ...d, pages: d.pages.map((p, i) => { const n = i === d.pages.length - 1 ? next.length - at : p.items.length; const items = next.slice(at, at + n); at += n; return { ...p, items } }) }
+})
+const set = setSubjects
 const replace = (id: string, s: Subject) => set(xs => xs.map(x => x.id === id ? s : x))
 const fail = (title: string, e: unknown) => toast({ title, description: subjectErrorMessage(e), tone: 'error' })
 
@@ -20,7 +30,7 @@ export async function createSubjectOptimistic(input: SubjectInput): Promise<Subj
   const assets = input.assets.map(toServerAsset)
   const cover = assets.find(a => a.id === input.cover_id) ?? assets[0] ?? null
   const now = new Date().toISOString()
-  set(xs => [{ id: tempId, name: input.name.trim(), kind: input.kind, note: input.note || null, cover_id: cover?.id ?? null, cover, assets, created_at: now, updated_at: now }, ...xs])
+  set(xs => [{ id: tempId, name: input.name.trim(), kind: input.kind, note: input.note || null, external_ref: input.external_ref ?? null, cover_id: cover?.id ?? null, cover, assets, created_at: now, updated_at: now }, ...xs])
   try {
     const s = await createSubject(input)
     replace(tempId, s)

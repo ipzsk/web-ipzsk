@@ -2,20 +2,26 @@ import { create } from 'zustand'
 import type { JSONContent } from '@tiptap/core'
 import type { GenerationParams, MediaKind } from '@/shared/contracts'
 import type { QueueEntry, RefSlot } from './api/queue'
+import { hydrateAvatarDraft } from './avatar/draft'
+import { isAvatarParams } from './avatar/logic'
 
 interface KindMemory { model?: string; params: GenerationParams }
+/** 数字人（kind video + mode avatar）有自己的型号/参数记忆，不覆盖普通视频的。 */
+export type MemoryKey = MediaKind | 'avatar'
 const MEMORY_KEY = 'ipzsk.composer.memory'
-const emptyMemory = (): Record<MediaKind, KindMemory> => ({ image: { params: {} }, video: { params: {} } })
+const emptyMemory = (): Record<MemoryKey, KindMemory> => ({ image: { params: {} }, video: { params: {} }, avatar: { params: {} } })
 const loadMemory = () => {
-  try { return { ...emptyMemory(), ...JSON.parse(localStorage.getItem(MEMORY_KEY) ?? '{}') } as Record<MediaKind, KindMemory> } catch { return emptyMemory() }
+  try { return { ...emptyMemory(), ...JSON.parse(localStorage.getItem(MEMORY_KEY) ?? '{}') } as Record<MemoryKey, KindMemory> } catch { return emptyMemory() }
 }
 
 export interface ComposerState {
   kind: MediaKind
   setKind: (kind: MediaKind) => void
+  /** 'avatar' = 数字人模式（kind 固定 video）；null = 普通图片/视频。 */
+  mode: 'avatar' | null
   /** Last model + params per kind (§2.2-3), persisted in localStorage. */
-  memory: Record<MediaKind, KindMemory>
-  remember: (kind: MediaKind, m: KindMemory) => void
+  memory: Record<MemoryKey, KindMemory>
+  remember: (kind: MemoryKey, m: KindMemory) => void
   /** Tiptap JSON. `docVersion` bumps when the doc is replaced from outside the editor (edit item, restore draft). */
   doc: JSONContent | null
   docVersion: number
@@ -29,7 +35,8 @@ export interface ComposerState {
 
 export const useComposer = create<ComposerState>(set => ({
   kind: 'image',
-  setKind: kind => set({ kind }),
+  setKind: kind => set({ kind, mode: null }),
+  mode: null,
   memory: loadMemory(),
   remember: (kind, m) => set(s => {
     const memory = { ...s.memory, [kind]: m }
@@ -47,8 +54,10 @@ export const useComposer = create<ComposerState>(set => ({
 /** Replace the whole draft from outside the editor. */
 export function loadDraft(d: { kind: MediaKind; model?: string; params: GenerationParams; doc: JSONContent | null; slots: RefSlot[]; editingId?: string | null }) {
   const s = useComposer.getState()
-  s.remember(d.kind, { model: d.model, params: d.params })
-  useComposer.setState({ kind: d.kind, doc: d.doc, docVersion: s.docVersion + 1, slots: d.slots, editingId: d.editingId ?? null })
+  const avatar = isAvatarParams(d.params)
+  if (avatar) hydrateAvatarDraft(d.model ?? '', d.params, '', d.editingId) // queue items keep the script in params
+  s.remember(avatar ? 'avatar' : d.kind, { model: d.model, params: d.params })
+  useComposer.setState({ kind: d.kind, mode: avatar ? 'avatar' : null, doc: d.doc, docVersion: s.docVersion + 1, slots: d.slots, editingId: d.editingId ?? null })
 }
 
 export const clearDraft = () => useComposer.setState(s => ({ doc: null, docVersion: s.docVersion + 1, slots: [], editingId: null }))
@@ -69,6 +78,7 @@ export function readKindOnce(search: string) {
   kindRead = true
   const kind = new URLSearchParams(search).get('kind')
   if (kind === 'image' || kind === 'video') useComposer.getState().setKind(kind)
+  if (kind === 'avatar') useComposer.setState({ kind: 'video', mode: 'avatar' })
 }
 /** Test hook only. */
 export const __resetKindRead = () => { kindRead = false }

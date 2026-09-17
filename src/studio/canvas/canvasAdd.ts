@@ -20,7 +20,7 @@ const GAP = 40
 export function buildCanvasAdd(d: CanvasAddDetail, center: { x: number; y: number }, newId: () => string = () => crypto.randomUUID()) {
   const items: { kind: NodeKind; data: CanvasNode['data'] }[] = []
   const edges: CanvasEdge[] = []
-  if (d.source === 'asset') for (const a of d.assets) items.push({ kind: a.kind, data: { asset: assetRef(a) } })
+  if (d.source === 'asset') for (const a of d.assets) if (a.kind !== 'audio') items.push({ kind: a.kind, data: { asset: assetRef({ ...a, kind: a.kind }) } })
   if (d.source === 'case') {
     items.push({ kind: 'image', data: { asset: { id: `case-${d.case_id}`, kind: 'image', width: d.image.width, height: d.image.height, urls: { orig: d.image.url } }, source: { case_id: d.case_id } } })
     if (d.prompt) items.push({ kind: 'text', data: { text: d.prompt } })
@@ -29,7 +29,7 @@ export function buildCanvasAdd(d: CanvasAddDetail, center: { x: number; y: numbe
     const kind = d.results[0]!.kind === 'video' ? 'gen-video' : 'gen-image'
     items.push({ kind: 'text', data: { text: d.prompt } })
     // Own prompt stays empty: the connected text node supplies it, so re-running doesn't duplicate the text.
-    items.push({ kind, data: { prompt: '', model: d.model, params: d.params, results: d.results.map(assetRef), primary: 0, source: { record_id: d.record_id } } })
+    items.push({ kind, data: { prompt: '', model: d.model, params: d.params, results: d.results.flatMap(a => a.kind === 'audio' ? [] : [assetRef({ ...a, kind: a.kind })]), primary: 0, source: { record_id: d.record_id } } })
   }
   const total = items.reduce((w, it) => w + DEFAULT_SIZE[it.kind].w, 0) + GAP * (items.length - 1)
   let x = center.x - total / 2

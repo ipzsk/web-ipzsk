@@ -1,11 +1,11 @@
 import { ApiError, request } from '@/shared/api'
 import type { MediaAsset } from '@/media'
-import type { MediaAsset as ServerAsset, MissingAsset, RecordAsset, Subject, SubjectKind, SubjectPatch } from '@/shared/contracts'
+import type { MediaAsset as ServerAsset, MissingAsset, Page, RecordAsset, Subject, SubjectKind, SubjectPatch } from '@/shared/contracts'
 import { isMock, mockDelay } from './catalog'
 
 export type { Subject, SubjectKind, SubjectPatch }
-export const SUBJECT_KINDS: SubjectKind[] = ['person', 'character', 'product', 'object', 'scene']
-export const SUBJECT_KIND_LABEL: Record<SubjectKind, string> = { person: '人物', character: '角色', product: '商品', object: '物体', scene: '场景' }
+export const SUBJECT_KINDS: SubjectKind[] = ['person', 'character', 'product', 'object', 'scene', 'avatar']
+export const SUBJECT_KIND_LABEL: Record<SubjectKind, string> = { person: '人物', character: '角色', product: '商品', object: '物体', scene: '场景', avatar: '数字人' }
 
 /** `assets` / `cover` may be a MissingAsset (deleted / failed upload) — render 「素材已删除」, never send its id. */
 export const isMissingAsset = (a: RecordAsset | MediaAsset | null | undefined): a is MissingAsset => !!a && 'missing' in a && a.missing === true
@@ -15,7 +15,8 @@ export const presentCover = (s: Pick<Subject, 'cover'>): ServerAsset | null => s
 export const toServerAsset = (a: MediaAsset): ServerAsset => ({ source: 'upload', thumb_state: 'done', created_at: new Date().toISOString(), ...a })
 
 /* Contract: generated Endpoints — GET/POST /api/me/subjects, PATCH/DELETE /:id, PUT /:id/assets {asset_ids, cover_id?}. */
-export interface SubjectInput { name: string; kind: SubjectKind; note: string; assets: MediaAsset[]; cover_id: string | null }
+/** kind=avatar：`external_ref`（形象库数字人）与 `assets`（PNG/JPEG 照片）二选一。 */
+export interface SubjectInput { name: string; kind: SubjectKind; note: string; assets: MediaAsset[]; cover_id: string | null; external_ref?: Subject['external_ref'] }
 
 const SUBJECT_ERRORS: Record<string, string> = {
   subject_name_taken: '名称已存在',
@@ -41,7 +42,7 @@ export const mockPic = pic
 
 const MOCK_TIME = '2026-09-01T00:00:00Z'
 const mk = (id: string, name: string, kind: SubjectKind, seeds: string[], extra: RecordAsset[] = []): Subject =>
-  ({ id, name, kind, note: null, cover_id: `mock-${seeds[0]}`, cover: pic(seeds[0]!), assets: [...seeds.map(s => pic(s)), ...extra], created_at: MOCK_TIME, updated_at: MOCK_TIME })
+  ({ id, name, kind, note: null, external_ref: null, cover_id: `mock-${seeds[0]}`, cover: pic(seeds[0]!), assets: [...seeds.map(s => pic(s)), ...extra], created_at: MOCK_TIME, updated_at: MOCK_TIME })
 
 export const MOCK_SUBJECTS: Subject[] = [
   mk('sub-orange', '橘猫阿福', 'character', ['cat1', 'cat2', 'cat3']),
@@ -68,9 +69,15 @@ const withCover = (s: Subject, coverId: string | null | undefined): Subject => {
 
 // ── adapter ───────────────────────────────────────────────────────────────
 
-export async function listSubjects(): Promise<Subject[]> {
-  if (isMock) { await mockDelay(300); return read() }
-  return (await request<{ items: Subject[] }>('/api/me/subjects')).items // ponytail: first page only; follow next_cursor past 50 subjects
+/** One page (server: cursor pagination, no name filter). Mock pages by 3 (localStorage['ipzsk.mock.subjects.pageSize']) so 「加载更多」 is exercised. */
+export async function listSubjects(cursor: string | null = null): Promise<Page<Subject>> {
+  if (isMock) {
+    await mockDelay(300)
+    const size = Number(localStorage.getItem('ipzsk.mock.subjects.pageSize') ?? 3)
+    const all = read(), start = Number(cursor ?? 0), end = start + size
+    return { items: all.slice(start, end), next_cursor: end < all.length ? String(end) : null }
+  }
+  return request<Page<Subject>>(`/api/me/subjects${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`)
 }
 
 export async function createSubject(input: SubjectInput): Promise<Subject> {
@@ -80,12 +87,14 @@ export async function createSubject(input: SubjectInput): Promise<Subject> {
     const items = read()
     if (taken(items, input.name)) throw nameTaken()
     const now = new Date().toISOString()
-    const s = withCover({ id: crypto.randomUUID(), name: input.name.trim(), kind: input.kind, note: input.note || null, cover_id: null, cover: null, assets: input.assets.map(toServerAsset), created_at: now, updated_at: now }, input.cover_id)
+    const s = withCover({ id: crypto.randomUUID(), name: input.name.trim(), kind: input.kind, note: input.note || null, external_ref: input.external_ref ?? null, cover_id: null, cover: null, assets: input.assets.map(toServerAsset), created_at: now, updated_at: now }, input.cover_id)
     write([s, ...items])
     return s
   }
   return request<Subject>('/api/me/subjects', {
-    body: { name: input.name.trim(), kind: input.kind, note: input.note || null, asset_ids: input.assets.map(a => a.id), cover_id: input.cover_id },
+    body: input.external_ref
+      ? { name: input.name.trim(), kind: input.kind, note: input.note || null, external_ref: input.external_ref }
+      : { name: input.name.trim(), kind: input.kind, note: input.note || null, asset_ids: input.assets.map(a => a.id), cover_id: input.cover_id },
   })
 }
 

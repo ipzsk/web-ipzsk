@@ -16,6 +16,7 @@ import { useCanvasAddListener } from './canvas/CanvasAddReceiver'
 import { useActiveGenerationCount } from './api/records'
 import { SubjectsPanel } from './subjects/SubjectsPanel'
 import { SubjectEditorHost } from './subjects/SubjectEditor'
+import { TemplateDialogsHost } from './templates/TemplateDialogs'
 
 const views: { id: string; to: string; label: string; icon: LucideIcon }[] = [
   { id: 'inspiration', to: '/studio', label: '灵感', icon: Sparkles },
@@ -90,6 +91,7 @@ function Layout() {
         {views.map(v => <NavItem key={v.id} {...v} variant="tab" />)}
       </nav>
       <SubjectEditorHost />
+      <TemplateDialogsHost />
       {canvasAdd}
     </div>
     </MediaDndProvider>

@@ -3,6 +3,8 @@ import { ApiError, request } from '@/shared/api'
 import type { GenerationParams, Mention, Queue, QueueConflict, QueueItem } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
 import { isMock, mockDelay } from './catalog'
+import { AVATAR_WIRE_FIELDS } from '../avatar/contract'
+import { avatarItemFromWire, avatarItemToWire } from '../avatar/logic'
 
 export const QUEUE_MAX = 12
 
@@ -43,8 +45,9 @@ const readLocal = (key: string): QueueDoc => {
 const writeLocal = (key: string, doc: QueueDoc) => { try { localStorage.setItem(key, JSON.stringify(doc)) } catch { /* quota / private mode */ } }
 
 /** Fields the gateway accepts in composer_queues.items (it rejects anything else with 400 unsupported_item_field). */
-const WIRE_FIELDS = ['item_id', 'kind', 'model', 'prompt', 'params', 'anchor_of', 'mentions', 'prompt_doc', 'reference_asset_ids'] as const
-export const toWire = (items: QueueEntry[]) => items.map(i => Object.fromEntries(WIRE_FIELDS.filter(k => i[k] !== undefined).map(k => [k, i[k]])))
+const WIRE_FIELDS = ['item_id', 'kind', 'model', 'prompt', 'params', 'anchor_of', 'mentions', 'prompt_doc', 'reference_asset_ids', ...AVATAR_WIRE_FIELDS] as const
+/** 数字人项：字段从 params 挪到顶层、prompt 置空（avatar/logic.ts）。 */
+export const toWire = (items: QueueEntry[]) => items.map(avatarItemToWire).map(i => Object.fromEntries(WIRE_FIELDS.filter(k => i[k] !== undefined).map(k => [k, i[k]])))
 
 /**
  * Client-only extras (slot thumbnails, local submit state) are cached per item_id on this device and merged back on read.
@@ -53,7 +56,7 @@ export const toWire = (items: QueueEntry[]) => items.map(i => Object.fromEntries
 const EXTRAS_KEY = 'ipzsk.queue.extras'
 type Extras = Pick<QueueEntry, 'slots' | 'changes' | 'state' | 'error'>
 export function reviveQueue(items: (Omit<QueueEntry, 'slots' | 'mentions' | 'prompt_doc'> & Partial<QueueEntry>)[], extras: Record<string, Extras> = readExtras()): QueueEntry[] {
-  return items.map(i => {
+  return items.map(avatarItemFromWire).map(i => {
     const x = extras[i.item_id]
     const stub = (id: string) => ({ asset: { id, kind: 'image' as const, status: 'ready' as const, width: null, height: null, duration_ms: null, urls: { orig: '' } }, by: [], manual: true })
     const slots = i.slots ?? x?.slots?.filter(s => s.url_only || i.reference_asset_ids.includes(s.asset.id)) ?? i.reference_asset_ids.map(stub)

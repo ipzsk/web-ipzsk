@@ -2,6 +2,8 @@ import { isMock, request } from '@/shared/api'
 import type { GenerationParams, MediaKind, ModelCatalog, ModelSpec, ParamSpec } from '@/shared/contracts'
 
 export { isMock } from '@/shared/api'
+import { isAvatarParams } from '../avatar/logic'
+import { mockAvatarModels, mockAvatarQuote } from '../avatar/mock'
 
 export const mockDelay = (ms = 250) => new Promise(r => setTimeout(r, ms))
 /** localStorage['ipzsk.mock.failRate'] (e.g. '0' for deterministic QA runs); default 0.05. Shared by all studio mocks. */
@@ -51,13 +53,13 @@ export const MOCK_MODELS = [
 ] satisfies ModelSpec[] as ModelSpec[]
 
 export async function fetchModels(): Promise<ModelSpec[]> {
-  if (isMock) { await mockDelay(); return MOCK_MODELS }
+  if (isMock) { await mockDelay(); return [...MOCK_MODELS, ...mockAvatarModels()] }
   return (await request<ModelCatalog>('/api/me/media/models')).models
 }
 
 /** Body of one quote entry = the generation body minus the prompt text (price does not depend on it; avoids re-quoting per keystroke). */
 export interface QuoteEntry { kind: MediaKind; model: string; params: GenerationParams; reference_asset_ids: string[] }
-export interface QuoteResult { points: number | null; error?: { code: string; message: string } }
+export interface QuoteResult { points: number | null; error?: { code: string; message: string }; /** 数字人：estimate + 估算秒数，终态按真实时长结算。 */ amount_kind?: string; estimated_seconds?: number }
 
 const mockPoints = ({ model, params }: QuoteEntry) => {
   const base = model === 'z-image-turbo' ? 2 : model === 'gpt-image-2.5-flare' ? 8 : model.startsWith('seedance') ? 6 : 6
@@ -66,13 +68,13 @@ const mockPoints = ({ model, params }: QuoteEntry) => {
 }
 
 export async function quote(entries: QuoteEntry[], signal?: AbortSignal): Promise<QuoteResult[]> {
-  if (isMock) { await mockDelay(200); return entries.map(e => ({ points: mockPoints(e) })) }
-  const data = await request<{ items: { points?: string | number | null; error?: QuoteResult['error'] }[] }>('/api/me/media/quote', {
+  if (isMock) { await mockDelay(200); return entries.map(e => isAvatarParams(e.params) ? mockAvatarQuote(e) : { points: mockPoints(e) }) }
+  const data = await request<{ items: { points?: string | number | null; error?: QuoteResult['error']; amount_kind?: string; estimated_seconds?: number }[] }>('/api/me/media/quote', {
     // Generation-body shape minus prompt (gateway forwards it to lanehub /v1/quote and swaps asset ids for signed URLs);
     // points come back as 8-decimal strings (display only).
     body: { items: entries.map(e => ({ model: e.model, ...e.params, reference_asset_ids: e.reference_asset_ids })) }, signal,
   })
-  return data.items.map(i => ({ points: i.points == null ? null : Number(i.points), error: i.error }))
+  return data.items.map(i => ({ points: i.points == null ? null : Number(i.points), error: i.error, amount_kind: i.amount_kind, estimated_seconds: i.estimated_seconds }))
 }
 
 export async function enhancePrompt(prompt: string): Promise<string> {

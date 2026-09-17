@@ -14,7 +14,8 @@ import { COMPOSER_FILL_EVENT, dispatchStudioEvent, type CanvasAddDetail } from '
 import { defaultParams, findModel, mockGenerate, mockUpload, modelsFor, readImageSize, resolveUrl, seedResolved } from './mock'
 
 type Snap = { nodes: CanvasNode[]; edges: CanvasEdge[] }
-export type RunState = { status: 'running' | 'uploading' | 'failed'; progress: number; error?: string }
+/** `progress` is real only for uploads; generation has no server progress (§4.2), so running carries `startedAt` instead. */
+export type RunState = { status: 'running' | 'uploading' | 'failed'; progress: number; startedAt?: number; error?: string }
 export type SyncStatus = 'saved' | 'saving' | 'offline' | 'conflict'
 
 interface CanvasState extends Snap {
@@ -390,9 +391,9 @@ export async function runNode(id: string) {
   const { references } = assembleInputs(id, s.nodes, s.edges)
   // §2.2: text-to-X vs image-to-X is decided here, at submit time, from upstream references.
   const decision = decideMode(kind, references, findModel(n.data.model))
-  setRun(id, { status: 'running', progress: 0 })
+  setRun(id, { status: 'running', progress: 0, startedAt: Date.now() })
   try {
-    const results = await mockGenerate({ kind, params: n.data.params ?? {}, onProgress: p => { if (get().runs[id]) setRun(id, { status: 'running', progress: p }) } })
+    const results = await mockGenerate({ kind, params: n.data.params ?? {}, onProgress: () => {} })
     clearRun(id)
     patchEverywhere(id, { results, primary: 0, lastMode: decision.mode })
   } catch (e) {

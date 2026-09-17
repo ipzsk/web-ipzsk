@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { useMutationState } from '@tanstack/react-query'
-import { ArrowDown, ChevronDown, MessageSquarePlus, MessagesSquare, MoreHorizontal, PencilLine, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowDown, ChevronDown, MessageSquarePlus, MoreHorizontal, PencilLine, Sparkles, Trash2 } from 'lucide-react'
 import {
   Button, Dialog, DialogContent, DialogFooter, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-  ErrorState, IconButton, Input, Skeleton, cn, focusRing, toast,
+  ErrorState, IconButton, Input, Skeleton, Sticker, cn, focusRing, toast,
 } from '@/ui'
 import { MediaLightbox, type MediaAsset } from '@/media'
 import { reducedMotion } from '@/media/types'
@@ -212,7 +212,7 @@ function Stream({ threadId, acceptsUnfiled, waitingForThreads }: { threadId: str
       )}
       {groups.length === 0 ? (
         <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-          <MessagesSquare className="size-8 text-muted" />
+          <Sticker name="brush" />
           <p className="text-sm text-muted">这个会话还没有内容。在下方输入框描述画面并发送，结果会出现在这里。</p>
           <div className="flex max-w-xl flex-wrap justify-center gap-2">
             {SUGGESTIONS.map(s => (

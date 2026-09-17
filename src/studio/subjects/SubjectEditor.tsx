@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Box, Check, Drama, ImagePlus, Mountain, Package, RotateCw, Star, Upload, User, X, type LucideIcon } from 'lucide-react'
+import { Box, Check, Drama, ImagePlus, Mountain, Package, RotateCw, ScanFace, Star, Upload, User, X, type LucideIcon } from 'lucide-react'
 import { ApiError } from '@/shared/api'
 import { Button, Dialog, DialogContent, DialogFooter, EmptyState, ErrorState, IconButton, Input, SegmentedControl, Skeleton, Textarea, cn, toast } from '@/ui'
 import { MediaImage, useUpload, type MediaAsset } from '@/media'
@@ -14,7 +14,7 @@ import { createSubjectOptimistic, setAssetsOptimistic, updateSubjectOptimistic }
 import { useMyImages } from './assetsApi'
 import { ASSETS_MAX, NAME_MAX, NOTE_MAX, addAssets, coverOf, firstError, moveAsset, validateSubject } from './logic'
 
-export const SUBJECT_KIND_ICON: Record<SubjectKind, LucideIcon> = { person: User, character: Drama, product: Package, object: Box, scene: Mountain }
+export const SUBJECT_KIND_ICON: Record<SubjectKind, LucideIcon> = { person: User, character: Drama, product: Package, object: Box, scene: Mountain, avatar: ScanFace }
 
 // ── public API ────────────────────────────────────────────────────────────
 
@@ -244,7 +244,7 @@ function Editor({ opts, close }: { opts: SubjectEditorOptions; close: () => void
 
 // ── asset picker ──────────────────────────────────────────────────────────
 
-function AssetPicker({ open, onOpenChange, room, existing, onPick }: {
+export function AssetPicker({ open, onOpenChange, room, existing, onPick }: {
   open: boolean; onOpenChange: (o: boolean) => void; room: number; existing: MediaAsset[]; onPick: (a: MediaAsset[]) => void
 }) {
   const q = useMyImages(open)

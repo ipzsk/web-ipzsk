@@ -184,7 +184,7 @@ export function diffItem(item: QueueEntry, current: QueueEntry): ItemDiff {
 }
 
 /** Queue items that can go out now: not red (4xx), cancelled, waiting for an anchor, or pointing at a deleted asset. */
-export const isSendable = (i: QueueEntry) => !i.missing && i.state !== 'failed' && i.state !== 'cancelled' && i.state !== 'waiting'
+export const isSendable = (i: QueueEntry) => !i.missing && !i.issues?.length && i.state !== 'failed' && i.state !== 'cancelled' && i.state !== 'waiting'
 
 /** §2.3 发送: empty queue → composer only; otherwise queue (+ composer if it has a prompt). Red (4xx) / missing items are skipped until edited. */
 export function planSend(queue: QueueEntry[], composer: QueueEntry | null): QueueEntry[] {

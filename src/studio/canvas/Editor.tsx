@@ -12,6 +12,8 @@ import { Button, Dialog, DialogContent, DialogFooter, EmptyState, IconButton, cn
 import { DEFAULT_SIZE, handleId, kindsForDangling, parseHandle, type CanvasEdge, type NodeKind } from './graph'
 import { ADDABLE, NodeMenu } from './NodeMenu'
 import { NodePanel } from './NodePanel'
+import { MediaRefreshProvider } from '@/media'
+import { refreshCanvasAsset } from './mock'
 import { nodeTypes } from './nodes'
 import {
   addFiles, addNodes, beginGesture, checkConnection, closeProject, connect, copy, deleteSelected, dragOver, duplicate, endGesture, group, loadProject,
@@ -443,8 +445,8 @@ function Inner() {
             ariaLabel="小地图"
             position="bottom-right"
             nodeBorderRadius={4}
-            nodeColor={n => (n.type === 'group' ? 'transparent' : n.type?.startsWith('gen') ? '#c9ff4a' : '#ebe8de')}
-            nodeStrokeColor={n => (n.type === 'group' ? '#767970' : 'transparent')}
+            nodeColor={n => (n.type === 'group' ? 'transparent' : n.type?.startsWith('gen') ? 'var(--color-acid)' : 'var(--color-subtle)')}
+            nodeStrokeColor={n => (n.type === 'group' ? 'var(--color-muted)' : 'transparent')}
             className={cn('!overflow-hidden !rounded-card border border-line shadow-sm max-md:!hidden', panelNode && 'md:!mr-[340px]')}
           />
         </ReactFlow>
@@ -520,7 +522,7 @@ export function Editor({ projectId }: { projectId: string }) {
           <EmptyState icon={CloudOff} text="找不到这个画布，可能已被删除" action={{ label: '返回画布列表', onClick: () => { location.href = '/studio/canvas' } }} />
         </div>
       ) : (
-        <ReactFlowProvider><Inner /></ReactFlowProvider>
+        <MediaRefreshProvider value={refreshCanvasAsset}><ReactFlowProvider><Inner /></ReactFlowProvider></MediaRefreshProvider>
       )}
     </div>
   )

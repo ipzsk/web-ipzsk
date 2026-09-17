@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { get, set } from 'idb-keyval'
 import type { ModelSpec } from '@/shared/contracts'
 import type { AssetRef } from './graph'
+import { findCachedUrls, refetchOwners, useFreshUrls } from '@/media'
+import { api as assetsApi } from '../assets/api'
 
 /** Local stand-ins until the model catalog / generation API / upload API are wired (§10). */
 
@@ -103,15 +105,15 @@ export async function mockUpload(file: File, onProgress: (p: number) => void): P
 
 const resolved = new Map<string, string>()
 /**
- * Resolves `local:` urls to blob urls (cached for the page lifetime); otherwise returns the cached `urls` payload.
- * TODO(§7.2): signed URLs expire. When `asset.asset_id` is set, accept an injected resolver
- * (e.g. `(ids) => GET /api/me/media/assets?ids=` from the media module) and refresh on load error / near expiry
- * instead of trusting the cached payload.
+ * Resolves `local:` urls to blob urls (cached for the page lifetime). Server assets (`asset_id`) go through the media
+ * freshness resolver (§7.2): refreshed signed urls replace the payload cached in the node near expiry / on load error.
+ * The canvas has no query owning its assets, so Editor injects `refreshCanvasAsset` via MediaRefreshProvider.
  */
 export function useAssetUrls(asset?: AssetRef): AssetRef['urls'] | undefined {
   const orig = asset?.urls.orig
   const local = orig?.startsWith('local:') ? orig.slice(6) : null
   const [url, setUrl] = useState(() => (local ? resolved.get(local) : undefined))
+  const fresh = useFreshUrls(local ? undefined : asset?.asset_id, asset?.urls ?? { orig: '' })
   useEffect(() => {
     if (!local || resolved.has(local)) { if (local) setUrl(resolved.get(local)); return }
     let live = true
@@ -124,7 +126,25 @@ export function useAssetUrls(asset?: AssetRef): AssetRef['urls'] | undefined {
     return () => { live = false }
   }, [local])
   if (!asset) return undefined
-  return local ? { orig: url ?? '' } : asset.urls
+  return local ? { orig: url ?? '' } : fresh.urls
+}
+
+/**
+ * Canvas refresher: refetch cached owners (assets lists, records …); if none holds the asset, scan the first pages of the library.
+ * ponytail: up to 3 pages (150 assets); needs `GET /api/me/assets?ids=` to be exact for older assets.
+ */
+export async function refreshCanvasAsset(id: string) {
+  await refetchOwners(id)
+  const cached = findCachedUrls(id)
+  if (cached) return cached
+  let cursor: string | null = null
+  for (let i = 0; i < 3; i++) {
+    const page: Awaited<ReturnType<typeof assetsApi.listAssets>> = await assetsApi.listAssets({}, cursor)
+    const hit = page.items.find(a => a.id === id)
+    if (hit) return hit.urls
+    if (!(cursor = page.next_cursor)) break
+  }
+  return null
 }
 
 /** Best-effort sync resolution for payloads leaving the canvas (e.g. 加入输入框). */

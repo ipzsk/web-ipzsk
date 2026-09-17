@@ -1,10 +1,11 @@
-import { memo, useState, type ComponentType, type ReactNode } from 'react'
+import { memo, useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { Handle, NodeResizer, NodeToolbar, Position, useConnection, useStore, type NodeProps } from '@xyflow/react'
 import {
   Clapperboard, Copy, Film, FolderPlus, Group, Image as ImageIcon, Lock, LockOpen, Play, RotateCw, Sparkles, Star, TextCursorInput, Trash2, Type,
   type LucideIcon,
 } from 'lucide-react'
-import { Button, IconButton, cn } from '@/ui'
+import { Button, IconButton, IndeterminateBar, cn } from '@/ui'
+import { formatWait } from '../create/lib'
 import { MediaImage, MediaVideo } from '@/media'
 import { MODE_LABEL, NODE_LABEL, PORT_LABEL, PORTS, handleId, type AssetRef, type CanvasNode, type NodeKind, type PortType } from './graph'
 import { findModel, useAssetUrls } from './mock'
@@ -107,8 +108,9 @@ function Shell({ node, kind, title, children, toolbar, className }: {
           <span className="flex-1" />
           {node.data.locked && <Lock className="size-3.5 text-muted" aria-label="已锁定" />}
         </div>
-        {(run?.status === 'running' || run?.status === 'uploading') && (
-          <div role="progressbar" aria-valuenow={Math.round(run.progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={run.status === 'running' ? '生成进度' : '上传进度'} className="h-1 shrink-0 bg-subtle">
+        {run?.status === 'running' && <IndeterminateBar label="生成中" className="h-1 max-w-none shrink-0 rounded-none" />}
+        {run?.status === 'uploading' && (
+          <div role="progressbar" aria-valuenow={Math.round(run.progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="上传进度" className="h-1 shrink-0 bg-subtle">
             <div className="h-full bg-acid-deep transition-[width] duration-(--duration-base)" style={{ width: `${Math.max(4, run.progress * 100)}%` }} />
           </div>
         )}
@@ -119,14 +121,20 @@ function Shell({ node, kind, title, children, toolbar, className }: {
   )
 }
 
+function Elapsed({ since }: { since: number }) {
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
+  return <>{formatWait(now - since)}</>
+}
+
 const useFar = () => useStore(s => s.transform[2] < 0.5)
 
 function AssetView({ asset, label, className }: { asset: AssetRef; label: string; className?: string }) {
   const urls = useAssetUrls(asset)
   const far = useFar()
   if (!urls) return null
-  if (asset.kind === 'video') return <MediaVideo src={urls.orig} poster={urls.poster} width={asset.width} height={asset.height} label={label} focusable={false} className={className} />
-  return <MediaImage urls={urls} width={asset.width} height={asset.height} sizes={far ? 'thumb' : 'detail'} alt={label} hideBadge className={className} />
+  if (asset.kind === 'video') return <MediaVideo src={urls.orig} assetId={asset.asset_id} poster={urls.poster} width={asset.width} height={asset.height} label={label} focusable={false} className={className} />
+  return <MediaImage urls={urls} assetId={asset.asset_id} width={asset.width} height={asset.height} sizes={far ? 'thumb' : 'detail'} alt={label} hideBadge className={className} />
 }
 
 export const TextNode = memo(function TextNode(p: SlimProps) {
@@ -198,7 +206,7 @@ export const GenNode = memo(function GenNode(p: SlimProps) {
         <p className={cn('line-clamp-3 px-3 pt-2 text-sm leading-6', !p.data.prompt && 'text-muted')}>{p.data.prompt || '选中节点，在面板里写提示词'}</p>
       )}
       {run?.status === 'running' && (
-        <div className="grid aspect-[4/3] place-items-center bg-subtle text-xs text-muted tabular-nums motion-safe:animate-pulse">生成中 {Math.round(run.progress * 100)}%</div>
+        <div className="grid aspect-[4/3] place-items-center bg-subtle text-xs text-muted tabular-nums"><span>生成中 · 已等待 <Elapsed since={run.startedAt ?? Date.now()} /></span></div>
       )}
       {results.length > 1 && (
         <div className="px-2 pt-2">

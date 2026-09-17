@@ -8,6 +8,7 @@ import 'yet-another-react-lightbox/styles.css'
 import 'yet-another-react-lightbox/plugins/captions.css'
 import { MediaVideo } from './MediaVideo'
 import { reducedMotion, type MediaAsset } from './types'
+import { EXPIRY_MARGIN_MS, pickUrls, urlExpiry, urlsExpiry, useFreshVersion, useRefreshAsset } from './fresh'
 
 export type LightboxItem = { asset: MediaAsset; caption?: string; filename?: string }
 
@@ -19,7 +20,8 @@ type Props = {
   onClose: () => void
 }
 
-function toSlide({ asset: a, caption, filename }: LightboxItem): Slide {
+function toSlide({ asset, caption, filename }: LightboxItem): Slide {
+  const a = { ...asset, urls: pickUrls(asset.id, asset.urls) } // refreshed signed urls when available
   const w = a.width ?? undefined
   const h = a.height ?? undefined
   const download = { url: a.urls.orig, filename: filename ?? a.id }
@@ -40,6 +42,27 @@ export function MediaLightbox({ items, index, open, onIndexChange, onClose }: Pr
   // Return focus to whatever opened us.
   const trigger = useRef<HTMLElement | null>(null)
   useEffect(() => { if (open) trigger.current = document.activeElement as HTMLElement | null }, [open])
+
+  // §7.2: refresh the shown asset's signed urls when near expiry; a failing signed image refreshes too (throttled per asset).
+  useFreshVersion()
+  const refresh = useRefreshAsset()
+  const shown = open ? items[index]?.asset : undefined
+  useEffect(() => {
+    const exp = shown && urlsExpiry(pickUrls(shown.id, shown.urls))
+    if (shown && exp != null && exp - EXPIRY_MARGIN_MS <= Date.now()) void refresh(shown.id)
+  }, [shown, refresh])
+  const idOf = (src: string | undefined) => items.find(it => src && Object.values(pickUrls(it.asset.id, it.asset.urls)).includes(src))?.asset.id
+  // YARL exposes no image onError: catch load errors of slide images (they don't bubble, so capture) while open.
+  useEffect(() => {
+    if (!open) return
+    const onErr = (e: Event) => {
+      const src = e.target instanceof HTMLImageElement ? e.target.currentSrc || e.target.src : undefined
+      const id = urlExpiry(src) != null ? idOf(src) : undefined
+      if (id) void refresh(id)
+    }
+    document.addEventListener('error', onErr, true)
+    return () => document.removeEventListener('error', onErr, true)
+  })
 
   const still = reducedMotion()
   return (
@@ -66,7 +89,7 @@ export function MediaLightbox({ items, index, open, onIndexChange, onClose }: Pr
           return (
             <div style={{ width: w * scale, height: h * scale }}>
               {offset === 0
-                ? <MediaVideo mode="controls" src={slide.sources[0]?.src} poster={slide.poster} width={w} height={h} label={label} className="h-full w-full rounded-control" />
+                ? <MediaVideo mode="controls" src={slide.sources[0]?.src} assetId={idOf(slide.sources[0]?.src)} poster={slide.poster} width={w} height={h} label={label} className="h-full w-full rounded-control" />
                 : slide.poster && <img src={slide.poster} alt={label} className="h-full w-full rounded-control object-contain" />}
             </div>
           )

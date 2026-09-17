@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { ApiError } from '@/shared/api'
 import { useCurrentUser, useWallet } from '@/shared/query'
 import { toast } from '@/ui'
@@ -9,18 +9,21 @@ import { QUEUE_MAX, conflictQueue, getQueue, localQueue, putQueue, reviveQueue, 
 import { useComposer } from '../store'
 
 export const useModels = () => useQuery({ queryKey: ['media', 'models'], queryFn: fetchModels, staleTime: 10 * 60_000 })
-export const useSubjects = (enabled: boolean) => useQuery({ queryKey: ['subjects'], queryFn: listSubjects, enabled, staleTime: 60_000 })
+/** All loaded subject pages, flattened. `hasNextPage` → the list is partial: don't treat an unseen id as deleted. */
+export const useSubjects = (enabled: boolean) => useInfiniteQuery({
+  queryKey: ['subjects'], queryFn: ({ pageParam }) => listSubjects(pageParam), initialPageParam: null as string | null,
+  getNextPageParam: last => last.next_cursor, select: d => d.pages.flatMap(p => p.items), enabled, staleTime: 60_000,
+})
 
 /** Mock mode pretends to be signed in with 1000 points (override: localStorage['ipzsk.mock.points']). */
 export function useAccount() {
   const me = useCurrentUser()
   const signedIn = isMock || !!me.data
-  const wallet = useWallet(!isMock && signedIn)
-  const mockPoints = Number(localStorage.getItem('ipzsk.mock.points') ?? 1000)
+  const wallet = useWallet(signedIn) // mock wallet reads localStorage['ipzsk.mock.points'], refreshed after a (mock) redeem
   return {
     pending: !isMock && me.isPending,
     signedIn,
-    points: isMock ? mockPoints : wallet.data ? Number(wallet.data.available_points) : null,
+    points: wallet.data ? Number(wallet.data.available_points) : null,
   }
 }
 

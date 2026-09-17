@@ -14,7 +14,7 @@ function RefChip({ asset, index, dimmed }: { asset: AssetRef; index: number; dim
   const urls = useAssetUrls(asset)
   return (
     <li className={cn('w-14 shrink-0', dimmed && 'opacity-45')} title={dimmed ? '当前型号不使用参考图' : `图${index + 1}`}>
-      <MediaImage urls={urls ?? { orig: '' }} width={1} height={1} alt={`参考图 ${index + 1}`} className="rounded-[8px]" hideBadge />
+      <MediaImage urls={urls ?? { orig: '' }} assetId={asset.asset_id} width={1} height={1} alt={`参考图 ${index + 1}`} className="rounded-[8px]" hideBadge />
       <span className="mt-0.5 block text-center text-[11px] text-muted">图{index + 1}</span>
     </li>
   )

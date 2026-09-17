@@ -5,6 +5,7 @@ import {
 } from 'media-chrome/react'
 import { cn } from './cn'
 import { reducedMotion, type MediaAsset } from './types'
+import { useFreshUrls } from './fresh'
 
 // Page-wide: only one video plays at a time.
 let current: HTMLVideoElement | null = null
@@ -16,6 +17,8 @@ export function claimPlayback(v: HTMLVideoElement) {
 type Props = {
   asset?: MediaAsset
   src?: string
+  /** With `src` (no asset): the asset id, so an expired signed URL can be refreshed (§7.2). */
+  assetId?: string
   poster?: string
   width?: number | null
   height?: number | null
@@ -28,9 +31,10 @@ type Props = {
 
 const fmt = (ms: number) => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
 
-export function MediaVideo({ asset, src, poster, width, height, mode = 'hoverPlay', label, className, focusable = true }: Props) {
-  const url = asset?.urls.orig ?? src ?? ''
-  const cover = asset?.urls.poster ?? poster
+export function MediaVideo({ asset, src, assetId, poster, width, height, mode = 'hoverPlay', label, className, focusable = true }: Props) {
+  const fresh = useFreshUrls(asset?.id ?? assetId, asset ? asset.urls : { orig: src ?? '', ...(poster && { poster }) })
+  const url = fresh.urls.orig
+  const cover = fresh.urls.poster
   const w = asset?.width ?? width ?? null
   const h = asset?.height ?? height ?? null
   const ref = useRef<HTMLVideoElement>(null)
@@ -41,7 +45,7 @@ export function MediaVideo({ asset, src, poster, width, height, mode = 'hoverPla
     return (
       <MediaController className={cn('block overflow-hidden bg-ink', className)} style={box}>
         <video
-          slot="media" ref={ref} src={url} poster={cover} preload="metadata" playsInline aria-label={label}
+          slot="media" ref={ref} src={url} poster={cover} preload="metadata" playsInline aria-label={label} onError={() => fresh.onError(url)}
           onPlay={(e) => claimPlayback(e.currentTarget)}
           className="h-full w-full object-contain"
         />
@@ -74,7 +78,7 @@ export function MediaVideo({ asset, src, poster, width, height, mode = 'hoverPla
       onKeyDown={onKey}
     >
       <video
-        ref={ref} src={url} poster={cover} preload="none" muted playsInline loop
+        ref={ref} src={url} poster={cover} preload="none" muted playsInline loop onError={() => fresh.onError(url)}
         onPlay={(e) => { claimPlayback(e.currentTarget); setPlaying(true) }}
         onPause={() => setPlaying(false)}
         className="absolute inset-0 h-full w-full object-cover"

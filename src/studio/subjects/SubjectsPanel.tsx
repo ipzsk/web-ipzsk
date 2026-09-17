@@ -5,6 +5,7 @@ import { MediaImage, MissingMedia } from '@/media'
 import { SUBJECT_KINDS, SUBJECT_KIND_LABEL, isMissingAsset, type Subject, type SubjectKind } from '../api/subjects'
 import { useSubjects } from '../composer/hooks'
 import { insertSubjectMention } from '../composer/PromptEditor'
+import { selectAvatarSubject } from '../avatar/AvatarResult'
 import { deleteSubjectWithUndo, duplicateSubject } from './actions'
 import { SUBJECT_KIND_ICON, openSubjectEditor } from './SubjectEditor'
 
@@ -18,6 +19,7 @@ function SubjectCard({ subject }: { subject: Subject }) {
     <li className={cn('group relative overflow-hidden rounded-card border border-line bg-card transition-[transform,box-shadow] duration-(--duration-fast) hover:-translate-y-px hover:shadow-lg', temp && 'opacity-70')}>
       <button type="button" disabled={temp} onClick={() => openSubjectEditor({ subject })} aria-label={`编辑主体 ${subject.name}`} className={cn('block w-full cursor-pointer text-left', focusRing)}>
         <div className="relative aspect-square bg-subtle">
+          {!subject.cover && subject.external_ref?.preview_image_url && <MediaImage urls={{ orig: subject.external_ref.preview_image_url }} alt="" hideBadge className="size-full" />}
           {subject.cover && (isMissingAsset(subject.cover) ? <MissingMedia className="size-full" /> : <MediaImage asset={subject.cover} alt="" hideBadge className="size-full" />)}
           {/* hover: first 4 references */}
           <div className="absolute inset-0 grid grid-cols-2 gap-px bg-line opacity-0 transition-opacity duration-(--duration-fast) group-hover:opacity-100 max-md:hidden" aria-hidden>
@@ -31,7 +33,7 @@ function SubjectCard({ subject }: { subject: Subject }) {
         </div>
       </button>
       <div className="flex items-center gap-0.5 border-t border-line px-1.5 py-1">
-        <Button size="sm" variant="ghost" icon={<AtSign className="size-4" />} disabled={temp} disabledReason={reason} onClick={() => insertSubjectMention(subject)} aria-label={`@ ${subject.name} 到输入框`}>到输入框</Button>
+        <Button size="sm" variant="ghost" icon={<AtSign className="size-4" />} disabled={temp} disabledReason={reason} onClick={() => subject.kind === 'avatar' ? void selectAvatarSubject(subject) : insertSubjectMention(subject)} aria-label={`@ ${subject.name} 到输入框`}>到输入框</Button>
         <div className="flex-1" />
         <IconButton size="icon-sm" label="编辑" disabled={temp} disabledReason={reason} onClick={() => openSubjectEditor({ subject })}><Pencil className="size-3.5" /></IconButton>
         <IconButton size="icon-sm" label="复制" disabled={temp} disabledReason={reason} onClick={() => void duplicateSubject(subject)}><Copy className="size-3.5" /></IconButton>
@@ -51,7 +53,7 @@ export function SubjectsPanel() {
     const term = search.trim().toLowerCase()
     return (q.data ?? [])
       .filter(s => (!kind || s.kind === kind) && (!term || s.name.toLowerCase().includes(term)))
-      .sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]) // §2.9: kind affects ordering; stable within a kind
+      .sort((a, b) => (KIND_ORDER[a.kind] ?? 99) - (KIND_ORDER[b.kind] ?? 99)) // §2.9: kind affects ordering; stable within a kind
   }, [q.data, kind, search])
 
   const chip = (value: SubjectKind | null, label: string, n: number) => (
@@ -85,13 +87,19 @@ export function SubjectsPanel() {
         ) : q.isError ? (
           <ErrorState reason="主体加载失败，请检查网络后重试" action={{ label: '重试', onClick: () => void q.refetch() }} />
         ) : !q.data.length ? (
-          <EmptyState icon={Users} text="还没有主体" action={{ label: '创建主体', onClick: () => openSubjectEditor() }} />
+          <EmptyState icon={Users} illustration="camera" text="还没有主体" action={{ label: '创建主体', onClick: () => openSubjectEditor() }} />
         ) : !shown.length ? (
           <EmptyState icon={Search} text={search ? `没有名称包含「${search}」的主体` : `还没有${SUBJECT_KIND_LABEL[kind!]}类主体`} action={{ label: '清除筛选', onClick: () => { setKind(null); setSearch('') } }} />
         ) : (
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 max-sm:grid-cols-2 max-sm:gap-3">
             {shown.map(s => <SubjectCard key={s.id} subject={s} />)}
           </ul>
+        )}
+        {q.hasNextPage && !q.isPending && (
+          <div className="mt-5 flex flex-col items-center gap-1">
+            {(search || kind) && <p className="text-xs text-muted">筛选只覆盖已加载的主体</p>}
+            <Button variant="secondary" size="sm" loading={q.isFetchingNextPage} loadingText="加载中" onClick={() => void q.fetchNextPage()}>加载更多</Button>
+          </div>
         )}
       </div>
     </section>

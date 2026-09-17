@@ -3,6 +3,7 @@ import type { JSONContent } from '@tiptap/core'
 import type { GenerationParams, MediaKind, MissingAsset, RecordAsset } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
 import type { Mention } from '../api/queue'
+import { AVATAR_ERRORS } from '../avatar/contract'
 import type { GenerationRecord, GenerationStatus } from '../api/records'
 import type { PendingGeneration, SubmitOutcome } from '../api/generation'
 
@@ -26,7 +27,6 @@ export interface ItemView {
   anchor: boolean
   /** submitting = request in flight; submit_failed = never accepted (retry via composer retryItem). */
   status: GenerationStatus | 'submitting' | 'submit_failed'
-  progress: number | null
   failure: string | null
   charged_points: string | null
   results: MediaAsset[]
@@ -36,6 +36,7 @@ export interface ItemView {
 export interface PendingState { status: 'idle' | 'pending' | 'success' | 'error'; item: PendingGeneration; result?: SubmitOutcome; error?: { outcome?: SubmitOutcome } | null; submittedAt: number }
 
 export const FAILURE_MESSAGES: Record<string, string> = {
+  ...Object.fromEntries(Object.entries(AVATAR_ERRORS).map(([k, v]) => [k, v.message])), // 数字人（avatar/contract.ts）
   // Gateway error codes (endpoints.json) that can end a media task / submit. Unknown codes fall back to 「生成失败（code）」.
   insufficient_balance: '点数不足',
   too_many_active: '同时进行的任务太多，请稍后再试',
@@ -68,7 +69,7 @@ export function fromRecord(r: GenerationRecord): ItemView {
   return {
     key: r.id, record_id: r.id, item_id: itemIdOf(r), kind: r.kind, model: r.model, prompt: r.prompt, prompt_doc: r.prompt_doc ?? null,
     mentions: r.mentions ?? [], params: r.params, references: present(r.references), batch_id: r.batch_id, batch_position: r.batch_position ?? 1,
-    thread_id: r.thread_id, anchor_record_id: r.anchor_record_id, anchor: false, status: r.status, progress: r.progress ?? null,
+    thread_id: r.thread_id, anchor_record_id: r.anchor_record_id, anchor: false, status: r.status,
     failure: r.status === 'failed' || r.status === 'cancelled' ? failureText(r.failure_code) : null,
     charged_points: r.charged_points, results: present(r.results), created_at: r.created_at,
   }
@@ -91,7 +92,7 @@ export function mergeItems(records: GenerationRecord[], pendings: PendingState[]
     items.push({
       key: `p:${v.item_id}`, record_id: null, item_id: v.item_id, kind: v.kind, model: v.model, prompt: v.prompt, prompt_doc: v.prompt_doc,
       mentions: v.mentions, params: v.params, references: v.references, batch_id: v.batch_id, batch_position: v.batch_position ?? 0, thread_id: v.thread_id,
-      anchor_record_id: v.anchor_record_id, anchor: false, status: p.status === 'success' ? 'queued' : p.status === 'error' ? 'submit_failed' : 'submitting', progress: null,
+      anchor_record_id: v.anchor_record_id, anchor: false, status: p.status === 'success' ? 'queued' : p.status === 'error' ? 'submit_failed' : 'submitting',
       failure: p.status === 'error' ? (out && out.status !== 'accepted' ? out.error.message : '提交失败') : null,
       charged_points: null, results: [], created_at: new Date(p.submittedAt).toISOString(),
     })

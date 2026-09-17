@@ -11,6 +11,9 @@ import { QUEUE_MAX, type QueueEntry } from '../api/queue'
 import { loadDraft, useComposer } from '../store'
 import { diffItem, formatParam } from './logic'
 import { retryItem } from './send'
+import { avatarItemSummary } from '../avatar/AvatarResult'
+import { avatarDisplayParams, isAvatarParams } from '../avatar/logic'
+import { openSaveTemplate } from '../templates/actions'
 
 const circled = (i: number) => String.fromCharCode(0x2460 + i)
 const Num = ({ i }: { i: number }) => <span aria-label={`第 ${i + 1} 项`} className="mt-px grid size-[18px] shrink-0 place-items-center rounded-full border border-ink text-[11px] font-bold leading-none tabular-nums">{i + 1}</span>
@@ -47,8 +50,8 @@ function Row({ item, index, current, models, points, submitting, editing, onRemo
       <Num i={index} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-          <B on={d.model}>{models.get(item.model)?.name ?? item.model}</B>
-          {Object.entries(item.params).map(([k, v]) => {
+          <B on={d.model}>{isAvatarParams(item.params) ? avatarItemSummary(item) : models.get(item.model)?.name ?? item.model}</B>
+          {Object.entries(isAvatarParams(item.params) ? avatarDisplayParams(item.params) : item.params).map(([k, v]) => {
             const c = changed.get(k)
             return c
               ? <span key={k} title="该型号不支持原取值，已改为默认值" className="rounded-[4px] bg-acid px-1 font-bold text-ink">{formatParam(k, c.from)}→{formatParam(k, c.to)}</span>
@@ -61,7 +64,8 @@ function Row({ item, index, current, models, points, submitting, editing, onRemo
           {points != null && <span className="ml-auto pl-2 text-xs text-muted tabular-nums">约 {points} 点</span>}
         </div>
         {d.prompt && <p className="mt-0.5 line-clamp-2 text-muted" title={item.prompt}>{item.prompt || '（无提示词）'}</p>}
-        {item.missing && !submitting ? <p role="alert" className="mt-0.5 flex items-center gap-1 text-xs text-danger"><AlertCircle className="size-3" />素材已删除 · 编辑移除失效的参考图后再发送</p>
+        {item.issues?.length && !submitting ? <p role="alert" className="mt-0.5 flex items-center gap-1 text-xs text-danger"><AlertCircle className="size-3" />{item.issues[0]!.message} · 编辑补全后再发送</p>
+          : item.missing && !submitting ? <p role="alert" className="mt-0.5 flex items-center gap-1 text-xs text-danger"><AlertCircle className="size-3" />素材已删除 · 编辑移除失效的参考图后再发送</p>
           : submitting ? <p className="mt-0.5 flex items-center gap-1 text-xs text-muted"><LoaderCircle className="size-3 motion-safe:animate-spin" />提交中</p>
           : item.state === 'failed' ? <p role="alert" className="mt-0.5 flex items-center gap-1 text-xs text-danger"><AlertCircle className="size-3" />{(item.error?.message ?? '提交失败').replace(/。$/, '')}{item.error?.field && !(item.error.field in item.params) ? `（${item.error.field}）` : ''} · 编辑后重新发送</p>
           : item.state === 'retryable' ? <p className="mt-0.5 flex items-center gap-1 text-xs text-warning"><AlertCircle className="size-3" />{item.error?.message ?? '网络异常'} · <button type="button" className="inline-flex items-center gap-0.5 font-semibold underline-offset-2 hover:underline" onClick={() => void retryItem(item.item_id)}><RotateCw className="size-3" />重试</button></p>
@@ -88,7 +92,6 @@ export function QueueBar({ current, models, pointsById, total, onSendAll, sendRe
   const editingId = useComposer(s => s.editingId)
   const submitting = useSubmittingIds()
   const [collapsed, setCollapsed] = useState(false)
-  const [templateOpen, setTemplateOpen] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
   if (!queue.length) return null
@@ -107,7 +110,7 @@ export function QueueBar({ current, models, pointsById, total, onSendAll, sendRe
           待发送队列 · {queue.length} 项{total != null && <span className="font-normal text-muted"> · 约 {total} 点</span>}
         </button>
         <div className="flex-1" />
-        <Button size="sm" variant="ghost" icon={<BookmarkPlus className="size-4" />} onClick={() => setTemplateOpen(true)} className="max-md:hidden">存为模板</Button>
+        <Button size="sm" variant="ghost" icon={<BookmarkPlus className="size-4" />} onClick={() => openSaveTemplate({ origin: 'queue', covers: [], sources: queue.map(i => ({ ...i, anchor_of: i.anchor_of ?? null })) })} className="max-md:hidden">存为模板</Button>
         <Button size="sm" variant="danger-ghost" icon={<Trash2 className="size-4" />} onClick={() => setConfirmClear(true)}>清空</Button>
         <Button size="sm" variant="primary" icon={<ArrowUp className="size-4" />} loading={sending} disabled={!!sendReason} disabledReason={sendReason ?? undefined} onClick={onSendAll}>全部发送</Button>
       </header>
@@ -127,11 +130,6 @@ export function QueueBar({ current, models, pointsById, total, onSendAll, sendRe
           </SortableContext>
         </DndContext>
       )}
-      <Dialog open={templateOpen} onOpenChange={setTemplateOpen}>
-        <DialogContent title="存为模板" description={`把这 ${queue.length} 项存成可复用的模板。模板库将在 F6 提供，暂时还不能保存。`}>
-          <DialogFooter><Button variant="primary" onClick={() => setTemplateOpen(false)}>知道了</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
       <Dialog open={confirmClear} onOpenChange={setConfirmClear}>
         <DialogContent title="清空队列？" description={`将移除全部 ${queue.length} 项，输入框内容不受影响。`}>
           <DialogFooter>

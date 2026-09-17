@@ -1,13 +1,30 @@
 import { useEffect, useState } from 'react'
 import {
-  AtSign, Copy, Download, FolderPlus, ImagePlus, LayoutDashboard, LoaderCircle, Maximize2, MoreHorizontal, PencilLine, RefreshCw, Star, Trash2, TriangleAlert, UserPlus, type LucideIcon,
+  AtSign, BookmarkPlus, Copy, Download, FolderPlus, ImagePlus, LayoutDashboard, LoaderCircle, Maximize2, MoreHorizontal, PencilLine, RefreshCw, Star, Trash2, TriangleAlert, UserPlus, type LucideIcon,
 } from 'lucide-react'
-import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, SegmentedControl, cn, focusRing, toast } from '@/ui'
+import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, IndeterminateBar, SegmentedControl, cn, focusRing, toast } from '@/ui'
 import { MediaImage, MediaVideo, useMediaDraggable, type MediaAsset } from '@/media'
 import {
   addToCanvas, copyText, deleteBatch, deleteItem, fillFromItem, referenceFrom, regenerate, useStars,
 } from './actions'
 import { useModels } from '../composer/hooks'
+import { AvatarResultMeta, avatarItemSummary, avatarTileLabel } from '../avatar/AvatarResult'
+import { avatarDisplayParams, isAvatarParams } from '../avatar/logic'
+import { openSaveTemplate } from '../templates/actions'
+
+/** 批次「存为模板」: fresh item ids, in-batch anchors re-pointed by record id; covers = the batch's results. */
+function saveBatchAsTemplate(items: ItemView[]) {
+  const ids = new Map(items.map(i => [i.key, crypto.randomUUID()]))
+  const byRecord = new Map(items.filter(i => i.record_id).map(i => [i.record_id!, ids.get(i.key)!]))
+  openSaveTemplate({
+    origin: 'batch',
+    covers: items.flatMap(i => i.results.filter(a => a.kind === 'image')),
+    sources: items.map(i => ({
+      item_id: ids.get(i.key)!, kind: i.kind, model: i.model, prompt: i.prompt, params: i.params, mentions: i.mentions, prompt_doc: i.prompt_doc,
+      anchor_of: i.anchor_record_id ? byRecord.get(i.anchor_record_id) ?? null : null, reference_asset_ids: i.references.map(r => r.id),
+    })),
+  })
+}
 import { chargeLabel, circled, differingParams, formatWait, paramText, sharedPrompt, type Group, type ItemView } from './lib'
 
 /** Catalog display name, falling back to the id. */
@@ -45,8 +62,8 @@ function ParamLine({ item, diff, label }: { item: ItemView; diff: Set<string>; l
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
       {label && <span className="font-semibold text-ink">{label}</span>}
-      <span className={hl('model')}>{modelName(item.model)}</span>
-      {Object.entries(item.params).map(([k, v]) => <span key={k} className={hl(k)}>· {paramText(v)}</span>)}
+      <span className={hl('model')}>{isAvatarParams(item.params) ? avatarItemSummary(item) : modelName(item.model)}</span>
+      {Object.entries(isAvatarParams(item.params) ? avatarDisplayParams(item.params) : item.params).map(([k, v]) => <span key={k} className={hl(k)}>· {paramText(v)}</span>)}
       {item.anchor_record_id && <Badge tone="outline" className="h-5 px-1.5 text-[11px]">引用锚图</Badge>}
     </div>
   )
@@ -96,24 +113,24 @@ export function RequestBubble({ group, onEditBatch }: { group: Group; onEditBatc
   )
 }
 
+/** §4.2 staged copy + elapsed + indeterminate bar. The gateway sends no progress, so never a percentage. */
+function Stage({ text, waited }: { text: string; waited: string }) {
+  return (
+    <div className="grid gap-1.5">
+      <p className="flex items-center gap-1.5 text-sm"><LoaderCircle className="size-4 motion-safe:animate-spin-slow" />{text}<span className="text-xs text-muted tabular-nums">· {waited}</span></p>
+      <IndeterminateBar label={text} />
+    </div>
+  )
+}
+
 function Status({ item, now }: { item: ItemView; now: number }) {
   const waited = `已等待 ${formatWait(now - Date.parse(item.created_at))}`
   switch (item.status) {
     case 'submitting':
       return <p className="flex items-center gap-1.5 text-sm text-muted"><LoaderCircle className="size-4 motion-safe:animate-spin-slow" />提交中</p>
     case 'queued':
-      return <p className="flex items-center gap-1.5 text-sm text-muted"><LoaderCircle className="size-4 motion-safe:animate-spin-slow" />排队中 · <span className="tabular-nums">{waited}</span></p>
     case 'running':
-      return (
-        <div className="grid gap-1.5">
-          <p className="flex items-center gap-1.5 text-sm"><LoaderCircle className="size-4 motion-safe:animate-spin-slow" />生成中{item.progress != null && <span className="tabular-nums">{item.progress}%</span>}<span className="text-xs text-muted tabular-nums">· {waited}</span></p>
-          {item.progress != null && (
-            <div role="progressbar" aria-valuenow={item.progress} aria-valuemin={0} aria-valuemax={100} className="h-1.5 w-full max-w-72 overflow-hidden rounded-full bg-subtle">
-              <div className="h-full rounded-full bg-ink transition-[width] duration-(--duration-base)" style={{ width: `${item.progress}%` }} />
-            </div>
-          )}
-        </div>
-      )
+      return <Stage text={item.status === 'queued' ? '排队中' : '生成中'} waited={waited} />
     case 'failed':
     case 'submit_failed':
       return (
@@ -153,6 +170,7 @@ function ResultTile({ asset, item, index, onPreview }: { asset: MediaAsset; item
           ? <MediaVideo asset={asset} label={`${item.model} 结果`} className="h-full w-full" focusable={false} />
           : <MediaImage asset={asset} alt={`${item.model} 结果 ${index + 1}`} className="h-full w-full" />}
       </button>
+      {avatarTileLabel(item.params, index) && <Badge tone="ink" className="absolute left-2 top-2 h-5 px-1.5 text-[11px]">带字幕版</Badge>}
       {item.anchor && index === 0 && <Badge tone="ink" className="absolute left-2 top-2 h-5 px-1.5 text-[11px]">锚</Badge>}
       <IconButton label={starred ? '取消最佳' : '选为最佳'} size="icon-sm" aria-pressed={starred}
         className={cn('absolute right-1.5 top-1.5 bg-card/90', !starred && 'md:opacity-0 md:group-hover/tile:opacity-100 md:focus-visible:opacity-100')} onClick={() => toggle(asset.id)}>
@@ -188,9 +206,10 @@ function ItemCell({ item, label, now, onPreview, canDelete }: { item: ItemView; 
         </div>
       )}
       <Status item={item} now={now} />
-      {item.status === 'succeeded' && !results.length && (
-        <p className="text-sm text-muted">{item.kind === 'video' ? '视频已生成，结果暂不可预览' : '结果归档中…'}</p>
-      )}
+      <AvatarResultMeta item={item} />
+      {item.status === 'succeeded' && !results.length && (item.kind === 'video'
+        ? <p className="text-sm text-muted">视频已生成，结果暂不可预览</p>
+        : <Stage text="处理结果" waited={`已等待 ${formatWait(now - Date.parse(item.created_at))}`} />)}
       {results.length > 0 && (
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [--tile-h:180px] max-md:[--tile-h:132px]">
           {results.map((a, i) => <ResultTile key={a.id} asset={a} item={item} index={i} onPreview={() => onPreview(results, i)} />)}
@@ -205,7 +224,7 @@ export function ResultBubble({ group, onPreview }: { group: Group; onPreview: (a
   const { items } = group
   const batch = items.length > 1
   const [layout, setLayout] = useState<'position' | 'model'>('position')
-  const now = useNow(items.some(i => i.status === 'queued' || i.status === 'running'))
+  const now = useNow(items.some(i => i.status === 'queued' || i.status === 'running' || (i.status === 'succeeded' && !i.results.length && i.kind === 'image')))
   const charge = chargeLabel(items)
   const done = items.filter(i => i.status === 'succeeded').length
   const models = [...new Set(items.map(i => i.model))]
@@ -220,6 +239,7 @@ export function ResultBubble({ group, onPreview }: { group: Group; onPreview: (a
           {batch && models.length > 1 && (
             <SegmentedControl label="结果排列" value={layout} onValueChange={setLayout} className="h-8" options={[{ value: 'position', label: '按序号' }, { value: 'model', label: '按型号分列' }]} />
           )}
+          {batch && <IconButton label="存为模板" size="icon-sm" onClick={() => saveBatchAsTemplate(items)}><BookmarkPlus className="size-4" /></IconButton>}
           {deletable && (group.batch_id && batch
             ? <IconButton label="删除整批" size="icon-sm" onClick={() => deleteBatch(group.batch_id!)}><Trash2 className="size-4" /></IconButton>
             : !batch && <IconButton label="删除" size="icon-sm" onClick={() => deleteItem(items[0]!)}><Trash2 className="size-4" /></IconButton>)}

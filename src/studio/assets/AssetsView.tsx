@@ -1,4 +1,5 @@
 import { SubjectsPanel } from '../subjects/SubjectsPanel'
+import { TemplatesPanel } from '../templates/TemplatesPanel'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as RKeyboardEvent, type ReactNode } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -28,7 +29,7 @@ import {
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'all', label: '全部' }, { id: 'upload', label: '我的上传' }, { id: 'generation', label: '生成结果' },
-  { id: 'cases', label: '收藏的案例' }, { id: 'subjects', label: '主体' },
+  { id: 'cases', label: '收藏的案例' }, { id: 'subjects', label: '主体' }, { id: 'templates', label: '我的模板' },
 ]
 const SOURCE_LABEL: Record<Asset['source'], string> = { upload: '上传', generation: '生成', poster: '封面', case: '案例' }
 const VIEW_KEY = 'ipzsk:studio:assets-view'
@@ -278,12 +279,12 @@ function AssetsPage() {
   const retry = () => void (tab === 'cases' ? cases.refetch() : assets.isFetchNextPageError ? fetchNextPage() : assets.refetch())
 
   const empty = folderId
-    ? <EmptyState icon={FolderOpen} text="文件夹是空的：把素材拖到左侧文件夹，或在这里上传" action={online ? { label: '上传素材', onClick: pickFiles } : undefined} />
+    ? <EmptyState icon={FolderOpen} illustration="board" text="文件夹是空的：把素材拖到左侧文件夹，或在这里上传" action={online ? { label: '上传素材', onClick: pickFiles } : undefined} />
     : tab === 'generation'
-      ? <EmptyState icon={Sparkles} text={kind === 'video' ? '还没有生成过视频' : '还没有生成结果'} action={{ label: '去创作', onClick: () => navigate('/studio/create') }} />
+      ? <EmptyState icon={Sparkles} illustration="brush" text={kind === 'video' ? '还没有生成过视频' : '还没有生成结果'} action={{ label: '去创作', onClick: () => navigate('/studio/create') }} />
       : tab === 'cases'
-        ? <EmptyState icon={Heart} text="还没有收藏的案例" action={{ label: '去灵感看看', onClick: () => navigate('/studio') }} />
-        : <EmptyState icon={Upload} text={online ? (kind === 'video' ? '还没有视频素材' : '还没有素材，拖入或粘贴图片也可以上传') : OFFLINE} action={online ? { label: '上传第一张图', onClick: pickFiles } : undefined} />
+        ? <EmptyState icon={Heart} illustration="brain" text="还没有收藏的案例" action={{ label: '去灵感看看', onClick: () => navigate('/studio') }} />
+        : <EmptyState icon={Upload} illustration="camera" text={online ? (kind === 'video' ? '还没有视频素材' : '还没有素材，拖入或粘贴图片也可以上传') : OFFLINE} action={online ? { label: '上传第一张图', onClick: pickFiles } : undefined} />
 
   const renderCell = (cell: Cell, index: number) => {
     if (cell.type === 'upload') return <UploadCell item={cell.item} upload={upload} onRepick={pickFiles} />
@@ -371,6 +372,8 @@ function AssetsPage() {
 
         {tab === 'subjects' ? (
           <SubjectsPanel />
+        ) : tab === 'templates' ? (
+          <TemplatesPanel />
         ) : mode === 'dense' && tab !== 'cases' ? (
           <DenseGrid cells={cells} render={renderCell} loading={!!loading} error={error} onRetry={retry} onEndReached={onEndReached} empty={empty} />
         ) : (

@@ -3,7 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteD
 import { toast } from '@/ui'
 import { api, type Asset, type AssetQuery, type AssetsApi, type Folder, type Page } from './api'
 
-export type Tab = 'all' | 'upload' | 'generation' | 'cases' | 'subjects'
+export type Tab = 'all' | 'upload' | 'generation' | 'cases' | 'subjects' | 'templates'
 export type ListFilter = { tab: Tab; kind: '' | 'image' | 'video'; folder: string | null }
 
 export const assetKeys = {

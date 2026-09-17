@@ -7,6 +7,10 @@ import { toggleFavorite, useCases, useCategories, useFavorites } from './api'
 import { caseAspect, copyrightLabel, patchParams, readParams, type CaseItem } from './lib'
 import { caseAsset, copyPrompt, fillComposer } from './actions'
 import { CaseDetail } from './CaseDetail'
+import { TemplatesPanel } from '../templates/TemplatesPanel'
+
+/** §2.8: pseudo-category showing the user's own templates instead of cases. */
+const MY_TEMPLATES = 'my-templates'
 
 const focusCard = (id: string, tries = 10) => {
   const el = document.querySelector<HTMLElement>(`[data-case-id="${CSS.escape(id)}"] [role="button"]`)
@@ -84,7 +88,8 @@ export function InspirationView() {
     <CaseCard c={c} priority={index < 10} fav={favs.has(c.id)} onOpen={openCase} />
   ), [favs, openCase])
 
-  const chips = [{ id: '', label: '全部', count: cats.data?.total }, ...(cats.data?.categories ?? [])]
+  const mine = params.cat === MY_TEMPLATES
+  const chips = [{ id: '', label: '全部', count: cats.data?.total }, { id: MY_TEMPLATES, label: '我的模板', count: undefined as number | undefined }, ...(cats.data?.categories ?? [])]
 
   return (
     <section aria-labelledby="inspiration-title">
@@ -132,7 +137,7 @@ export function InspirationView() {
         </div>
       </div>
 
-      <MasonryGrid
+      {mine ? <TemplatesPanel /> : <MasonryGrid
         ref={grid}
         aria-label="灵感案例"
         items={items}
@@ -143,8 +148,8 @@ export function InspirationView() {
         error={cases.isError ? '案例加载失败，请检查网络后重试' : null}
         onRetry={() => void (cases.isFetchNextPageError ? fetchNextPage() : cases.refetch())}
         onEndReached={onEndReached}
-        empty={<EmptyState icon={SearchX} text={params.q ? `没有找到与「${params.q}」相关的案例` : '这个分类下还没有案例'} action={{ label: '清除筛选', onClick: clearFilters }} />}
-      />
+        empty={<EmptyState icon={SearchX} illustration="brain" text={params.q ? `没有找到与「${params.q}」相关的案例` : '这个分类下还没有案例'} action={{ label: '清除筛选', onClick: clearFilters }} />}
+      />}
 
       <CaseDetail
         id={params.case}

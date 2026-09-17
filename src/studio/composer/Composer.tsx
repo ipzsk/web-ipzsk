@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { UserRound } from 'lucide-react'
 import { ArrowUp, ChevronDown, Clapperboard, Image, Info, ListPlus, LogIn, RefreshCw, Sparkles, UserPlus, Wallet, X } from 'lucide-react'
 import type { GenerationParams, MediaKind, ModelSpec } from '@/shared/contracts'
 import { loginUrl } from '@/shared/api'
+import { openRecharge } from '@/shared/recharge/RechargeDialog'
 import { useOnline } from '@/shared/query'
 import { queryClient } from '@/shared/query'
 import { Button, Dialog, DialogContent, DialogFooter, IconButton, Popover, PopoverContent, PopoverTrigger, SegmentedControl, Tooltip, cn, toast } from '@/ui'
@@ -24,6 +26,10 @@ import { QueueBar, useSubmittingIds } from './QueueBar'
 import { ReferenceSlots } from './ReferenceSlots'
 import { sender } from './send'
 import { uploadApi } from './uploadApi'
+import { AvatarComposerPanel } from '../avatar/AvatarComposerPanel'
+import { isHeygenModel } from '../avatar/contract'
+import { hydrateAvatarDraft, rememberAvatarItems, useAvatarDraft } from '../avatar/draft'
+import { avatarModels, avatarParamModel, avatarQueueItem, decideAvatar, guideAvatarError, isAvatarParams } from '../avatar/logic'
 
 const DRAFT_KEY = 'ipzsk.composer.draft'
 
@@ -65,7 +71,7 @@ function applyFill(plan: FillPlan) {
     s.remember(kind, { model: plan.model ?? s.memory[kind].model, params: plan.params ?? s.memory[kind].params })
   }
   useComposer.setState(st => ({
-    ...(plan.kind && { kind: plan.kind }),
+    ...(plan.kind && { kind: plan.kind, mode: null }),
     ...(plan.doc !== undefined && { doc: plan.doc, docVersion: st.docVersion + 1, editingId: null }),
     ...(plan.slots && { slots: plan.slots }),
     ...(plan.queue && { queue: plan.queue }),
@@ -85,6 +91,13 @@ function useComposerFill() {
     const onFill = async (detail: FillDetail) => {
       const models = await queryClient.fetchQuery({ queryKey: ['media', 'models'], queryFn: fetchModels, staleTime: 10 * 60_000 }).catch(() => [])
       const s = useComposer.getState()
+      if (detail.source === 'record' && isAvatarParams(detail.params)) { // 数字人记录「编辑后重发」→ 数字人草稿
+        hydrateAvatarDraft(detail.model ?? '', detail.params ?? {}, detail.prompt ?? '', null, detail.reference_assets)
+        s.remember('avatar', { model: detail.model ?? undefined, params: detail.params ?? {} })
+        useComposer.setState({ kind: 'video', mode: 'avatar', editingId: null })
+        toast({ title: '已填入输入框', tone: 'success' })
+        return
+      }
       const plan = planFill(detail, { models, kind: s.kind, memory: s.memory, slots: s.slots, queue: s.queue })
       setNotice(plan.notices.length ? plan.notices.join('；') : null)
       // A template replaces both the queue and the draft (fill.ts); ask first when either holds something.
@@ -179,19 +192,25 @@ export function Composer({ hidden }: { hidden: boolean }) {
   const fill = useComposerFill()
 
   const kind = useComposer(s => s.kind)
-  const memory = useComposer(s => s.memory[s.kind])
+  const mode = useComposer(s => s.mode)
+  const avatarMode = mode === 'avatar'
+  const memory = useComposer(s => s.memory[s.mode === 'avatar' ? 'avatar' : s.kind])
+  const avatarDraft = useAvatarDraft()
   const doc = useComposer(s => s.doc)
   const slots = useComposer(s => s.slots)
   const queue = useComposer(s => s.queue)
   const editingId = useComposer(s => s.editingId)
   const submitting = useSubmittingIds()
 
-  const kindModels = useMemo(() => (models.data ?? []).filter(m => m.kind === kind), [models.data, kind])
-  const model = kindModels.find(m => m.id === memory.model) ?? kindModels[0]
+  const kindModels = useMemo(() => (models.data ?? []).filter(m => m.kind === kind && !isHeygenModel(m)), [models.data, kind])
+  // 数字人：型号由形象来源 + 档位决定（avatar/logic.ts decideAvatar），只调比例与清晰度。
+  const avatar = useMemo(() => avatarMode ? decideAvatar(avatarDraft, models.data ?? []) : null, [avatarMode, avatarDraft, models.data])
+  const avatarModel = avatar && (avatar.model ?? avatarModels(models.data ?? []).library[0])
+  const model = avatarMode ? avatarModel ? avatarParamModel(avatarModel) : undefined : kindModels.find(m => m.id === memory.model) ?? kindModels[0]
   const params = useMemo(() => model ? normalizeParams(model, memory.params).params : {}, [model, memory.params])
   const [highlight, flash] = useHighlight()
 
-  const current = useMemo(() => itemFromDraft({ kind, model, params, doc, slots }), [kind, model, params, doc, slots])
+  const current = useMemo(() => avatar ? avatarQueueItem(avatarDraft, avatar, params) : itemFromDraft({ kind, model, params, doc, slots }), [avatar, avatarDraft, kind, model, params, doc, slots])
   const hasPrompt = !!current.prompt
   const refs = referenceState(model, slots.length)
   useEffect(() => { useEditorFlags.setState({ refsOver: refs.over ? refs.message : null }) }, [refs.over, refs.message])
@@ -221,8 +240,8 @@ export function Composer({ hidden }: { hidden: boolean }) {
   }
 
   // ── model / params ──
-  const setKind = (k: MediaKind) => useComposer.getState().setKind(k)
-  const remember = (m: ModelSpec | undefined, p: GenerationParams) => useComposer.getState().remember(kind, { model: m?.id, params: p })
+  const setKind = (k: MediaKind | 'avatar') => k === 'avatar' ? useComposer.setState({ kind: 'video', mode: 'avatar' }) : useComposer.getState().setKind(k)
+  const remember = (m: ModelSpec | undefined, p: GenerationParams) => useComposer.getState().remember(avatarMode ? 'avatar' : kind, { model: m?.id, params: p })
   const pickModel = (m: ModelSpec) => {
     const n = normalizeParams(m, params)
     remember(m, n.params)
@@ -242,7 +261,8 @@ export function Composer({ hidden }: { hidden: boolean }) {
 
   // ── send ──
   const [sending, setSending] = useState(false)
-  const subjectIds = useMemo(() => subjects.data && new Set(subjects.data.map(s => s.id)), [subjects.data])
+  // Partial list (more pages) → can't tell deleted from not-yet-loaded; the server rejects deleted ones anyway.
+  const subjectIds = useMemo(() => subjects.data && !subjects.hasNextPage ? new Set(subjects.data.map(s => s.id)) : undefined, [subjects.data, subjects.hasNextPage])
   const vars = subjectVarsOf(current.prompt)
   const insufficient = account.points != null && total != null && total > account.points
 
@@ -250,6 +270,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
     !online ? '网络已断开，恢复后再发送'
     : !model ? '型号加载中'
     : !items.length ? (queue.some(i => i.missing) ? '队列里的项引用了已删除的素材，请编辑移除后再发送' : queue.length ? '队列里没有可发送的项（标红的项需要先编辑）' : '先输入提示词')
+    : includesComposer && avatar?.reason ? avatar.reason
     : includesComposer && refs.over ? refs.message
     : subjectBlockReason(items, subjectIds)
 
@@ -257,7 +278,8 @@ export function Composer({ hidden }: { hidden: boolean }) {
     if (sending || blockReason(items, includesComposer)) return
     setSending(true)
     setTimeout(() => setSending(false), 300) // §2.2: only guard ~300ms against double clicks
-    if (includesComposer) clearDraft()
+    rememberAvatarItems(items.filter(i => isAvatarParams(i.params)).map(i => ({ ...i, fromDraft: includesComposer && i.item_id === current.item_id, points: pointsById.get(i.item_id) })))
+    if (includesComposer && !avatarMode) clearDraft()
     void sender.sendBatch(items, { thread_id: useComposer.getState().threadId })
     toast({ title: `已提交 ${items.length} 项`, description: '可在「创作」里查看进度' })
     setExpanded(false)
@@ -270,9 +292,10 @@ export function Composer({ hidden }: { hidden: boolean }) {
   const sendAll = () => send(allSendable, false)
 
   // ── queue ──
-  const addReason = !model ? '型号加载中' : !hasPrompt ? '先输入提示词' : refs.over ? refs.message : subjectBlockReason([current], subjectIds) ?? queueRoom(queue.length, editingId ? 0 : 1)
+  const addReason = !model ? (avatarMode ? avatar?.reason ?? '型号加载中' : '型号加载中') : avatar?.reason ? avatar.reason : !hasPrompt ? '先输入提示词' : refs.over ? refs.message : subjectBlockReason([current], subjectIds) ?? queueRoom(queue.length, editingId ? 0 : 1)
   const addToQueue = () => {
     if (addReason) return
+    if (avatarMode) rememberAvatarItems([{ ...current, item_id: editingId ?? current.item_id, fromDraft: true }])
     if (editingId) {
       useComposer.setState(s => ({ queue: s.queue.map(i => i.item_id === editingId ? { ...current, item_id: editingId, anchor_of: i.anchor_of } : i), editingId: null }))
       toast({ title: '已更新队列项' })
@@ -311,7 +334,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
     : !account.signedIn
       ? <Button variant="primary" icon={<LogIn className="size-[18px]" />} onClick={saveDraftAndLogin}>登录后生成</Button>
       : insufficient
-        ? <Button variant="danger" icon={<Wallet className="size-[18px]" />} onClick={() => { location.href = '/account?recharge=1' }}>点数不足 · 去充值</Button>
+        ? <Button variant="danger" icon={<Wallet className="size-[18px]" />} onClick={openRecharge}>点数不足 · 去充值</Button>
         : (() => {
           const reason = blockReason(sendable, hasPrompt)
           const btn = (
@@ -361,18 +384,24 @@ export function Composer({ hidden }: { hidden: boolean }) {
                   <button type="button" aria-label="关闭提示" className="cursor-pointer text-muted hover:text-ink" onClick={fill.clearNotice}><X className="size-3.5" /></button>
                 </p>
               )}
+              {avatar ? (
+                <AvatarComposerPanel decision={avatar} onSubmit={sendComposer} quotePending={quote.isFetching}
+                  quote={hasPrompt ? quote.data?.[queue.length] : undefined}
+                  fieldError={(() => { const e = queue.find(i => i.item_id === editingId)?.error; return e ? guideAvatarError(e) : null })()} />
+              ) : <>
               <ReferenceSlots refs={refs} upload={upload} onFiles={onFiles} />
               <div className="flex items-start gap-1">
                 <div className="min-w-0 flex-1"><PromptEditor onSubmit={sendComposer} onFiles={onFiles} placeholder="描述你想要的画面，输入 @ 引用主体或参考图…" /></div>
                 <IconButton label="增强提示词" loading={enhancing} disabled={!!enhanceReason} disabledReason={enhanceReason ?? undefined} onClick={() => void enhance()}><Sparkles className="size-4" /></IconButton>
               </div>
-              {vars.length > 0 && <div className="flex flex-wrap gap-1.5 px-1 pt-1">{vars.map(v => <SubjectVarPicker key={v} token={v} subjects={subjects.data ?? []} />)}</div>}
+              </>}
+              {!avatar && vars.length > 0 && <div className="flex flex-wrap gap-1.5 px-1 pt-1">{vars.map(v => <SubjectVarPicker key={v} token={v} subjects={subjects.data ?? []} />)}</div>}
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <SegmentedControl label="类型" value={kind} onValueChange={setKind} options={[{ value: 'image', label: '图片', icon: Image }, { value: 'video', label: '视频', icon: Clapperboard }]} />
-                <ModelPicker
+                <SegmentedControl<MediaKind | 'avatar'> label="类型" value={avatarMode ? 'avatar' : kind} onValueChange={setKind} options={[{ value: 'image', label: '图片', icon: Image }, { value: 'video', label: '视频', icon: Clapperboard }, { value: 'avatar', label: '数字人', icon: UserRound }]} />
+                {!avatarMode && <ModelPicker
                   models={kindModels} model={model} status={!account.signedIn && models.isError ? 'signedOut' : models.status} onRetry={() => void models.refetch()}
                   onPick={pickModel} onAddMany={addMany} roomFor={n => !hasPrompt ? '先输入提示词' : queueRoom(queue.length, n)}
-                />
+                />}
                 {model && <ParamChips model={model} params={params} highlight={highlight} onChange={setParam} />}
                 <div className="ml-auto flex items-center gap-1.5">
                 <Button variant="secondary" icon={<ListPlus className="size-[18px]" />} disabled={!!addReason} disabledReason={addReason ?? undefined} onClick={addToQueue}>

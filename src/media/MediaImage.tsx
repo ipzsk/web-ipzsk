@@ -2,17 +2,20 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ImageOff, RotateCw } from 'lucide-react'
 import { cn } from './cn'
 import { pickUrl, type MediaAsset, type MediaSize } from './types'
+import { useFreshUrls } from './fresh'
 
 type Props = {
   /** Either a full asset, or urls + intrinsic size. */
   asset?: MediaAsset
   urls?: MediaAsset['urls']
+  /** With `urls` (no asset): the asset id, so expired signed URLs can be refreshed (§7.2). */
+  assetId?: string
   width?: number | null
   height?: number | null
   sizes?: MediaSize
   alt: string
   priority?: boolean
-  /** Called once when the thumbnail keeps failing (signed URL probably expired) — refetch metadata. */
+  /** Called when the thumbnail keeps failing. Signed-URL refresh is automatic (./fresh.ts); this is for extra UI. */
   onExpired?: () => void
   fit?: 'cover' | 'contain'
   className?: string
@@ -33,8 +36,9 @@ const RETRIES = 2
 type Phase = { src: 'primary' | 'orig'; attempt: number; failed: boolean }
 const INITIAL: Phase = { src: 'primary', attempt: 0, failed: false }
 
-export function MediaImage({ asset, urls: urlsProp, width, height, sizes = 'thumb', alt, priority, onExpired, fit = 'cover', className, hideBadge }: Props) {
-  const urls = asset?.urls ?? urlsProp ?? { orig: '' }
+export function MediaImage({ asset, urls: urlsProp, assetId, width, height, sizes = 'thumb', alt, priority, onExpired, fit = 'cover', className, hideBadge }: Props) {
+  const fresh = useFreshUrls(asset?.id ?? assetId, asset?.urls ?? urlsProp ?? { orig: '' })
+  const urls = fresh.urls
   const w = asset?.width ?? width ?? null
   const h = asset?.height ?? height ?? null
   const primary = pickUrl(urls, sizes)
@@ -63,6 +67,7 @@ export function MediaImage({ asset, urls: urlsProp, width, height, sizes = 'thum
   }, [src, phase.attempt])
 
   const onError = () => {
+    fresh.onError(src) // signed + failing → refetch the owner once (throttled); new urls reset the ladder above
     if (phase.src === 'primary' && phase.attempt < RETRIES) {
       const next = phase.attempt + 1
       timer.current = setTimeout(() => setPhase({ src: 'primary', attempt: next, failed: false }), 400 * 2 ** phase.attempt)
