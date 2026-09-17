@@ -29,6 +29,7 @@ export function releaseOptions(payload: ReleasePayload | null, fallbackPage = RE
 
 export async function fetchRelease(signal?: AbortSignal): Promise<ReleasePayload> {
   // Same-origin Vercel function (not the API gateway), exactly like the legacy page.
+  // contracts-ignore: Vercel function api/desktop-release.js, not a gateway route
   const r = await fetch('/api/desktop-release', { headers: { Accept: 'application/json' }, signal })
   const data = await r.json().catch(() => null)
   if (!r.ok || !data?.version) throw Object.assign(new Error('release unavailable'), { releasePage: data?.releasePage as string | undefined })

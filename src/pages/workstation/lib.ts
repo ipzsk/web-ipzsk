@@ -24,6 +24,7 @@ export function downloadButtons(state: { status: 'loading' } | { status: 'error'
 }
 
 export async function fetchDesktopRelease(): Promise<DesktopRelease> {
+  // contracts-ignore: Vercel function api/desktop-release.js, not a gateway route
   const response = await fetch('/api/desktop-release')
   if (!response.ok) throw new Error('unavailable')
   const data = await response.json()

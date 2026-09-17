@@ -190,7 +190,7 @@ function Tokens({ query }: { query: ReturnType<typeof useQuery<{ rows: TokenRow[
   async function revoke(row: TokenRow) {
     dispatch({ type: 'revoke', id: row.id })
     try {
-      await call('/api/me/tokens/' + row.id + '/revoke', {})
+      await call(`/api/me/tokens/${row.id}/revoke`, {})
       await queryClient.refetchQueries({ queryKey: ['account', 'tokens'] })
       setConfirm(null); toast({ title: `已吊销「${row.name}」`, tone: 'success' })
     } catch (e) { toast({ title: (e as Error).message, tone: 'error' }) }
