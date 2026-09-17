@@ -1603,13 +1603,12 @@
       "auth": "cookie",
       "errors": [
         "customer_login_required",
-        "invalid_cursor"
+        "invalid_cursor",
+        "invalid_limit"
       ],
       "method": "GET",
       "path": "/api/me/templates",
-      "query": [
-        "cursor"
-      ],
+      "query": "TemplateListQuery",
       "response": "Page<UserTemplate>"
     },
     {

@@ -723,6 +723,10 @@ export interface TemplateItem {
   background_color?: string | null
   background_asset_id?: TemplateAssetSlot | null
 }
+export interface TemplateListQuery {
+  cursor?: string
+  limit?: number // integer 1..50
+}
 export type TemplateReference = {
   slot: number // integer 0..
 } | {
@@ -774,6 +778,8 @@ export interface UserTemplate {
   cover_id: Uuid | null
   items: TemplateItem[] // max 12 items
   variables: TemplateVariable[] // max 20 items
+  cover: RecordAsset | null
+  reference_assets: Record<string, RecordAsset>
   created_at: IsoTime
   updated_at: IsoTime
 }
