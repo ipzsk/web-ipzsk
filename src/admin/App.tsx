@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react'
 import { NavLink, Navigate, Route, Routes } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink, Images, ListChecks, LogIn, ScrollText, ShieldOff, Users, type LucideIcon } from 'lucide-react'
+import { ExternalLink, Gauge, Images, ListChecks, LogIn, Logs, ScrollText, Server, ShieldOff, Users, type LucideIcon } from 'lucide-react'
 import { Badge, Button, OfflineBanner, Skeleton, cn, focusRing } from '@/ui'
 import { ApiError, UNAUTHORIZED_EVENT, loginUrl } from '@/shared/api'
 import { queryClient, useOnline } from '@/shared/query'
@@ -13,6 +13,9 @@ import { CaseEditor } from './CaseEditor'
 import { UsersPage } from './UsersPage'
 import { GenerationsPage } from './GenerationsPage'
 import { AuditPage } from './AuditPage'
+import { DashboardPage } from './ops/DashboardPage'
+import { LogsPage } from './ops/LogsPage'
+import { ChannelsPage } from './ops/ChannelsPage'
 
 export const LEGACY_ADMIN_URL = 'https://api.ipzsk.com/admin'
 const ME_KEY = ['admin', 'me'] as const
@@ -22,11 +25,19 @@ export const useAdminMe = () => useContext(MeContext)!
 /** Role-aware rendering: viewers get no write controls at all (not disabled ones). */
 export const useCan = (cap: Capability) => can(useAdminMe().roles, cap)
 
-const nav: { to: string; label: string; icon: LucideIcon }[] = [
-  { to: '/admin/cases', label: '案例库', icon: Images },
-  { to: '/admin/users', label: '用户与角色', icon: Users },
-  { to: '/admin/generations', label: '生成记录', icon: ListChecks },
-  { to: '/admin/audit', label: '审计日志', icon: ScrollText },
+const nav: { group?: string; items: { to: string; label: string; icon: LucideIcon }[] }[] = [
+  { items: [
+    { to: '/admin/cases', label: '案例库', icon: Images },
+    { to: '/admin/users', label: '用户与角色', icon: Users },
+    { to: '/admin/generations', label: '生成记录', icon: ListChecks },
+    { to: '/admin/audit', label: '审计日志', icon: ScrollText },
+  ] },
+  { group: '运维', items: [
+    { to: '/admin/ops/dashboard', label: '仪表盘', icon: Gauge },
+    // TODO(integrator): 线路矩阵 nav — { to: '/admin/ops/lane-matrix', label: '线路矩阵', icon: Grid3x3 }
+    { to: '/admin/ops/logs', label: '日志', icon: Logs },
+    { to: '/admin/ops/channels', label: '渠道', icon: Server },
+  ] },
 ]
 
 export function App() {
@@ -98,16 +109,18 @@ function Shell() {
           <span className="flex flex-wrap gap-1" aria-label="当前角色">{me.roles.map(r => <Badge key={r} tone={r === 'admin' ? 'ink' : r === 'operator' ? 'acid' : 'outline'}>{ROLE_LABEL[r]}</Badge>)}</span>
           <span className="text-[11px] text-ink/80">会话剩余约 {Math.floor(left / 3600_000)} 小时</span>
         </div>
-        {nav.map(({ to, label, icon: Icon }) => (
+        {nav.map(({ group, items }) => [
+          group && <p key={group} className="mt-3 px-3 pb-1 text-[11px] font-semibold text-muted max-md:hidden">{group}</p>,
+          ...items.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} className={({ isActive }) => cn('flex h-10 shrink-0 items-center gap-2.5 rounded-control px-3 text-sm font-semibold transition-colors duration-(--duration-fast) hover:bg-subtle', isActive ? 'bg-ink text-acid hover:bg-ink' : 'text-ink/80', focusRing)}>
             <Icon className="size-[18px]" aria-hidden />{label}
           </NavLink>
-        ))}
+        ))])}
         <div className="mt-auto max-md:mt-0">
           <a href={LEGACY_ADMIN_URL} target="_blank" rel="noopener noreferrer" className={cn('flex h-10 shrink-0 items-center gap-2.5 rounded-control px-3 text-sm text-muted hover:bg-subtle', focusRing)}>
             <ExternalLink className="size-[18px]" aria-hidden />旧版管理后台
           </a>
-          <p className="px-3 text-[11px] leading-5 text-muted max-md:hidden">充值码、计费、上游账户、开发者审核、插件、分成暂在旧版</p>
+          <p className="px-3 text-[11px] leading-5 text-muted max-md:hidden">充值码、计费、开发者审核、插件、分成暂在旧版；上游渠道见「运维」</p>
         </div>
       </aside>
       <main className="min-w-0 px-8 pb-16 pt-6 max-md:px-4">
@@ -119,6 +132,10 @@ function Shell() {
           <Route path="/admin/users" element={<UsersPage />} />
           <Route path="/admin/generations" element={<GenerationsPage />} />
           <Route path="/admin/audit" element={<AuditPage />} />
+          <Route path="/admin/ops/dashboard" element={<DashboardPage />} />
+          {/* TODO(integrator): 线路矩阵 route — /admin/ops/lane-matrix → lazy(() => import('./ops/LaneMatrixPage')) */}
+          <Route path="/admin/ops/logs" element={<LogsPage />} />
+          <Route path="/admin/ops/channels" element={<ChannelsPage />} />
           <Route path="*" element={<Navigate to="/admin/cases" replace />} />
         </Routes>
       </main>
