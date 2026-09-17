@@ -1,6 +1,25 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import '@/styles/theme.css'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { LucideProvider } from 'lucide-react'
+import '@/ui/ui.css'
+import { queryClient } from '@/shared/query'
+import { Toaster, TooltipProvider } from '@/ui'
+import { loadLocal } from './store'
+import { App } from './App'
 
-// F9 migration target for the legacy /workspace page (preview at /next/workspace until cutover).
-createRoot(document.getElementById('root')!).render(<StrictMode><main className="p-8 text-sm text-muted">迁移中</main></StrictMode>)
+// Guest drafts load synchronously (legacy: load() before auth()), so the first paint already shows them.
+loadLocal()
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <LucideProvider size={16} strokeWidth={1.75}>
+        <TooltipProvider>
+          <App />
+          <Toaster />
+        </TooltipProvider>
+      </LucideProvider>
+    </QueryClientProvider>
+  </StrictMode>,
+)
