@@ -5,7 +5,7 @@ import type { LaneChannel, LaneMatrix } from './types'
 import { ApiError } from '@/shared/api'
 
 const ch = (id: number, priority: number, lanes: string[], status: 1 | 2 | 3 = 1): LaneChannel =>
-  ({ id, name: `c${id}`, type: 1, status, priority, weight: 1, lanes, vendor: 'v', balance_cny: null, balance_checked_at: null, balance_supported: true })
+  ({ id, name: `c${id}`, type: 1, status, priority, weight: 1, lanes, vendor: 'v', balance_cny: null, balance_checked_at: null, balance_raw: null, balance_unit: 'CNY', balance_supported: true })
 
 const matrix = (): LaneMatrix => ({
   lanes: [{ symbol: 'a', name: 'A', ratio: 1 }, { symbol: 'b', name: 'B', ratio: 0.8 }],
@@ -67,7 +67,5 @@ describe('mock lane api', () => {
     expect((await api.matrix({})).channels[multi.id]!.lanes).toEqual([multi.lanes[0]])
     await expect(api.save([{ channel_id: multi.id, lanes: [] }])).rejects.toBeInstanceOf(ApiError)
     await expect(createMockLaneApi('viewer', noDelay).save([])).rejects.toMatchObject({ code: 'forbidden_role' })
-    const unsupported = Object.values(m.channels).find(c => !c.balance_supported)!
-    expect((await api.probe(unsupported.id)).state).toBe('unsupported')
   })
 })

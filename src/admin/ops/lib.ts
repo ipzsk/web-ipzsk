@@ -102,6 +102,21 @@ export function withParam(cur: URLSearchParams, k: string, v: string | null): UR
 
 export const CHANNEL_STATUS: Record<LaneChannel['status'], string> = { 1: '启用', 2: '手动禁用', 3: '自动禁用' }
 
+type BalanceFields = Pick<LaneChannel, 'balance_supported' | 'balance_checked_at' | 'balance_cny' | 'balance_raw' | 'balance_unit'>
+export const LOW_BALANCE_CNY = 20
+export const RAW_BALANCE_TIP = '该上游余额口径未核实，原样显示'
+
+/** One balance label for matrix cell, drawer and channels page. muted = grey; tip = tooltip for raw units. */
+export function fmtBalance(c: BalanceFields): { text: string; muted?: true; tip?: string } {
+  if (!c.balance_supported) return { text: '无余额接口', muted: true }
+  if (!c.balance_checked_at) return { text: '未检查', muted: true }
+  if (c.balance_unit === 'raw') return { text: `${c.balance_raw == null ? '—' : c.balance_raw.toLocaleString('zh-CN', { maximumFractionDigits: 4 })} 上游单位`, tip: RAW_BALANCE_TIP }
+  return { text: fmtCny(c.balance_cny) }
+}
+
+/** Low-balance warning only when the gateway gave a CNY figure (raw units aren't comparable). */
+export const isLowBalance = (c: BalanceFields) => c.balance_supported && c.balance_cny != null && c.balance_cny < LOW_BALANCE_CNY
+
 /* ---------- dashboard ---------- */
 
 export interface KeyTotal { key: string; requests: number; amount_cny: number; cost_cny: number; margin_cny: number; avg_latency_ms: number }

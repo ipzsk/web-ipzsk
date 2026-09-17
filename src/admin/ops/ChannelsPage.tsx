@@ -5,11 +5,18 @@ import { RefreshCw, Server } from 'lucide-react'
 import { Badge, Button, EmptyState, ErrorState, Skeleton, Tooltip, cn, toast } from '@/ui'
 import { queryClient } from '@/shared/query'
 import { opsApi, type ChannelQuery } from './opsApi'
-import { CHANNEL_STATUS, fmtAgo, fmtCny, fmtLatency, withParam } from './lib'
+import { CHANNEL_STATUS, fmtAgo, fmtBalance, fmtCny, fmtLatency, withParam } from './lib'
 import type { ChannelSummary, Page, Probe } from './types'
 import { FilterInput, PageHeader, Select, adminErrorText } from '../ui'
 import { useCan } from '../App'
 import { Pager } from './LogsPage'
+
+/** Balance per contract units (fmtBalance). `inButton`: no tab stop, the host control is focusable. */
+export function BalanceText({ c, className, inButton }: { c: Parameters<typeof fmtBalance>[0]; className?: string; inButton?: boolean }) {
+  const b = fmtBalance(c)
+  const el = <span tabIndex={b.tip && !inButton ? 0 : undefined} className={cn('tabular-nums', b.muted && 'text-xs text-muted', b.tip && 'underline decoration-dotted underline-offset-2', className)}>{b.text}</span>
+  return b.tip ? <Tooltip content={b.tip}>{el}</Tooltip> : el
+}
 
 const SIZE = 100
 const KEY = ['admin', 'ops', 'channels'] as const
@@ -18,8 +25,7 @@ const th = 'border-b border-line py-2 pr-3 text-left text-xs font-semibold text-
 const td = 'border-b border-line py-2 pr-3 whitespace-nowrap'
 
 export function ChannelsPage() {
-  // ponytail: gateway gates probe on operator+ (「ops.write」); no such cap in lib.ts yet, generations.act is the same role set. Add `ops.write` when roles diverge.
-  const canProbe = useCan('generations.act')
+  const canProbe = useCan('ops.write')
   const [sp, setSp] = useSearchParams()
   const q: ChannelQuery = useMemo(() => ({
     page: Math.max(1, Number(sp.get('page')) || 1), size: SIZE,
@@ -42,12 +48,12 @@ export function ChannelsPage() {
       queryClient.setQueriesData<Page<ChannelSummary>>({ queryKey: KEY }, old => old && {
         ...old,
         items: old.items.map(c => c.id !== p.channel_id ? c
-          : p.state === 'ok' ? { ...c, balance_cny: p.balance_cny, balance_checked_at: p.checked_at }
+          : p.state === 'ok' ? { ...c, balance_cny: p.balance_cny, balance_raw: p.balance_raw, balance_unit: p.balance_unit, balance_checked_at: p.checked_at }
           : p.state === 'unsupported' ? { ...c, balance_supported: false }
           : c),
       })
       setFailures(f => { const { [p.channel_id]: _, ...rest } = f; return p.state === 'failed' ? { ...rest, [p.channel_id]: p.message || '探测失败' } : rest })
-      if (p.state === 'ok') toast({ title: `余额 ${fmtCny(p.balance_cny)} · ${fmtLatency(p.latency_ms)}`, tone: 'success' })
+      if (p.state === 'ok') toast({ title: `余额 ${fmtBalance({ ...p, balance_supported: true, balance_checked_at: p.checked_at }).text} · ${fmtLatency(p.latency_ms)}`, tone: 'success' })
     },
     onError: e => toast({ title: '探测失败', description: adminErrorText(e), tone: 'error' }),
   })
@@ -95,8 +101,7 @@ export function ChannelsPage() {
                     <td className={cn(td, 'text-right tabular-nums')}>{c.weight}</td>
                     <td className={td}>
                       <span className="flex w-60 items-center justify-between gap-2">
-                        {!c.balance_supported ? <span className="text-xs text-muted">无余额接口</span>
-                          : <span className="tabular-nums">{fmtCny(c.balance_cny)} <span className="text-xs text-muted">· {fmtAgo(c.balance_checked_at)}</span></span>}
+                        <span><BalanceText c={c} />{c.balance_supported && !!c.balance_checked_at && <span className="text-xs text-muted"> · {fmtAgo(c.balance_checked_at)}</span>}</span>
                         {canProbe && c.balance_supported && (
                           <Button size="sm" variant="ghost" icon={<RefreshCw />} className="h-7 px-2"
                             loading={probe.isPending && probe.variables === c.id} loadingText="探测中" disabled={probe.isPending && probe.variables !== c.id}

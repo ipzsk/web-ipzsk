@@ -2,7 +2,8 @@ import { ApiError, request } from '@/shared/api'
 import { isMock, mockDelay } from '@/studio/api/catalog'
 import { mockRole, type MockRole } from '../api'
 import { can } from '../lib'
-import type { LaneChange, LaneChannel, LaneMatrix, LaneSaveResult, Probe } from './types'
+import { mockLaneChannels } from './opsApi'
+import type { LaneChange, LaneChannel, LaneMatrix, LaneSaveResult } from './types'
 
 /* Gateway /api/admin/ops lane matrix (docs/admin-ops.md「网关契约」). Mock: `?mock=1&role=`. */
 
@@ -10,7 +11,6 @@ export interface Scenario { resolution?: string; duration?: number | string }
 export interface LaneApi {
   matrix(s: Scenario): Promise<LaneMatrix>
   save(changes: LaneChange[]): Promise<LaneSaveResult>
-  probe(channelId: number): Promise<Probe>
 }
 
 const qs = (s: Scenario) => new URLSearchParams(Object.entries(s).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString()
@@ -18,7 +18,6 @@ const qs = (s: Scenario) => new URLSearchParams(Object.entries(s).filter(([, v])
 export const realLaneApi: LaneApi = {
   matrix: s => request(`/api/admin/ops/lane-matrix?${qs(s)}`),
   save: changes => request('/api/admin/ops/lane-matrix', { method: 'PUT', body: { changes }, headers: { 'Idempotency-Key': crypto.randomUUID() } }),
-  probe: id => request(`/api/admin/ops/channels/${id}/probe`, { body: {} }),
 }
 
 /* ───────────────────────────── mock ───────────────────────────── */
@@ -28,21 +27,7 @@ const err = (status: number, code: string, detail?: string) => new ApiError(code
 export function createMockLaneApi(role: MockRole = 'admin', delay = mockDelay): LaneApi {
   const now = Math.floor(Date.now() / 1000)
   const lanes = [{ symbol: 'official', name: '官方', ratio: 1 }, { symbol: 'cheap', name: '低价', ratio: 0.8 }, { symbol: 'backup', name: '备用', ratio: 0.9 }]
-  const C = (id: number, name: string, vendor: string, lanes: string[], priority: number, o: Partial<LaneChannel> = {}): LaneChannel =>
-    ({ id, name, type: 1, status: 1, priority, weight: 1, lanes, vendor, balance_cny: 100 + id * 37.5, balance_checked_at: now - id * 7 * 60, balance_supported: true, ...o })
-  const channels: Record<string, LaneChannel> = Object.fromEntries([
-    C(11, 'apimart', 'apimart', ['official', 'cheap'], 30, { balance_cny: 123.4 }),
-    C(12, 'xiaoguai', 'xiaoguai', ['cheap'], 20, { balance_cny: 8.2 }),
-    C(13, 'fal', 'fal', ['official'], 20, { balance_supported: false, balance_cny: null, balance_checked_at: null }),
-    C(14, '火山方舟', 'volcengine', ['official'], 40, { balance_cny: 2300 }),
-    C(15, 'kie-ai', 'kie', ['backup'], 10, { balance_cny: null, balance_checked_at: null }),
-    C(16, 'openrouter', 'openrouter', ['official'], 10, { balance_cny: 540.1 }),
-    C(17, 'replicate', 'replicate', ['backup'], 5, { balance_supported: false, balance_cny: null, balance_checked_at: null }),
-    C(18, 'aihubmix', 'aihubmix', ['cheap'], 10, { status: 2 }),
-    C(19, 'compshare-新', 'compshare', [], 0, { balance_cny: 60 }),
-    C(20, 'siliconflow', 'siliconflow', ['backup'], 20, { balance_cny: 88 }),
-    C(21, 'yunwu', 'yunwu', ['cheap'], 15, { status: 3, balance_cny: 0 }),
-  ].map(c => [c.id, c]))
+  const channels: Record<string, LaneChannel> = Object.fromEntries(mockLaneChannels(now).map(c => [c.id, c]))
 
   type Model = { model: string; vendor: string; modality: 'image' | 'video' | 'text'; base: number; serve: number[] }
   const models: Model[] = [
@@ -88,7 +73,7 @@ export function createMockLaneApi(role: MockRole = 'admin', delay = mockDelay): 
     await delay()
     if (role === 'guest') throw err(401, 'customer_login_required')
     if (role === 'expired') throw err(401, 'admin_session_expired')
-    if (!can(role === 'admin' || role === 'operator' || role === 'viewer' ? [role] : [], write ? 'cases.write' : 'read')) throw err(403, 'forbidden_role')
+    if (!can(role === 'admin' || role === 'operator' || role === 'viewer' ? [role] : [], write ? 'ops.write' : 'read')) throw err(403, 'forbidden_role')
   }
 
   return {
@@ -108,17 +93,6 @@ export function createMockLaneApi(role: MockRole = 'admin', delay = mockDelay): 
           return { channel_id: c.id, name: c.name, before, after: state() }
         }),
       }
-    },
-    async probe(id) {
-      await gate(true)
-      const c = channels[id]
-      if (!c) throw err(404, 'channel_not_found')
-      const checked_at = Math.floor(Date.now() / 1000)
-      if (!c.balance_supported) return { channel_id: id, state: 'unsupported', balance_cny: null, latency_ms: 0, message: '', checked_at }
-      if (id === 15) return { channel_id: id, state: 'failed', balance_cny: null, latency_ms: 1203, message: 'invalid api key (401)', checked_at }
-      c.balance_cny = Math.round(((c.balance_cny ?? 50) - 0.37) * 100) / 100
-      c.balance_checked_at = checked_at
-      return { channel_id: id, state: 'ok', balance_cny: c.balance_cny, latency_ms: 380, message: '', checked_at }
     },
   }
 }

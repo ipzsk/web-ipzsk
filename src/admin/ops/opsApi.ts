@@ -3,7 +3,7 @@ import { isMock, mockDelay } from '@/studio/api/catalog'
 import { mockRole, type MockRole } from '../api'
 import { can, type Capability } from '../lib'
 import { daysBetween, type LogQuery } from './lib'
-import type { ChannelSummary, DashboardPeriodRow, DashboardRealtime, LogEntry, Page, Probe } from './types'
+import type { ChannelSummary, DashboardPeriodRow, DashboardRealtime, LaneChannel, LogEntry, Page, Probe } from './types'
 
 /* Adapters for docs/admin-ops.md「网关契约」. Mock: `?mock=1&role=`, same switch as ./api. */
 
@@ -50,23 +50,8 @@ export function createMockOpsApi(role: MockRole = 'admin', delay = mockDelay): O
     if (!can(roles, cap)) throw err(403, 'forbidden_role')
   }
 
-  // [name, vendor, type, lanes, balance_supported]
-  const seeds: [string, string, number, string[], boolean][] = [
-    ['apimart-seedream', 'bytedance', 1, ['official'], true], ['apimart-gpt-image', 'openai', 1, ['official', 'backup'], true],
-    ['xiaoguai-seedream', 'bytedance', 1, ['budget'], true], ['xiaoguai-kling', 'kuaishou', 1, ['budget', 'backup'], true],
-    ['fal-flux', 'bfl', 45, ['official'], false], ['fal-veo', 'google', 45, ['backup'], false],
-    ['replicate-sdxl', 'stability', 46, ['budget'], false], ['elevenlabs-tts', 'elevenlabs', 47, ['official'], false],
-    ['volc-ark-seedance', 'bytedance', 40, ['official'], true], ['volc-ark-doubao', 'bytedance', 40, ['official', 'budget'], true],
-    ['openrouter-gemini', 'google', 20, ['backup'], true], ['deepseek-official', 'deepseek', 36, ['official'], true],
-    ['aliyun-wan', 'alibaba', 17, ['official', 'budget'], true], ['zhipu-cogview', 'zhipu', 16, ['budget'], true],
-    ['autodl-comfy', 'self', 50, [], false], ['compshare-comfy', 'self', 50, ['budget'], false],
-    ['siliconflow-flux', 'bfl', 44, ['budget', 'backup'], true], ['302ai-midjourney', 'midjourney', 1, ['backup'], true],
-  ]
-  const channels: ChannelSummary[] = seeds.map(([name, vendor, type, lanes, balance_supported], i) => ({
-    id: 101 + i, name, type, status: (i === 6 ? 3 : i === 14 ? 2 : 1) as 1 | 2 | 3, priority: lanes.length ? 100 - i * 5 : 0, weight: 1 + (i % 3),
-    lanes, vendor, balance_supported,
-    balance_cny: balance_supported ? Math.round(r() * 200_000) / 100 : null, balance_checked_at: balance_supported ? (i % 5 === 4 ? null : now - Math.floor(r() * 7200)) : null,
-    group: lanes.length ? ['default', ...lanes].join(',') : 'default', tag: vendor, models_count: 1 + Math.floor(r() * 12),
+  const channels: ChannelSummary[] = mockLaneChannels(now).map((c, i) => ({
+    ...c, group: ['default', ...c.lanes].join(','), tag: c.vendor, models_count: 1 + Math.floor(r() * 12),
     used_cny: Math.round(r() * 500_000) / 100, created_at: now - (60 - i) * 86400,
   }))
   const models = ['seedream-4.0', 'gpt-image-1', 'seedance-1-pro', 'kling-v2', 'flux-1.1-pro', 'veo-3', 'wan-2.5', 'doubao-seed-1.6']
@@ -120,16 +105,47 @@ export function createMockOpsApi(role: MockRole = 'admin', delay = mockDelay): O
       return paged(structuredClone(hits), q.page, q.size)
     },
     async probe(id) {
-      await gate('cases.write')
+      await gate('ops.write')
       const c = channels.find(x => x.id === id)
       if (!c) throw err(404, 'channel_not_found')
-      const checked_at = Math.floor(Date.now() / 1000)
-      if (!c.balance_supported) return { channel_id: id, state: 'unsupported', balance_cny: null, latency_ms: 12, message: '', checked_at }
-      if (c.name.startsWith('302ai')) return { channel_id: id, state: 'failed', balance_cny: null, latency_ms: 5012, message: 'Get "https://api.302.ai/dashboard/balance": context deadline exceeded', checked_at }
-      Object.assign(c, { balance_cny: Math.round(r() * 200_000) / 100, balance_checked_at: checked_at })
-      return { channel_id: id, state: 'ok', balance_cny: c.balance_cny, latency_ms: 200 + Math.floor(r() * 600), message: '', checked_at }
+      return mockProbe(c)
     },
   }
+}
+
+/** Shared mock channel table: the lane matrix mock and the channels mock serve the same ids, so probe works from both pages. */
+export function mockLaneChannels(now = Math.floor(Date.now() / 1000)): LaneChannel[] {
+  const C = (id: number, name: string, vendor: string, lanes: string[], priority: number, o: Partial<LaneChannel> = {}): LaneChannel => {
+    const c: LaneChannel = { id, name, type: 1, status: 1, priority, weight: 1, lanes, vendor, balance_cny: 100 + id * 37.5, balance_checked_at: now - id * 7 * 60, balance_raw: null, balance_unit: 'CNY', balance_supported: true, ...o }
+    if (c.balance_unit === 'CNY' && c.balance_raw == null) c.balance_raw = c.balance_cny
+    return c
+  }
+  return [
+    C(11, 'apimart', 'apimart', ['official', 'cheap'], 30, { balance_unit: 'raw', balance_cny: null, balance_raw: 123.4 }),
+    C(12, 'xiaoguai', 'xiaoguai', ['cheap'], 20, { balance_cny: 8.2 }),
+    C(13, 'fal', 'fal', ['official'], 20, { balance_supported: false, balance_cny: null, balance_checked_at: null }),
+    C(14, '火山方舟', 'volcengine', ['official'], 40, { balance_cny: 2300 }),
+    C(15, 'kie-ai', 'kie', ['backup'], 10, { balance_cny: null, balance_checked_at: null }),
+    C(16, 'openrouter', 'openrouter', ['official'], 10, { balance_unit: 'USD', balance_cny: 540.1, balance_raw: 75.01 }),
+    C(17, 'replicate', 'replicate', ['backup'], 5, { balance_supported: false, balance_cny: null, balance_checked_at: null }),
+    C(18, 'aihubmix', 'aihubmix', ['cheap'], 10, { status: 2 }),
+    C(19, 'compshare-新', 'compshare', [], 0, { balance_unit: 'raw', balance_cny: null, balance_raw: 60000 }),
+    C(20, 'siliconflow', 'siliconflow', ['backup'], 20, { balance_cny: 88 }),
+    C(21, 'yunwu', 'yunwu', ['cheap'], 15, { status: 3, balance_cny: 0 }),
+  ]
+}
+
+/** Mutates the mock channel like the gateway's balance refresh. kie-ai (15) always fails. */
+function mockProbe(c: LaneChannel): Probe {
+  const checked_at = Math.floor(Date.now() / 1000)
+  const base = { channel_id: c.id, balance_cny: null, balance_raw: null, balance_unit: c.balance_unit, message: '', checked_at }
+  if (!c.balance_supported) return { ...base, state: 'unsupported', latency_ms: 12 }
+  if (c.id === 15) return { ...base, state: 'failed', latency_ms: 5012, message: 'Get "https://api.kie.ai/api/v1/chat/credit": context deadline exceeded' }
+  const spend = (n: number | null, d: number) => Math.max(0, Math.round(((n ?? 50) - d) * 100) / 100)
+  if (c.balance_unit === 'raw') c.balance_raw = spend(c.balance_raw, 1.5)
+  else { c.balance_cny = spend(c.balance_cny, 0.37); c.balance_raw = c.balance_unit === 'USD' ? Math.round(c.balance_cny / 7.2 * 100) / 100 : c.balance_cny }
+  c.balance_checked_at = checked_at
+  return { ...base, state: 'ok', balance_cny: c.balance_cny, balance_raw: c.balance_raw, latency_ms: 380, message: '' }
 }
 
 export const opsApi: OpsApi = isMock ? createMockOpsApi(mockRole) : realOpsApi

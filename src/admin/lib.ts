@@ -8,7 +8,7 @@ export const ROLE_LABEL: Record<Role, string> = { admin: '管理员', operator: 
 
 /* ---------- role gating (§0.1) ---------- */
 
-export type Capability = 'read' | 'cases.write' | 'generations.act' | 'roles.write'
+export type Capability = 'read' | 'cases.write' | 'generations.act' | 'ops.write' | 'roles.write'
 
 export function can(roles: readonly string[], cap: Capability): boolean {
   if (cap === 'read') return roles.some(r => (ROLES as string[]).includes(r))

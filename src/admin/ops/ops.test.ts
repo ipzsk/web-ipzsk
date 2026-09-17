@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '@/shared/api'
-import { daysBetween, dayToUnix, fmtAgo, fmtCny, fmtLatency, logQueryFromParams, rangeOf, totalsByDay, totalsByKey, withParam } from './lib'
+import { daysBetween, dayToUnix, fmtAgo, fmtBalance, fmtCny, isLowBalance, fmtLatency, logQueryFromParams, rangeOf, totalsByDay, totalsByKey, withParam } from './lib'
+import { createMockLaneApi } from './laneApi'
 import { createMockOpsApi } from './opsApi'
 
 const noDelay = async () => {}
@@ -72,7 +73,7 @@ describe('dashboard aggregation', () => {
 
 describe('mock ops adapter', () => {
   const api = createMockOpsApi('operator', noDelay)
-  const LANE_CHANNEL = ['balance_checked_at', 'balance_cny', 'balance_supported', 'id', 'lanes', 'name', 'priority', 'status', 'type', 'vendor', 'weight']
+  const LANE_CHANNEL = ['balance_checked_at', 'balance_cny', 'balance_raw', 'balance_supported', 'balance_unit', 'id', 'lanes', 'name', 'priority', 'status', 'type', 'vendor', 'weight']
 
   it('returns exactly the contract keys', async () => {
     expect(keys(await api.realtime())).toEqual(['cost_per_min_cny', 'rpm', 'tpm'])
@@ -85,16 +86,42 @@ describe('mock ops adapter', () => {
     expect(keys(await api.logStat({ page: 1, size: 20 }))).toEqual(['amount_cny'])
     const ch = await api.channels({ page: 1, size: 100 })
     expect(keys(ch.items[0]!)).toEqual([...LANE_CHANNEL, 'created_at', 'group', 'models_count', 'tag', 'used_cny'].sort())
-    expect(keys(await api.probe(ch.items[0]!.id))).toEqual(['balance_cny', 'channel_id', 'checked_at', 'latency_ms', 'message', 'state'])
+    expect(keys(await api.probe(ch.items[0]!.id))).toEqual(['balance_cny', 'balance_raw', 'balance_unit', 'channel_id', 'checked_at', 'latency_ms', 'message', 'state'])
   })
 
   it('filters logs exactly and probes by capability', async () => {
     const first = (await api.logs({ page: 1, size: 1, type: 2 })).items[0]!
     const hit = await api.logs({ page: 1, size: 100, request_id: first.request_id })
     expect(hit.items.map(l => l.id)).toEqual([first.id])
-    const fal = (await api.channels({ page: 1, size: 100, keyword: 'fal-flux' })).items[0]!
+    const fal = (await api.channels({ page: 1, size: 100, keyword: 'fal' })).items[0]!
     expect((await api.probe(fal.id)).state).toBe('unsupported')
     const code = await createMockOpsApi('viewer', noDelay).probe(fal.id).then(() => 'ok', (e: ApiError) => e.code)
     expect(code).toBe('forbidden_role')
+  })
+})
+
+describe('balance', () => {
+  const ch = { balance_supported: true, balance_checked_at: 100, balance_cny: 12.5, balance_raw: 12.5, balance_unit: 'CNY' as const }
+  it('formats per unit', () => {
+    expect(fmtBalance(ch)).toEqual({ text: '¥12.50' })
+    expect(fmtBalance({ ...ch, balance_unit: 'USD', balance_raw: 1.74 })).toEqual({ text: '¥12.50' })
+    expect(fmtBalance({ ...ch, balance_unit: 'raw', balance_cny: null, balance_raw: 1234.5 })).toEqual({ text: '1,234.5 上游单位', tip: '该上游余额口径未核实，原样显示' })
+    expect(fmtBalance({ ...ch, balance_supported: false })).toEqual({ text: '无余额接口', muted: true })
+    expect(fmtBalance({ ...ch, balance_checked_at: null }).text).toBe('未检查')
+    expect(fmtBalance({ ...ch, balance_checked_at: 0 }).text).toBe('未检查')
+  })
+  it('low balance only with a CNY figure', () => {
+    expect(isLowBalance(ch)).toBe(true)
+    expect(isLowBalance({ ...ch, balance_cny: 20 })).toBe(false)
+    expect(isLowBalance({ ...ch, balance_unit: 'raw', balance_cny: null, balance_raw: 3 })).toBe(false)
+    expect(isLowBalance({ ...ch, balance_supported: false })).toBe(false)
+  })
+  it('mock lane matrix channels are probeable through the ops api, with a mix of units', async () => {
+    const m = await createMockLaneApi('operator', noDelay).matrix({})
+    expect(new Set(Object.values(m.channels).map(c => c.balance_unit))).toEqual(new Set(['raw', 'CNY', 'USD']))
+    const raw = Object.values(m.channels).find(c => c.balance_unit === 'raw')!
+    const p = await createMockOpsApi('operator', noDelay).probe(raw.id)
+    expect(p).toMatchObject({ state: 'ok', balance_cny: null, balance_unit: 'raw' })
+    expect(p.balance_raw).toBeTypeOf('number')
   })
 })

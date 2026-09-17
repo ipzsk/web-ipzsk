@@ -11,6 +11,9 @@ import { queryClient } from '@/shared/query'
 import { useCan } from '../App'
 import { Confirm, Drawer, FilterInput, PageHeader, Select, adminErrorText } from '../ui'
 import { laneApi } from './laneApi'
+import { opsApi } from './opsApi'
+import { fmtCny as fmtMoney, isLowBalance } from './lib'
+import { BalanceText } from './ChannelsPage'
 import { applyPatch, applyReorder, canRemoveFromLane, cellIds, changeCount, diffRows, effectiveChannels, rowChannelIds, toChanges, type Draft } from './laneDraft'
 import type { LaneChannel, LaneMatrix } from './types'
 
@@ -22,7 +25,6 @@ const KEY = ['admin', 'ops', 'lane-matrix'] as const
 const MODALITY: Record<string, string> = { image: '图片', video: '视频', text: '文本' }
 const RESOLUTIONS = ['480p', '720p', '1080p']
 const DURATIONS = [5, 10]
-const LOW_BALANCE_CNY = 20
 const ROW_H = 60, GROUP_H = 30, MODEL_W = 220, LANE_W = 230, HEALTH_W = 120
 
 const STATUS: Record<number, { label: string; dot: string }> = {
@@ -48,11 +50,10 @@ const lanehubDetail = (e: unknown) => {
   const b = e instanceof ApiError ? e.body as { detail?: string; error?: { detail?: string } } | null : null
   return b?.error?.detail ?? b?.detail ?? null
 }
-const balanceHint = (c: LaneChannel) => !c.balance_supported ? null : c.balance_cny == null ? '余额未知' : c.balance_cny < LOW_BALANCE_CNY ? `余额低 ${fmtCny(c.balance_cny)}` : null
+const balanceHint = (c: LaneChannel) => isLowBalance(c) ? `余额低 ${fmtMoney(c.balance_cny)}` : null
 
 export function LaneMatrixPage() {
-  // ponytail: no ops capability yet; integrator should add `ops.write` (operator|admin) to lib.ts Capability and use it here.
-  const writable = useCan('cases.write')
+  const writable = useCan('ops.write')
   const [sp, setSp] = useSearchParams()
   const set = (k: string, v: string) => setSp(cur => { const p = new URLSearchParams(cur); if (v) p.set(k, v); else p.delete(k); return p }, { replace: true })
   const scenario = { resolution: sp.get('resolution') ?? '', duration: sp.get('duration') ?? '' }
@@ -74,9 +75,9 @@ export function LaneMatrixPage() {
   const probe = async (id: number) => {
     setProbing(s => new Set(s).add(id))
     try {
-      const r = await laneApi.probe(id)
+      const r = await opsApi.probe(id)
       if (r.state === 'ok') {
-        queryClient.setQueriesData<LaneMatrix>({ queryKey: KEY }, old => old?.channels[id] ? { ...old, channels: { ...old.channels, [id]: { ...old.channels[id]!, balance_cny: r.balance_cny, balance_checked_at: r.checked_at } } } : old)
+        queryClient.setQueriesData<LaneMatrix>({ queryKey: KEY }, old => old?.channels[id] ? { ...old, channels: { ...old.channels, [id]: { ...old.channels[id]!, balance_cny: r.balance_cny, balance_raw: r.balance_raw, balance_unit: r.balance_unit, balance_checked_at: r.checked_at } } } : old)
         setProbeNotes(({ [id]: _, ...rest }) => rest)
       } else setProbeNotes(s => ({ ...s, [id]: { state: r.state as ProbeNote['state'], message: r.message } }))
     } catch (e) {
@@ -251,7 +252,7 @@ function Cell({ row, lane, chans, server, active, onOpen }: { row: Row; lane: La
           {ids.length > 1 && <span className="shrink-0 text-xs text-muted">+{ids.length - 1}</span>}
           <span className="ml-auto shrink-0 text-xs tabular-nums">{fmtPrice(row.prices[primary.id])}</span>
         </span>
-        {hint ? <span className="text-[11px] text-warning">{hint}</span> : <span className="text-[11px] text-muted">{primary.balance_supported ? `${fmtCny(primary.balance_cny!)} · ${fmtAgo(primary.balance_checked_at)}` : '无余额接口'}</span>}
+        {hint ? <span className="text-[11px] text-warning">{hint}</span> : <span className="text-[11px] text-muted"><BalanceText c={primary} inButton className="text-[11px] text-muted" />{primary.balance_supported && !!primary.balance_checked_at && ` · ${fmtAgo(primary.balance_checked_at)}`}</span>}
       </> : <span className="text-xs text-muted">待采购</span>}
     </button>
   )
@@ -358,7 +359,7 @@ function ChannelRow({ c, price, writable, note, probing, onProbe, onStatus, hand
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted">
           {unsupported ? <span className="rounded-[4px] bg-subtle px-1.5 text-muted">无余额接口</span>
-            : <span className={cn('tabular-nums', hint && 'text-warning')}>{c.balance_cny == null ? '余额未知' : `余额 ${fmtCny(c.balance_cny)}`} · {fmtAgo(c.balance_checked_at)}</span>}
+            : <span className={cn('tabular-nums', hint && 'text-warning')}>余额 <BalanceText c={c} className={cn(hint && 'text-warning')} />{!!c.balance_checked_at && ` · ${fmtAgo(c.balance_checked_at)}`}</span>}
           {note?.state === 'failed' && <span role="alert" className="text-danger">探测失败：{note.message}</span>}
           {c.lanes.length > 1 && <span className="inline-flex items-center gap-1 text-warning"><AlertTriangle className="size-3" aria-hidden />同时在 {c.lanes.length} 档（{c.lanes.map(laneName).join('、')}），改动会一起生效</span>}
         </div>

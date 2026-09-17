@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react'
 import { NavLink, Navigate, Route, Routes } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink, Gauge, Images, ListChecks, LogIn, Logs, ScrollText, Server, ShieldOff, Users, type LucideIcon } from 'lucide-react'
+import { ExternalLink, Gauge, Grid3x3, Images, ListChecks, LogIn, Logs, ScrollText, Server, ShieldOff, Users, type LucideIcon } from 'lucide-react'
 import { Badge, Button, OfflineBanner, Skeleton, cn, focusRing } from '@/ui'
 import { ApiError, UNAUTHORIZED_EVENT, loginUrl } from '@/shared/api'
 import { queryClient, useOnline } from '@/shared/query'
@@ -13,6 +13,7 @@ import { CaseEditor } from './CaseEditor'
 import { UsersPage } from './UsersPage'
 import { GenerationsPage } from './GenerationsPage'
 import { AuditPage } from './AuditPage'
+import { LaneMatrixPage } from './ops/LaneMatrixPage'
 import { DashboardPage } from './ops/DashboardPage'
 import { LogsPage } from './ops/LogsPage'
 import { ChannelsPage } from './ops/ChannelsPage'
@@ -33,8 +34,8 @@ const nav: { group?: string; items: { to: string; label: string; icon: LucideIco
     { to: '/admin/audit', label: '审计日志', icon: ScrollText },
   ] },
   { group: '运维', items: [
+    { to: '/admin/ops/lane-matrix', label: '线路矩阵', icon: Grid3x3 },
     { to: '/admin/ops/dashboard', label: '仪表盘', icon: Gauge },
-    // TODO(integrator): 线路矩阵 nav — { to: '/admin/ops/lane-matrix', label: '线路矩阵', icon: Grid3x3 }
     { to: '/admin/ops/logs', label: '日志', icon: Logs },
     { to: '/admin/ops/channels', label: '渠道', icon: Server },
   ] },
@@ -133,7 +134,7 @@ function Shell() {
           <Route path="/admin/generations" element={<GenerationsPage />} />
           <Route path="/admin/audit" element={<AuditPage />} />
           <Route path="/admin/ops/dashboard" element={<DashboardPage />} />
-          {/* TODO(integrator): 线路矩阵 route — /admin/ops/lane-matrix → lazy(() => import('./ops/LaneMatrixPage')) */}
+          <Route path="/admin/ops/lane-matrix" element={<LaneMatrixPage />} />
           <Route path="/admin/ops/logs" element={<LogsPage />} />
           <Route path="/admin/ops/channels" element={<ChannelsPage />} />
           <Route path="*" element={<Navigate to="/admin/cases" replace />} />
