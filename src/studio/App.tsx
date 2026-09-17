@@ -60,7 +60,7 @@ function NavItem({ to, label, icon: Icon, variant }: (typeof views)[number] & { 
 }
 
 function Layout() {
-  const { pathname } = useLocation()
+  const { pathname, search, hash } = useLocation()
   const viewKey = viewKeyOf(pathname)
   const online = useOnline()
   const sessionExpired = useUnauthorizedBroadcast()
@@ -68,12 +68,21 @@ function Layout() {
   const canvasAdd = useCanvasAddListener()
   const navigate = useNavigate()
   const studioKind: StudioKind = useComposer(s => s.mode === 'avatar' ? 'avatar' : s.kind)
-  // Header 图片/视频/数字人: switch the composer in place and go to the (kind-aware) inspiration feed.
+  // Header 图片/视频/数字人: switch the composer in place; elsewhere also go to the (kind-aware) inspiration feed.
   const onStudioKind = (k: StudioKind) => {
     if (k === 'avatar') useComposer.setState({ kind: 'video', mode: 'avatar' })
     else useComposer.getState().setKind(k)
-    navigate(`/studio?kind=${k}`)
+    if (pathname !== '/studio') navigate(`/studio?kind=${k}`)
   }
+  // The composer is the single source of truth for ?kind= on the feed: every switch (header, composer toggle,
+  // empty-state links) lands here and replaces the URL in place, keeping q/cat/case. Entry is read by readKindOnce.
+  useEffect(() => {
+    if (pathname !== '/studio') return
+    const params = new URLSearchParams(search)
+    if ((params.get('kind') ?? 'image') === studioKind) return
+    params.set('kind', studioKind)
+    navigate({ search: `?${params}`, hash }, { replace: true })
+  }, [pathname, search, hash, studioKind, navigate])
   return (
     <MediaDndProvider>
     <div className="min-h-dvh">

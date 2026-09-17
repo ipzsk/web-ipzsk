@@ -100,12 +100,24 @@ e2eDescribe('inspiration', () => {
     expect(await page.getByRole('radio', { name: '视频' }).getAttribute('aria-checked')).toBe('true')
     expect(await cards().count()).toBe(0)
     // The composer's own switch drives the header and the library too.
+    const historyLength = await page.evaluate(() => history.length)
     await page.getByRole('radio', { name: '数字人' }).click()
     await page.getByText('暂无数字人案例', { exact: false }).waitFor()
+    await page.waitForURL(u => u.searchParams.get('kind') === 'avatar')
     expect(await nav.getByRole('link', { name: '数字人', exact: true }).getAttribute('aria-current')).toBe('page')
+    // Clicking the already-active header entry adds no history entry.
+    await nav.getByRole('link', { name: '数字人', exact: true }).click()
     await page.getByRole('button', { name: '看看图片案例' }).click()
     await cards().first().waitFor()
+    await page.waitForURL(u => u.searchParams.get('kind') === 'image')
     expect(await nav.getByRole('link', { name: '图片', exact: true }).getAttribute('aria-current')).toBe('page')
+    expect(await page.evaluate(() => history.length)).toBe(historyLength) // toggles replace, never push
+    // Refresh keeps the kind.
+    await page.getByRole('radio', { name: '视频' }).click()
+    await page.waitForURL(u => u.searchParams.get('kind') === 'video')
+    await page.reload()
+    await page.getByText('暂无视频案例', { exact: false }).waitFor()
+    expect(await page.getByRole('radio', { name: '视频' }).getAttribute('aria-checked')).toBe('true')
 
     await gotoMock(page, '/studio?kind=avatar')
     await page.getByText('暂无数字人案例', { exact: false }).waitFor()
