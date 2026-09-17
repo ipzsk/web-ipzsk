@@ -89,7 +89,7 @@ async function apiChecks() {
       if (img.status !== 200 || !type.startsWith('image/')) return { error: `案例 ${it.id} 图片 HTTP ${img.status} ${type}` }
       loaded.push({ id: it.id, variant: it.image.urls.w480 ? 'w480' : 'orig', cache_control: img.headers.get('cache-control') })
     }
-    const noThumb = items.filter((it) => !it.image?.urls?.w480).length
+    const noThumb = items.filter((it) => !it.image?.urls?.w480 && (it.image?.width ?? 0) >= 480).length // 原图宽度不到 480 的不生成 w480，属正常
     if (noThumb) warnings.push(`首页 ${items.length} 个案例里 ${noThumb} 个还没有 w480 缩略图（缩略图队列未跑完？）`)
     return { count: items.length, loaded }
   })
