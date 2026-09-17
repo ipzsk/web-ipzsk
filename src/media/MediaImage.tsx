@@ -21,6 +21,10 @@ type Props = {
   className?: string
   /** Hide the 「处理中」 badge (e.g. when the parent card shows its own status). */
   hideBadge?: boolean
+  /** The image is showing (fresh load or cache hit). */
+  onLoad?: () => void
+  /** Gave up after retries (the in-place error UI is shown). */
+  onError?: () => void
 }
 
 /** Placeholder for a referenced asset the server reports as `missing` (deleted / failed). */
@@ -36,7 +40,7 @@ const RETRIES = 2
 type Phase = { src: 'primary' | 'orig'; attempt: number; failed: boolean }
 const INITIAL: Phase = { src: 'primary', attempt: 0, failed: false }
 
-export function MediaImage({ asset, urls: urlsProp, assetId, width, height, sizes = 'thumb', alt, priority, onExpired, fit = 'cover', className, hideBadge }: Props) {
+export function MediaImage({ asset, urls: urlsProp, assetId, width, height, sizes = 'thumb', alt, priority, onExpired, fit = 'cover', className, hideBadge, onLoad: onLoadProp, onError: onErrorProp }: Props) {
   const fresh = useFreshUrls(asset?.id ?? assetId, asset?.urls ?? urlsProp ?? { orig: '' })
   const urls = fresh.urls
   const w = asset?.width ?? width ?? null
@@ -57,6 +61,8 @@ export function MediaImage({ asset, urls: urlsProp, assetId, width, height, size
     setLoaded(false)
   }
   useEffect(() => () => clearTimeout(timer.current), [])
+  useEffect(() => { if (loaded) onLoadProp?.() }, [loaded]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (phase.failed) onErrorProp?.() }, [phase.failed]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const src = phase.src === 'orig' ? urls.orig : primary
 

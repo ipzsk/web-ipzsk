@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent } from 'react'
-import { ChevronLeft, ChevronRight, Copy, ExternalLink, Flag, Heart, ImageOff, Layers, LayoutDashboard, Type, WandSparkles } from 'lucide-react'
-import { Badge, Button, Dialog, DialogContent, EmptyState, IconButton, Skeleton, cn, focusRing } from '@/ui'
+import { ChevronLeft, ChevronRight, Copy, ExternalLink, Flag, Heart, ImageOff, Layers, LayoutDashboard, LoaderCircle, Type, WandSparkles } from 'lucide-react'
+import { Badge, Button, Dialog, DialogContent, EmptyState, IconButton, Skeleton, cn, focusRing, useDelayedLoading } from '@/ui'
 import { MediaCard, MediaImage } from '@/media'
 import { toggleFavorite, useCase, useFavorites, useSimilar } from './api'
 import { caseAspect, copyrightLabel, takedownHref, type CaseItem } from './lib'
@@ -149,6 +149,9 @@ function ZoomImage({ c }: { c: CaseItem }) {
     setOrigin(`${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`)
   }
   const ratio = 1 / caseAspect(c.image)
+  // Original still loading over the thumb → delayed spinner (§4.2). Keyed by case id, so prev/next resets it.
+  const [settledId, setSettledId] = useState<string | null>(null)
+  const spinning = useDelayedLoading(settledId !== c.id)
   return (
     <button
       type="button"
@@ -162,8 +165,14 @@ function ZoomImage({ c }: { c: CaseItem }) {
       <div className="transition-transform duration-base ease-standard motion-reduce:transition-none" style={{ transform: zoom ? 'scale(2.5)' : undefined, transformOrigin: origin }}>
         {/* thumb (usually cached from the feed) under the full image, so something shows instantly */}
         <MediaImage urls={{ orig: c.image.urls.w480 ?? c.image.urls.w960 ?? c.image.urls.orig }} width={c.image.width} height={c.image.height} alt="" hideBadge className="w-full" />
-        <MediaImage urls={{ orig: c.image.urls.orig }} width={c.image.width} height={c.image.height} alt={c.title} sizes="orig" priority hideBadge className="absolute inset-0 w-full bg-transparent" />
+        <MediaImage urls={{ orig: c.image.urls.orig }} width={c.image.width} height={c.image.height} alt={c.title} sizes="orig" priority hideBadge className="absolute inset-0 w-full bg-transparent" onLoad={() => setSettledId(c.id)} onError={() => setSettledId(c.id)} />
       </div>
+      {spinning && (
+        <span role="status" className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink/60 p-2 text-white">
+          <LoaderCircle aria-hidden className="size-5 motion-safe:animate-spin-slow" />
+          <span className="sr-only">原图加载中</span>
+        </span>
+      )}
     </button>
   )
 }
