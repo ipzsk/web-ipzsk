@@ -54,9 +54,10 @@ export function SiteHeader() {
           <img src="/assets/ipzsk-wordmark-420.webp" alt="IPZSK" width={138} height={20} decoding="async" className="block h-5 w-[138px] max-w-none max-[720px]:h-[15px] max-[720px]:w-[104px]" />
         </a>
         <div className="flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] max-[720px]:col-span-full max-[720px]:row-start-2">
-          {links.map(l => (
-            <a key={l.href} href={l.href} aria-current={location.pathname.startsWith(l.href) && l.href !== '/' ? 'page' : undefined} className={cn(linkClass, location.pathname.startsWith(l.href) && l.href !== '/' && 'bg-acid font-bold hover:bg-acid')}>{l.text}</a>
-          ))}
+          {links.map(l => {
+            const current = l.href === '/' ? location.pathname === '/' : location.pathname.startsWith(l.href)
+            return <a key={l.href} href={l.href} aria-current={current ? 'page' : undefined} className={cn(linkClass, current && 'bg-acid font-bold hover:bg-acid')}>{l.text}</a>
+          })}
         </div>
         <div className="flex min-w-0 items-center gap-2 max-[720px]:gap-1">
           {user && <PointsPill />}
