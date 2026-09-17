@@ -10,3 +10,8 @@ describe('formatPoints', () => {
     expect(formatPoints(null)).toBe('待核实')
   })
 })
+
+it('keeps small charges visible', () => {
+  expect(formatPoints('0.03')).toBe('0.03 点')
+  expect(formatPoints(0)).toBe('0 点')
+})
