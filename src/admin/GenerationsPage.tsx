@@ -15,7 +15,7 @@ import { useCan } from './App'
 const KEYS = ['user', 'model', 'status', 'kind', 'from', 'to'] as const
 const statusTone = (s: GenStatus) => (s === 'succeeded' ? 'success' : s === 'failed' ? 'danger' : s === 'cancelled' ? 'outline' : 'warning') as 'success'
 const ROW = 52
-const COLS = 'grid grid-cols-[150px_minmax(0,1fr)_200px_150px_90px_100px] items-center gap-3 px-3'
+const COLS = 'grid min-w-[820px] grid-cols-[150px_minmax(0,1fr)_200px_150px_90px_100px] items-center gap-3 px-3'
 
 export function GenerationsPage() {
   const [sp, setSp] = useSearchParams()
@@ -74,7 +74,7 @@ export function GenerationsPage() {
         : list.isPending ? <div className="grid gap-1">{Array.from({ length: 10 }, (_, i) => <Skeleton key={i} className="h-12" />)}</div>
         : !rows.length ? <EmptyState icon={ListX} text="没有符合筛选的生成记录" />
         : (
-          <div role="table" aria-label="生成记录" aria-rowcount={rows.length} className="rounded-card border border-line bg-card">
+          <div role="table" aria-label="生成记录" aria-rowcount={rows.length} className="overflow-x-auto rounded-card border border-line bg-card">
             <div role="row" className={cn(COLS, 'h-10 border-b border-line text-xs font-semibold text-muted')}>
               {['时间', '提示词', '用户', '型号', '状态', '扣点'].map(h => <span key={h} role="columnheader">{h}</span>)}
             </div>

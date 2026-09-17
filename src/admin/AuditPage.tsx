@@ -47,7 +47,9 @@ export function AuditPage() {
         : list.isPending ? <div className="grid gap-1">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-10" />)}</div>
         : !rows.length ? <EmptyState icon={ScrollText} text="没有符合筛选的审计事件" />
         : (
-          <table className="w-full border-separate border-spacing-0 text-sm">
+          // Wide table scrolls inside its own box on phones instead of widening the page.
+          <div className="-mx-1 overflow-x-auto px-1">
+          <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
             <thead><tr><th className={th}>时间</th><th className={th}>操作者</th><th className={th}>动作</th><th className={th}>对象</th><th className={th}>详情</th></tr></thead>
             <tbody>
               {rows.map(e => (
@@ -61,6 +63,7 @@ export function AuditPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       {list.hasNextPage && <div className="mt-4 flex justify-center"><Button loading={list.isFetchingNextPage} loadingText="加载中" onClick={() => void list.fetchNextPage()}>加载更多</Button></div>}
     </section>

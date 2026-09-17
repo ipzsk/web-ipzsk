@@ -2882,6 +2882,24 @@
     },
     {
       "auth": "bearer",
+      "body": "BearerQuoteBody",
+      "body_shape": "{ model: string [extra: string]: unknown }",
+      "errors": [
+        "credit_reference_required",
+        "invalid_credit_amount",
+        "invalid_request",
+        "lanehub_token_create_failed",
+        "lanehub_user_create_failed",
+        "lanehub_username_collision",
+        "quote_requires_lanehub",
+        "quote_upstream_error"
+      ],
+      "method": "POST",
+      "path": "/v1/quote",
+      "response": "UpstreamPassthrough"
+    },
+    {
+      "auth": "bearer",
       "errors": [
         "anchor_not_succeeded",
         "audio_asset_not_found",
@@ -4590,6 +4608,12 @@
       "code": "quote_requires_lanehub",
       "status": [
         409
+      ]
+    },
+    {
+      "code": "quote_upstream_error",
+      "status": [
+        502
       ]
     },
     {

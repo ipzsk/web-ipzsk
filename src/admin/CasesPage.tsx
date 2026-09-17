@@ -151,7 +151,9 @@ export function CasesPage() {
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ screenReaderInstructions: { draggable: '按空格拿起，用方向键移动，再按空格放下' } }}>
             <SortableContext items={items.map(c => c.id)} strategy={view === 'grid' ? rectSortingStrategy : verticalListSortingStrategy} disabled={!writable || !!reorderBlocked}>
               {view === 'table' ? (
-                <table className="w-full border-separate border-spacing-0 text-sm">
+                // Phones: the table scrolls in its own box (sticky header only matters on wide screens).
+                <div className="max-md:overflow-x-auto">
+                <table className="w-full border-separate border-spacing-0 text-sm max-md:min-w-[640px]">
                   <thead className="sticky top-16 z-10 bg-paper text-left text-xs text-muted">
                     <tr>
                       {writable && <th className="w-16 border-b border-line py-2 pl-2"><Checkbox label={<span className="sr-only">全选</span>} checked={allSelected} onCheckedChange={v => setSelected(v ? new Set(items.map(c => c.id)) : new Set())} /></th>}
@@ -165,6 +167,7 @@ export function CasesPage() {
                   </thead>
                   <tbody>{items.map((c, i) => <CaseRow key={c.id} {...rowProps(c)} priority={i < 12} />)}</tbody>
                 </table>
+                </div>
               ) : (
                 <ul className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">{items.map((c, i) => <CaseTile key={c.id} {...rowProps(c)} priority={i < 12} />)}</ul>
               )}

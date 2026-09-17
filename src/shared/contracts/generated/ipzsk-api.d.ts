@@ -275,6 +275,10 @@ export interface AvatarRef {
   preview_image_url?: string | null
   preview_video_url?: string | null
 }
+export interface BearerQuoteBody {
+  model: string
+  [extra: string]: unknown
+}
 export type BulkStatusItem = {
   id: string
   ok: true
@@ -870,4 +874,5 @@ export interface Endpoints {
   "GET /api/public/case-categories": { body: never; response: CaseCategories }
   "GET /api/public/cases": { body: never; response: Page<InspirationCase> }
   "GET /api/public/cases/:id": { body: never; response: InspirationCaseDetail }
+  "POST /v1/quote": { body: BearerQuoteBody; response: UpstreamPassthrough }
 }
