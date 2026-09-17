@@ -43,10 +43,6 @@ export function AccountPage() {
 
   return (
     <main className={cn('mx-auto w-full px-6 pb-16 pt-10 max-sm:px-4 max-sm:pt-6', signedIn ? 'max-w-[1000px]' : 'max-w-[480px]')}>
-      <a href="/" aria-label="返回 IPZSK 首页" className={cn('mb-6 inline-flex items-center gap-3 rounded-control', focusRing)}>
-        <span className="grid size-10 place-items-center rounded-control bg-ink text-[15px] font-black text-white">iP</span>
-        <span className="leading-tight"><strong className="block text-lg font-black">IPZSK</strong><small className="text-xs text-muted">知识库工作台</small></span>
-      </a>
       {profile.isPending ? (
         <div className="grid gap-4 rounded-panel border border-line bg-card p-8"><Skeleton className="h-8 w-40" /><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-12" /></div>
       ) : signedIn ? (

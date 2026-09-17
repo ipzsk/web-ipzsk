@@ -123,17 +123,24 @@ export function AccountPanel({ profile, onRecharge, onSignedOut }: { profile: Pr
             : usage.data && <>
               {usage.data.rows.length === 0 ? <EmptyState icon={Wallet} text="还没有消费记录，生成内容后会显示在这里。" /> : (
                 <div className="-mx-6 overflow-x-auto max-sm:-mx-4">
-                  <table className="w-full min-w-[720px] text-left text-[13px]">
-                    <thead><tr className="bg-subtle/60 text-xs text-muted">{['时间', '模型', '状态', '输入 / 输出 Token', '消耗点数', '请求编号'].map(h => <th key={h} scope="col" className="px-6 py-2.5 font-semibold first:pl-6">{h}</th>)}</tr></thead>
+                  <table className="w-full min-w-[820px] table-fixed text-left text-[13px]">
+                    <colgroup><col className="w-[170px]" /><col /><col className="w-[88px]" /><col className="w-[150px]" /><col className="w-[110px]" /><col className="w-[190px]" /></colgroup>
+                    <thead><tr className="bg-subtle/60 text-xs text-muted">{['时间', '模型', '状态', '输入 / 输出 Token', '消耗点数', '请求编号'].map(h => <th key={h} scope="col" className="whitespace-nowrap px-4 py-2.5 font-semibold first:pl-6 last:pr-6">{h}</th>)}</tr></thead>
                     <tbody>
                       {usage.data.rows.map(r => (
                         <tr key={r.id} className="border-t border-line">
-                          <td className="whitespace-nowrap px-6 py-3 tabular-nums">{time(r.created_at)}</td>
-                          <td className="px-6 py-3">{r.model}</td>
-                          <td className="px-6 py-3"><Badge tone={r.status === 'succeeded' ? 'success' : r.status === 'failed' ? 'danger' : r.status === 'uncertain' ? 'warning' : 'neutral'}>{USAGE_STATUS[r.status] ?? r.status}</Badge></td>
-                          <td className="px-6 py-3 tabular-nums">{r.input_tokens ?? '待核实'} / {r.output_tokens ?? '待核实'}</td>
-                          <td className="px-6 py-3 tabular-nums">{r.charged_points != null ? formatPoints(r.charged_points) : BILLING_STATE[r.billing_state ?? ''] ?? '历史未计费'}</td>
-                          <td className="px-6 py-3 font-mono text-xs text-muted">{r.id}</td>
+                          <td className="whitespace-nowrap py-3 pl-6 pr-4 tabular-nums">{time(r.created_at)}</td>
+                          <td className="truncate px-4 py-3" title={r.model}>{r.model}</td>
+                          <td className="whitespace-nowrap px-4 py-3"><Badge tone={r.status === 'succeeded' ? 'success' : r.status === 'failed' ? 'danger' : r.status === 'uncertain' ? 'warning' : 'neutral'}>{USAGE_STATUS[r.status] ?? r.status}</Badge></td>
+                          <td className="whitespace-nowrap px-4 py-3 tabular-nums">{r.input_tokens ?? '待核实'} / {r.output_tokens ?? '待核实'}</td>
+                          <td className="whitespace-nowrap px-4 py-3 tabular-nums">{r.charged_points != null ? formatPoints(r.charged_points) : BILLING_STATE[r.billing_state ?? ''] ?? '历史未计费'}</td>
+                          <td className="py-3 pl-4 pr-6">
+                            <span className="flex items-center gap-1">
+                              <span className="truncate font-mono text-xs text-muted" title={r.id}>{r.id}</span>
+                              <button type="button" aria-label="复制请求编号" title="复制请求编号" className={cn('grid size-6 shrink-0 place-items-center rounded-[6px] text-muted hover:bg-subtle hover:text-ink', focusRing)}
+                                onClick={() => void navigator.clipboard.writeText(r.id).then(() => toast({ title: '已复制请求编号。', tone: 'success' }), () => toast({ title: '复制失败，请手动选中文本复制。', tone: 'error' }))}><Copy aria-hidden className="size-3.5" /></button>
+                            </span>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
