@@ -31,9 +31,12 @@ const studioFallback: Plugin = {
       const q = req.url?.split('?')[1]
       const m = req.url && /^\/(studio|admin)(\/|\?|$)/.exec(req.url)
       if (m) req.url = `/${m[1]}.html` + (q ? '?' + q : '')
-      // F9 previews of migrated pages: /next/<page> → pages/<page>.html
-      const n = req.url && /^\/next\/(home|account|developer|workstation|workspace)(\/|\?|$)/.exec(req.url)
+      // Same as vercel.json after cutover: legacy /image, /video → /studio; site pages → pages/<page>.html (/next/<page> kept as alias).
+      const legacy = req.url && /^\/(image|video)(\.html)?(\?|$)/.exec(req.url)
+      if (legacy) { _res.writeHead(302, { location: `/studio?kind=${legacy[1]}` }); return _res.end() }
+      const n = req.url && /^\/(?:next\/)?(home|account|developer|workstation|workspace)(\/|\?|$)/.exec(req.url)
       if (n) req.url = `/pages/${n[1]}.html` + (q ? '?' + q : '')
+      else if (req.url && /^\/(\?|$)/.test(req.url)) req.url = '/pages/home.html' + (q ? '?' + q : '')
       next()
     })
   },

@@ -1,11 +1,5 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { LucideProvider } from 'lucide-react'
 import './home.css'
+import { mountPage } from '@/pages/shared/auth/mount'
 import { Home } from './Home'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <LucideProvider size={16} strokeWidth={1.75}><Home /></LucideProvider>
-  </StrictMode>,
-)
+mountPage(<Home />)

@@ -7,19 +7,6 @@ import { PLATFORMS, RELEASE_PAGE, detectPlatform, fetchRelease, releaseOptions, 
 // recoloured with IPZSK tokens; legacy feature cards kept below with /studio entry links.
 const serif = 'font-["Songti_SC","Noto_Serif_SC","STSong","SimSun",serif]'
 const PHRASES = ['帮你生图', '帮你生视频', '帮你生产内容']
-const navLink = cn('rounded-[8px] px-1 py-2.5 transition-colors duration-(--duration-fast) hover:text-label', focusRing)
-
-const NAV = [
-  { href: '/', text: '首页', current: true },
-  { href: '/studio?kind=image', text: '生图', menu: true },
-  { href: '/studio?kind=video', text: '生视频' },
-  { href: '/workspace', text: '内容工作台' },
-  { href: '/account', text: '我的' },
-]
-const MEGA = [
-  { title: '生图工作台', links: [['普通生图', '/studio?kind=image'], ['灵感 · 全部案例', '/studio'], ['我的素材', '/studio/assets'], ['无限画布', '/studio/canvas']] },
-  { title: '更多创作', links: [['生视频', '/studio?kind=video'], ['内容工作台', '/workspace']] },
-]
 const FEATURES = [
   { badge: '现已开放', title: '生图', text: '描述画面，生成图片。查看当前账号的云端图片记录。', href: '/studio?kind=image', link: '开始生图', dark: true },
   { badge: '已接入', title: '生视频', text: '登录后使用账户余额生成 AI 视频，支持清晰度、时长设置与任务进度查询。', href: '/studio?kind=video', link: '开始生成视频' },
@@ -123,56 +110,12 @@ function DownloadMenu() {
   )
 }
 
-function Header() {
-  return (
-    <header className="sticky top-0 z-50 border-b border-line bg-paper/92 backdrop-blur-md max-md:pt-2">
-      <nav aria-label="主导航" className="relative mx-auto grid w-[min(1180px,calc(100%-28px))] grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 md:min-h-[94px] md:grid-cols-[auto_1fr_auto] lg:grid-cols-[1fr_auto_1fr] lg:gap-8">
-        <a href="/" aria-label="IPZSK 首页" className={cn('w-max rounded-control', focusRing)}>
-          <img src="/assets/ipzsk-lockup.png" alt="IPZSK" width={140} height={74} className="h-[58px] w-[104px] object-contain mix-blend-multiply md:h-[74px] md:w-[140px]" />
-        </a>
-        <div className="col-span-full row-start-2 flex items-center gap-5 overflow-x-auto pb-1.5 text-[12px] font-bold whitespace-nowrap [scrollbar-width:none] md:col-span-1 md:row-start-auto md:justify-center md:gap-7 md:pb-0 md:[overflow:visible]">
-          {NAV.map(l => l.menu ? (
-            <div key={l.href} className="group/mega flex h-full items-center md:static">
-              <a href={l.href} className={navLink}>{l.text}</a>
-              <div className="absolute left-1/2 top-full hidden w-screen -translate-x-1/2 border-y border-line bg-paper/98 shadow-[0_18px_36px_rgba(29,31,32,.1)] backdrop-blur-md md:group-hover/mega:block md:group-focus-within/mega:block">
-                <div className="mx-auto grid w-[min(1180px,calc(100%-32px))] grid-cols-[1fr_1fr_1.5fr] gap-[70px] py-8">
-                  {MEGA.map(c => (
-                    <div key={c.title} className="flex flex-col items-start gap-2.5">
-                      <small className="text-[10px] font-bold tracking-[.12em] text-muted">{c.title}</small>
-                      {c.links.map(([t, h]) => <a key={h} href={h} className={cn('text-[17px] font-bold', navLink, 'py-0')}>{t}</a>)}
-                    </div>
-                  ))}
-                  <div className="flex flex-col items-start gap-2.5 border-l border-line pl-7">
-                    <small className="text-[10px] font-bold tracking-[.12em] text-muted">IPZSK CREATIVE LAB</small>
-                    <strong className={cn(serif, 'text-[27px] font-medium')}>从一句话开始创作。</strong>
-                    <p className="max-w-80 text-[12px] font-normal leading-[1.7] text-muted">挑一种风格，把想法推进成可以发布的内容。</p>
-                    <a href="/studio" className={cn(navLink, 'inline-flex items-center gap-1 text-label')}>开始使用<ArrowUpRight aria-hidden className="size-3.5" /></a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <a key={l.href} href={l.href} aria-current={l.current ? 'page' : undefined} className={cn(navLink, l.current && 'text-ink underline decoration-acid decoration-4 underline-offset-8')}>{l.text}</a>
-          ))}
-        </div>
-        <div className="flex items-center justify-end gap-5 text-[12px] font-extrabold">
-          <a href="/workspace" className={cn(navLink, 'max-lg:hidden')}>在线使用</a>
-          <a href="#download" className={cn('inline-flex items-center gap-1.5 rounded-[12px] bg-ink px-3 py-2.5 text-acid shadow-[0_8px_20px_rgba(22,25,22,.16)] transition-transform duration-(--duration-fast) motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[.98] md:px-4 md:py-3', focusRing)}>
-            下载客户端<Download aria-hidden className="size-4" />
-          </a>
-        </div>
-      </nav>
-    </header>
-  )
-}
-
 export function Home() {
   const { phrase, changing } = useRotatingPhrase()
   return (
     <div className="min-h-dvh overflow-x-clip bg-paper text-ink antialiased">
-      <Header />
       <main>
-        <section aria-labelledby="hero-title" className="relative mx-auto flex min-h-[calc(100svh-97px)] w-[min(1340px,calc(100%-28px))] items-center justify-center pb-24 pt-14 md:min-h-[calc(100svh-94px)] md:w-[min(1340px,calc(100%-80px))] md:pb-[82px] md:pt-12">
+        <section aria-labelledby="hero-title" className="relative mx-auto flex min-h-[calc(100svh-104px)] w-[min(1340px,calc(100%-28px))] items-center justify-center pb-24 pt-14 md:min-h-[calc(100svh-64px)] md:w-[min(1340px,calc(100%-80px))] md:pb-[82px] md:pt-12">
           <div aria-hidden className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
             {STICKERS.map(s => (
               <img key={s.src} src={s.src} alt="" loading="lazy" decoding="async" style={{ animationDelay: s.delay }}
