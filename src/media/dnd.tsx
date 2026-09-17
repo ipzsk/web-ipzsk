@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import {
-  DndContext, DragOverlay, PointerSensor, useDndContext, useDraggable, useDroppable, useSensor, useSensors,
+  DndContext, DragOverlay, PointerSensor, pointerWithin, useDndContext, useDraggable, useDroppable, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
 import { Ban } from 'lucide-react'
@@ -33,6 +33,8 @@ export function MediaDndProvider({ children }: { children: ReactNode }) {
   return (
     <DndContext
       sensors={sensors}
+      // Drop target = what's under the pointer; rect overlap picks neighbours when a large card covers several rows.
+      collisionDetection={pointerWithin}
       onDragStart={({ active }: DragStartEvent) => setDragging(payloadOf(active.data.current))}
       onDragEnd={onDragEnd}
       onDragCancel={() => setDragging(null)}
