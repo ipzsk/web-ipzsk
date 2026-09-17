@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent } from 'react'
 import { ChevronLeft, ChevronRight, Copy, ExternalLink, Flag, Heart, ImageOff, Layers, LayoutDashboard, Type, WandSparkles } from 'lucide-react'
 import { Badge, Button, Dialog, DialogContent, EmptyState, IconButton, Skeleton, cn, focusRing } from '@/ui'
-import { MediaImage } from '@/media'
+import { MediaCard, MediaImage } from '@/media'
 import { toggleFavorite, useCase, useFavorites, useSimilar } from './api'
-import { caseAspect, caseUrls, copyrightLabel, takedownHref, type CaseItem } from './lib'
-import { addCaseToCanvas, copyPrompt, fillComposer } from './actions'
+import { caseAspect, copyrightLabel, takedownHref, type CaseItem } from './lib'
+import { addCaseToCanvas, caseAsset, copyPrompt, fillComposer } from './actions'
 
 type Props = {
   id: string | null
@@ -175,19 +175,14 @@ function Similar({ id, onNavigate }: { id: string; onNavigate: (id: string) => v
     <section className="mt-8 border-t border-line pt-6">
       <h3 className="mb-3 text-[15px] font-semibold">相似案例</h3>
       {/* Small, bounded list → CSS columns are enough; heights come from aspect ratios so nothing shifts. */}
-      <div className="columns-2 gap-3 sm:columns-3 lg:columns-4">
+      <div className="columns-2 gap-2 sm:columns-3 md:gap-4 lg:columns-5">
         {isPending
-          ? Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="mb-3 w-full rounded-card" style={{ aspectRatio: i % 2 ? '3 / 4' : '1 / 1' }} />)
+          ? Array.from({ length: 10 }, (_, i) => <Skeleton key={i} className="mb-2 w-full rounded-card md:mb-4" style={{ aspectRatio: i % 2 ? '3 / 4' : '1 / 1' }} />)
           : data!.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => onNavigate(s.id)}
-              className={cn('group mb-3 block w-full break-inside-avoid overflow-hidden rounded-card text-left transition-[transform,box-shadow] duration-(--duration-fast) hover:-translate-y-px hover:shadow-[0_6px_20px_rgb(22_25_22/.12)] active:scale-[.98] motion-reduce:transform-none', focusRing)}
-            >
-              <MediaImage urls={caseUrls(s.image)} width={s.image.width} height={s.image.height} alt={s.title} className="w-full" />
-              <span className="block truncate px-1 pt-1.5 text-xs text-muted group-hover:text-ink">{s.title}</span>
-            </button>
+            // Same card as the main feed (title on hover), with its clamped aspect so heights match.
+            <div key={s.id} className="mb-2 break-inside-avoid md:mb-4" style={{ aspectRatio: `1 / ${caseAspect(s.image)}` }}>
+              <MediaCard asset={caseAsset(s)} title={s.title} onOpen={() => onNavigate(s.id)} />
+            </div>
           ))}
       </div>
     </section>
