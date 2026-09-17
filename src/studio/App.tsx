@@ -5,7 +5,11 @@ import { Badge, Button, OfflineBanner, SegmentedControl, cn, focusRing } from '@
 import { StatesPage } from '@/ui/states-page'
 import { useOnline, useUnauthorizedBroadcast } from '@/shared/query'
 import { SiteHeader } from './SiteHeader'
-import { useComposer } from './store'
+import { Composer } from './composer/Composer'
+import { InspirationView } from './inspiration/InspirationView'
+import { CreateView } from './create/CreateView'
+import { AssetsView } from './assets/AssetsView'
+import { CanvasView } from './canvas/CanvasView'
 
 const views: { id: string; to: string; label: string; icon: LucideIcon }[] = [
   { id: 'inspiration', to: '/studio', label: '灵感', icon: Sparkles },
@@ -44,27 +48,6 @@ function NavItem({ to, label, icon: Icon, variant }: (typeof views)[number] & { 
     >
       {({ isActive }) => <><Icon className={cn('size-[18px]', variant === 'tab' && isActive && 'text-acid-deep')} />{label}</>}
     </NavLink>
-  )
-}
-
-function Composer({ hidden }: { hidden: boolean }) {
-  const { kind, setKind } = useComposer()
-  return (
-    <div hidden={hidden} className="pointer-events-none fixed inset-x-0 bottom-4 z-30 px-4 max-md:bottom-[72px] md:left-52">
-      <div className="pointer-events-auto mx-auto max-w-3xl rounded-panel border border-line bg-card p-3 shadow-xl">
-        <textarea
-          aria-label="提示词"
-          placeholder="描述你想要的画面…"
-          rows={2}
-          className="w-full resize-none bg-transparent px-2 py-1 text-sm leading-6 outline-none placeholder:text-muted [field-sizing:content] max-h-[calc(8lh+.5rem)]"
-        />
-        <div className="mt-2 flex items-center gap-2">
-          <SegmentedControl label="类型" value={kind} onValueChange={setKind} options={[{ value: 'image', label: '图片', icon: Image }, { value: 'video', label: '视频', icon: Clapperboard }]} />
-          <div className="flex-1" />
-          <Button variant="primary" icon={<ArrowUp className="size-[18px]" />} disabled disabledReason="输入框将在 F3 接入">发送</Button>
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -115,13 +98,13 @@ export function App() {
   return (
     <Routes>
       <Route path="/studio" element={<Layout />}>
-        <Route index element={<Placeholder title="灵感" />} />
-        <Route path="create" element={<Placeholder title="创作" />} />
-        <Route path="create/:threadId" element={<Placeholder title="创作" />} />
-        <Route path="assets" element={<Placeholder title="素材" />} />
-        <Route path="assets/:folderId" element={<Placeholder title="素材" />} />
-        <Route path="canvas" element={<Placeholder title="画布" />} />
-        <Route path="canvas/:projectId" element={<Placeholder title="画布" />} />
+        <Route index element={<InspirationView />} />
+        <Route path="create" element={<CreateView />} />
+        <Route path="create/:threadId" element={<CreateView />} />
+        <Route path="assets" element={<AssetsView />} />
+        <Route path="assets/:folderId" element={<AssetsView />} />
+        <Route path="canvas" element={<CanvasView />} />
+        <Route path="canvas/:projectId" element={<CanvasView />} />
         <Route path="_states" element={<StatesPage />} />
         <Route path="*" element={<Placeholder title="页面不存在" />} />
       </Route>
