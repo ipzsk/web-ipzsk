@@ -1,6 +1,11 @@
-# IPZSK 创作工作台改造方案（v7）
+# IPZSK 创作工作台改造方案（v8）
 
-> 状态：已定稿 · 2026-09-17（v7，第二轮评审修订）
+> 状态：已定稿 · 2026-09-17（v8）
+> 相对 v7 的变化：
+> - 新增 **@ 提及**与**主体库**（§2.2-2、§2.9、§8.9）。编辑器用 Tiptap 3（MIT）。
+> - 缩略图改为**网关容器内 ffmpeg**，不再使用 Cloudflare Worker（§7.2-3）。
+> - 时间片签名修正：签名日期始终为当前时间片起点，有效期延长到下一时间片结束 + 30 分钟（§7.2-2）。
+> - 瀑布流实现改为 @tanstack/react-virtual（`lanes`），@virtuoso.dev/masonry 无 scrollToIndex 且排版不稳定（§5.1）。
 > 相对 v6 的变化：
 > - 批次改为**客户端逐项提交**（删除 batch 接口），幂等键 = 队列项 id，部分失败按项处理（§2.3）。
 > - 套图锚定定义为**批次内两阶段、显式引用锚图资产**；「不带上下文」改写为「不带对话历史」（§2.3）。
@@ -52,9 +57,9 @@
 4. **媒体**：
    - 复用后端已配置的私有 R2 bucket，全部走网关签发的签名 URL，不公开读。
    - 签名 URL 按 6 小时时间片对齐，让浏览器缓存生效。
-   - 缩略图由 Cloudflare Worker（R2 绑定 + jSquash wasm）生成两档 WebP，不占服务器资源。
+   - 缩略图和视频封面由网关容器内的 ffmpeg 串行生成，两档 WebP。
    - 前端统一使用媒体组件：图片、视频、瀑布流、预览、上传。
-5. **数据**：在后端 `schema.sql` 按现有幂等方式增加到 v18–v21。新增 12 张表：用户角色、媒体资产、文件夹、文件夹项、收藏、生成记录、生成引用、会话、发送队列、用户模板、画布项目、案例库。所有外键类型与现有表一致（`uuid`）。
+5. **数据**：在后端 `schema.sql` 按现有幂等方式增加到 v18–v21。新增 14 张表（含主体、主体参考图）：用户角色、媒体资产、文件夹、文件夹项、收藏、生成记录、生成引用、会话、发送队列、用户模板、画布项目、案例库。所有外键类型与现有表一致（`uuid`）。
 6. **权限**：用户体系统一用 better-auth。角色至少有 `user` 和 `admin`（admin 下再分 superadmin、operator、viewer）。管理中台放在官网 `/admin`，技术栈与设计系统和工作台一致，逐步替换现有的 `api.ipzsk.com/admin`。
 7. **交互**：所有写操作默认乐观更新。每个组件都要完整定义以下状态，不允许出现「看不出在干什么」的状态：
    - 悬停、按下、聚焦、选中、禁用（附原因）
@@ -120,7 +125,13 @@
    - 添加按钮（`Plus`）加已添加素材的缩略图；每张缩略图有删除（`X`），可拖动排序。
    - 添加方式：点击上传、粘贴、拖入文件、从瀑布流/结果卡片/素材拖入、从画布节点「加入输入框」。
    - 槽位数量和类型由当前型号声明，例如 GPT Image 2 最多 15 张。型号不支持参考图时隐藏添加按钮。
-2. **提示词**：随内容自动增高，最多约 8 行。附「增强」按钮（`Sparkles`），调用 `/api/me/image-prompt`。
+2. **提示词**（Tiptap 编辑器）：随内容自动增高，最多约 8 行。附「增强」按钮（`Sparkles`），调用 `/api/me/image-prompt`。
+   - **@ 提及**：输入 `@`（全角 `＠` 同样生效）弹出候选面板，上下键选择、Enter 插入、Esc 关闭，继续输入即过滤。
+   - 候选分两组：**主体**（主体库，显示封面 + 名称 + 类型）在前；**参考图**（当前槽位里的图，显示为「图1」「图2」…）在后。面板底部固定「＋ 创建主体」（`UserPlus`）：从上传 / 从素材选择。
+   - 插入后显示为不可拆分的标签（封面小圆图 + `@名称`），Backspace 整体删除；悬停显示主体的参考图。
+   - **插入主体时**，把主体的参考图加入参考槽位（按资产 id 去重）；删除标签时，只移除由这个标签带进来、且没有被其他标签或用户手动引用的图。
+   - **超过型号参考图上限**时：标签变为警示色，提示「GPT Image 2 最多 15 张参考图，当前 17 张」，发送按钮禁用并说明原因。
+   - **发送时**：提示词文本里标签序列化为 `@名称`（参考图标签为 `图N`），编辑器 JSON 与 `mentions` 一起保存在记录里，用于回填和「编辑后重发」时还原标签。
 3. **类型切换**：「图片（`Image`）| 视频（`Clapperboard`）」分段按钮。切换时恢复该类型上次用的型号和参数。
 4. **型号选择**：下拉按钮（`ChevronDown`）。弹层列出名称、说明、计费单位，以及能力标签：参考图（`Images`）、时长（`Timer`）。弹层支持多选：多选后点「加入队列」，自动生成 N 个队列项。**展开时**逐型号按目录的 `values` 归一参数：当前值不在该型号取值内的改为该型号默认值，并在队列项上高亮标注（如「2K→1K」）。取值原样使用目录返回（lanehub 的 flare 是 `1K/2K/4K` 大写），不做大小写转换。
 5. **参数小按钮**：比例（`RectangleHorizontal`）、清晰度（`Gauge`）、张数（`Layers`）、时长（`Timer`）。完全按型号的参数声明显示，型号没声明的不显示。
@@ -293,6 +304,17 @@
 - **管理**：素材视图里「我的模板」列表，可重命名、改封面、删除、复制成新模板；模板只存资产引用，缺失时提示重新放入。
 - **电商**：不做独立视图。电商案例即带多项 `template` 的案例库模板；用户跑过一次后也能存成自己的模板。
 
+### 2.9 主体库
+
+**主体** = 有名字、可复用的一组参考图，用于在多次生成中保持同一个人物、角色、商品或物体的一致性。
+
+- **入口**：素材视图的「主体」标签页（`Users`）；输入框 @ 面板的「＋ 创建主体」；结果卡片和素材卡片的「存为主体」（`UserPlus`）。
+- **字段**：名称（同一用户内唯一，1–30 字）、类型（人物 / 角色 / 商品 / 物体 / 场景，影响图标与排序）、封面（从参考图里选）、参考图 1–8 张（按顺序）、备注（可选，不参与生成）。
+- **主体卡片**：封面 + 名称 + 类型角标 + 参考图数量；悬停显示前 4 张参考图；操作：@ 到输入框、编辑、复制、删除（可撤销）。
+- **编辑面板**：拖动排序参考图、设封面、增删参考图（上传或从素材拖入），全部乐观更新。
+- **被引用时删除**：记录里保存的是生成当时的参考图资产 id，删除主体不影响历史记录；队列和模板里引用了已删除主体的标签显示为「主体已删除」，发送前要求处理。
+- **模板中的主体**：模板项的提示词可以含主体占位 `{{主体:商品}}`，应用模板时要求选择一个主体填入（§2.8 变量机制的一种）。
+
 ---
 
 ## 3. 视觉规范（IPZSK 设计系统）
@@ -410,7 +432,7 @@
 |---|---|---|
 | `MediaImage` | 按 `sizes` 在 w480 / w960 / orig 三档签名 URL 中选择；占位；懒加载；前几张优先加载；失败重试 2 次后回退原图，再失败显示占位图标（`ImageOff`）；缓存命中不淡入 | 无 |
 | `MediaVideo` | poster 占位；`preload="none"`，悬停播放、移开暂停归零；**全局同一时间只播放一个**；详情页 `preload="metadata"` + 控制条 | media-chrome（MIT） |
-| `MasonryGrid` | Pinterest 式瀑布流：按宽高比预先算高度、响应式列数、虚拟滚动、无限加载、键盘导航 | @virtuoso.dev/masonry（MIT）；备选 @tanstack/react-virtual 自己实现 |
+| `MasonryGrid` | Pinterest 式瀑布流：按宽高比预先算高度、响应式列数、虚拟滚动、无限加载、键盘导航、`scrollToIndex` | @tanstack/react-virtual（MIT，`lanes` 模式）。@virtuoso.dev/masonry 实测无 scrollToIndex、卡片位置随滚动方式变化，已放弃 |
 | `MediaLightbox` | 大图和视频预览：缩放、拖动、手势、键盘、预加载相邻 2 张、URL 深链接、下载 | yet-another-react-lightbox（MIT） |
 | `useUpload` / `UploadDropzone` | 选择、粘贴、拖入文件 → 本地预览 → 预签名直传 R2（有进度、可取消、可重试）→ 完成后替换为服务端地址 | 无 |
 | `MediaCard` | 瀑布流和网格中的通用卡片：悬停遮罩、选择框、拖拽源、状态角标（上传中、生成中、失败） | @dnd-kit（MIT） |
@@ -482,20 +504,17 @@ u/{user_id}/{asset_id}/poster.webp  canvas/{project_id}/thumb.webp
 
 2. **签名 URL 的缓存策略**（签名 URL 不经过 CDN，所以要让浏览器缓存生效）：
    - 网关签发 GET URL 时，过期时间对齐到**固定的 6 小时时间片**（例如 00/06/12/18 点整），签名的 `X-Amz-Date` 也用时间片起点。同一对象在同一时间片内签出的 URL 完全相同，浏览器和 TanStack Query 都能命中缓存。
-   - 时间片剩余不足 30 分钟时，签发下一个时间片的 URL，避免用户刚拿到就过期。
+   - 签名日期（`X-Amz-Date`）始终是**当前**时间片起点，有效期延长到**下一个**时间片结束再加 30 分钟。任何时候拿到的 URL 至少还有 1 小时有效期，每个时间片最多出现两种 URL。（不能把签名日期设成下一个时间片起点：那是未来时间，R2 会判定尚未生效。）
    - 对象写入时带 `Cache-Control: private, max-age=21600`，浏览器缓存 6 小时。
    - 列表接口一次返回整页的签名 URL（每张 3 档：w480 / w960 / orig），不逐张签。签名是本地 HMAC 计算，每张约 0.1ms。
    - 前端图片失败重试时先刷新元数据拿新 URL 再重试。
-3. **缩略图：Cloudflare Worker + R2 绑定（不加服务器容器）**
-   - **为什么不用容器**：网关机器只有 2 核 1.9GB，sharp 容器常驻约 150MB，4K 解码峰值再加 200MB 以上。
-   - **方案**：新建 `ipzsk-media-worker`（Cloudflare Worker，与现有 `license-worker` 同平台）。
-     - 用 R2 **绑定**直接读写同一个 bucket，不走公网、不产生出口流量、不需要签名。
-     - 编解码用 WebAssembly 库 **jSquash**（`@jsquash/png`、`@jsquash/jpeg`、`@jsquash/webp`、`@jsquash/resize`，Apache-2.0，Squoosh 的代码提取版），Worker 上可用，无原生依赖。
-     - 触发：网关在上传完成或归档写入后 `POST https://media-worker/thumb`（带共享密钥）传 key；Worker 生成 `w480.webp`、`w960.webp` 写回并返回宽高。失败由网关重试队列兜底（沿用归档的指数退避）。
-     - 视频 poster：Worker 不解码视频。上游返回封面就存封面；没有则前端首次播放时截第一帧上传（§5.3）。
-   - **限制与兜底**：Worker 内存上限 128MB，4K PNG 解码约 64MB，能处理；超过 4K 或解码失败时，Worker 返回 `skip`，前端用 `orig` 兜底并显示「处理中」角标。
-   - **备选**：如果不想多一个 Worker，在网关镜像里用独立 `package.json` 起第二个 Node 进程跑同一套 jSquash（纯 wasm，无原生依赖，空闲约 40MB），不改网关主进程依赖。
-   - **费用**：Worker 免费额度每天 10 万次请求，绰绰有余。
+3. **缩略图：网关容器内 ffmpeg**（2026-09-17 经授权在生产镜像中加入 ffmpeg）
+   - **为什么不用 Cloudflare Worker**：实测 Worker 128MB 内存装不下 4K 图（解码 + 缩放峰值 200–280MB），且每张几百毫秒 CPU 需要付费计划；也不能截取视频封面。已做完的 `ipzsk-media-worker` 仅保留本地，不部署。
+   - **做法**：网关用 Node 自带 `child_process` 调用 ffmpeg / ffprobe（不新增 npm 依赖）。输入为原图的签名 URL，输出走 stdout 管道后写回 R2，不落盘。
+   - **任务队列**：`media_assets.thumb_state`（none / queued / running / done / skipped / failed）；上传完成、生成结果归档后入队；后台循环每 5 秒领取 **1 个**（`FOR UPDATE SKIP LOCKED`），`nice` 降低优先级，单任务超时 60 秒，失败按 1 分钟 / 5 分钟 / 30 分钟 / 2 小时退避，5 次后放弃。
+   - **产物**：图片生成 `w480.webp`、`w960.webp`（不放大）；视频用 ffprobe 读宽高和时长，截取 `min(1 秒, 时长/2)` 处一帧生成 `poster.webp` 和 `w480.webp`。
+   - **限制**：原图 > 60MB 或 > 8192×8192 标记 skipped，前端用原图兜底。
+   - **资源**：网关机器 2 核 / 1.9GB，任务串行、峰值单进程约 100–150MB；compose 中网关 `mem_limit` 按实测调整。
 4. **上传（参考图、素材）**：
    1. `POST /api/me/uploads`（body：`kind`、`content_type`、`bytes`）→ 校验类型（png/jpeg/webp/mp4）、大小（图片 ≤20MB、视频 ≤200MB）、**用户配额**（第一期每人 2GB / 2,000 个）、速率（每分钟 20 次），创建 `pending` 资产，返回 10 分钟有效的预签名 PUT URL。预签名把 `content-type` 和 `content-length` 签进 SignedHeaders，超出即被 R2 拒绝。
    2. 浏览器直接 PUT 到 R2，带进度。bucket CORS 只允许 `https://www.ipzsk.com` 的 PUT。
@@ -628,6 +647,8 @@ CREATE TABLE IF NOT EXISTS generation_records (
   charged_points  numeric(20,8),                       -- 结算后写入；未结算为 NULL，前端显示「结算中」
   thread_id       uuid REFERENCES generation_threads(id) ON DELETE SET NULL,
   source          text NOT NULL DEFAULT 'studio' CHECK (source IN ('studio','template','canvas')),
+  mentions        jsonb NOT NULL DEFAULT '[]',         -- [{type:'subject'|'reference', id, name}]，回填时还原标签
+  prompt_doc      jsonb,                               -- Tiptap 文档 JSON
   source_case_id  text,                                -- 做同款来源
   canvas_node     jsonb,                               -- {project_id,node_id}，来自画布时写入
   created_at      timestamptz NOT NULL DEFAULT now(),
@@ -714,6 +735,25 @@ CREATE TABLE IF NOT EXISTS inspiration_cases (
 );
 CREATE INDEX IF NOT EXISTS inspiration_cases_feed ON inspiration_cases (status, category, position);
 
+CREATE TABLE IF NOT EXISTS subjects (                -- 主体库
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name        text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 30),
+  kind        text NOT NULL DEFAULT 'person' CHECK (kind IN ('person','character','product','object','scene')),
+  cover_id    uuid REFERENCES media_assets(id),
+  note        text CHECK (char_length(note) <= 500),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  deleted_at  timestamptz
+);
+CREATE UNIQUE INDEX IF NOT EXISTS subjects_user_name ON subjects (user_id, lower(name)) WHERE deleted_at IS NULL;
+CREATE TABLE IF NOT EXISTS subject_assets (
+  subject_id  uuid NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  asset_id    uuid NOT NULL REFERENCES media_assets(id),
+  position    int  NOT NULL,
+  PRIMARY KEY (subject_id, asset_id)
+);
+
 CREATE TABLE IF NOT EXISTS user_templates (           -- 用户模板：一组队列项的定义
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -791,6 +831,7 @@ CREATE INDEX IF NOT EXISTS user_templates_user ON user_templates (user_id, updat
 | `GET/PUT /api/me/queue` | user | 发送队列（PUT 带 revision，整份替换） |
 | （无批次接口） | — | 批次由客户端逐项调用现有生成接口，body 带 `batch_id/batch_position/thread_id/anchor_record_id`，幂等键 `q:{item_id}` |
 | `GET/POST/PATCH/DELETE /api/me/templates` | user | 用户模板 |
+| `GET/POST/PATCH/DELETE /api/me/subjects`，`PUT /api/me/subjects/:id/assets` | user | 主体库（资产顺序整份替换，校验资产归属，1–8 张） |
 | `POST /api/me/uploads`、`POST /api/me/uploads/:id/complete` | user | 预签名直传 |
 | `GET /api/me/assets`、`PATCH/DELETE /api/me/assets/:id` | user | 素材列表、重命名、软删除 |
 | `GET/POST/PATCH/DELETE /api/me/folders`，`PUT /api/me/folders/:id/items` | user | 文件夹 |
@@ -863,7 +904,8 @@ CREATE INDEX IF NOT EXISTS user_templates_user ON user_templates (user_id, updat
 | 服务端状态 / 乐观更新 | TanStack Query | MIT |
 | 本地状态 | Zustand | MIT |
 | 画布 | @xyflow/react | MIT |
-| 瀑布流 | @virtuoso.dev/masonry（备选 @tanstack/react-virtual） | MIT |
+| 瀑布流 | @tanstack/react-virtual（`lanes`） | MIT |
+| 提示词编辑器 / @ 提及 | @tiptap/react、@tiptap/extension-mention、@tiptap/suggestion（Tiptap 3） | MIT |
 | 预览 | yet-another-react-lightbox | MIT |
 | 播放器 | media-chrome | MIT |
 | 拖拽 | @dnd-kit | MIT |
@@ -912,14 +954,14 @@ ipzsk/
 
 | 步 | 内容 | 估时 | 验收 |
 |---|---|---|---|
-| B1 | 迁移 v18–v19（角色、媒体资产、文件夹、audit actor）；`requireRole`；**CORS 扩展**；R2 客户端补预签名 PUT/HEAD/Range GET/DELETE/Copy；上传接口与配额；时间片签名 URL；`ipzsk-media-worker`（Cloudflare）；归档改新 key；**实测 lanehub 接受 R2 签名 URL** | 5 天 | 集成测试全部通过；上传 → 完成 → 缩略图 → 读取完整链路；同一时间片内两次列表返回相同 URL |
+| B1 | 迁移 v18–v19（角色、媒体资产、文件夹、audit actor）；`requireRole`；**CORS 扩展**；R2 客户端补预签名 PUT/HEAD/Range GET/DELETE/Copy；上传接口与配额；时间片签名 URL；ffmpeg 缩略图与视频封面队列；归档改新 key；**实测 lanehub 接受 R2 签名 URL** | 5 天 | 集成测试全部通过；上传 → 完成 → 缩略图 → 读取完整链路；同一时间片内两次列表返回相同 URL |
 | B2 | 网页型号目录接口（由 lanehub 目录派生 + 网关 references 小表）、批量报价（指纹缓存、提前 provision）、生成接口支持资产 id 与批次字段 | 2.5 天 | quote 金额 == lanehub 实扣；flare 走 lanehub 能生成；参考图经 R2 URL 成功送达上游 |
 | B3 | v20：生成记录、收藏、发送队列、用户模板；`/api/me/generations`（含幂等键查询）、批次提交接口 | 3 天 | 记录状态与 `media_tasks` 一致；重复提交不重复记录 |
 | B4 | v21：画布项目（revision 冲突）、案例库表、三套案例导入（解析宽高）、`archived_images` 回填与复制、公开案例接口 | 4 天 | 全部案例和旧归档都有宽高与缩略图；冲突时返回 409 和最新版本 |
 | B5 | `/api/admin/*` 第一批（案例库、用户与角色、生成记录、会话） | 2.5 天 | 权限测试覆盖每个角色 × 每个接口；未授权返回 403 |
 | B6 | 契约导出脚本、契约测试 | 1 天 | 官网或网关任一边的接口漂移都会导致 CI 失败 |
 
-后端合计约 18.5 个工作日。每一步部署前都需要备份，并获得明确授权。
+后端合计约 19.5 个工作日（含主体库接口 1 天）。每一步部署前都需要备份，并获得明确授权。
 
 ### 13.2 前端（ipzsk）
 
@@ -927,15 +969,16 @@ ipzsk/
 |---|---|---|---|
 | F1 | 工程骨架：Vite+TS+Tailwind+shadcn+Lucide、主题、状态矩阵示例页、站点导航、api 与 contracts、Toast、Vite 代理、CSP | 2 天 | `/studio` 可以访问；示例页展示 §4.1 全部状态；其他页面行为不变 |
 | F2 | 媒体通用组件：MediaImage、MediaVideo、MasonryGrid、MediaLightbox、useUpload、MediaCard、DropTarget；先验证 @virtuoso.dev/masonry 能否按 index 恢复滚动，不行就换 @tanstack/react-virtual | 6 天 | 1000 张图瀑布流滚动 ≥ 55fps（实测记录）；布局偏移 CLS < 0.02；断网上传可以恢复 |
-| F3 | 输入框：型号目录适配、参数小按钮、槽位、提交时判断、报价、登录拦截和草稿、点数不足；**发送队列**（队列条、差异高亮、后端同步、批次提交） | 6 天 | 对照 §2.2 逐条勾选；未登录提交不产生生成请求 |
+| F3 | 输入框：Tiptap 编辑器与 @ 提及、型号目录适配、参数小按钮、槽位、提交时判断、报价、登录拦截和草稿、点数不足；**发送队列**（队列条、差异高亮、后端同步、批次提交） | 7.5 天 | 对照 §2.2 逐条勾选；未登录提交不产生生成请求 |
 | F4 | 灵感：瀑布流、分类和搜索（URL 同步）、详情深链接、做同款、收藏（乐观更新）；**模板**（案例模板展开为队列、用户模板增删改、我的模板分类） | 4.5 天 | 首屏 LCP < 2.5s（4G 模拟）；返回时恢复滚动位置 |
+| F5b | 主体库：素材视图「主体」页、编辑面板、存为主体、@ 面板创建主体 | 2 天 | 主体增删改与参考图排序全部乐观更新；删除主体后队列标签显示「主体已删除」 |
 | F5 | 创作：占位卡片、任务状态、卡片操作、服务端恢复；素材：分组、文件夹、多选、拖拽、软删除和撤销 | 4.5 天 | 同时提交 3 个任务，刷新后都能恢复；删除后 5 秒内可以撤销 |
 | F6 | 画布：节点、连线校验、运行节点、互通、编辑能力、本地优先保存和冲突处理 | 11 天 | 200 个图片节点时拖动 ≥ 50fps；撤销重做覆盖所有编辑类型；离线编辑恢复网络后能同步 |
 | F7 | 管理中台第一批：案例库、用户与角色、生成记录 | 3.5 天 | 按角色显示入口；viewer 看不到任何写操作按钮 |
 | F8 | 替换 `/image`、`/video`；旧本地历史导入 | 1.5 天 | 旧 URL 正确跳转；旧历史可以一键导入 |
 | F9 | 其他页面迁移到 TS + Tailwind | 5–7 天 | 每页有冒烟测试；删除旧 JS/CSS |
 
-前端合计约 44–46 个工作日（逐行相加）。依赖关系：F3 依赖 B2，F4 依赖 B4，F5 依赖 B1 和 B3，F6 的云端保存依赖 B4，F7 依赖 B5。F1、F2 可以和后端并行开始。
+前端合计约 47.5–49.5 个工作日（逐行相加）。依赖关系：F3 依赖 B2，F4 依赖 B4，F5 依赖 B1 和 B3，F6 的云端保存依赖 B4，F7 依赖 B5。F1、F2 可以和后端并行开始。
 
 ---
 
