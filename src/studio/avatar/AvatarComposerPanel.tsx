@@ -74,7 +74,7 @@ function AudioField({ invalid }: { invalid: boolean }) {
         </div>
       ) : (
         <button type="button" onClick={() => input.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) void start(f) }}
-          className="flex h-16 cursor-pointer items-center justify-center gap-2 rounded-[8px] border border-dashed border-line text-sm text-muted hover:bg-subtle hover:text-ink">
+          className="flex h-16 cursor-pointer items-center justify-center gap-2 rounded-[8px] border border-dashed border-acid/30 bg-acid-soft/50 text-sm text-label hover:border-acid hover:bg-acid-soft">
           <Upload className="size-4" />上传录音 · MP3 / WAV，≤32MB，1 秒–10 分钟
         </button>
       )}
@@ -178,7 +178,7 @@ export function AvatarComposerPanel({ decision, quote, quotePending, fieldError,
             value={d.script} onChange={e => setScript(e.target.value)} aria-label="数字人脚本" aria-invalid={bad('script') || chars > c.scriptMax || undefined}
             onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); onSubmit() } }}
             placeholder="输入数字人要念的内容…（Cmd/Ctrl+Enter 发送）"
-            className={cn('min-h-20 max-h-[calc(8lh+1rem)] w-full resize-none rounded-control border border-line bg-card px-3 py-2 text-sm leading-6 [field-sizing:content] focus:border-ink focus-visible:outline-none aria-invalid:border-danger')}
+            className={cn('min-h-20 max-h-[calc(8lh+1rem)] w-full resize-none rounded-control border border-line bg-card px-3 py-2 text-sm leading-6 [field-sizing:content] focus:border-acid focus:ring-3 focus:ring-acid/10 focus-visible:outline-none aria-invalid:border-danger')}
           />
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-1 text-xs text-muted">
             <span className={cn('tabular-nums', chars > c.scriptMax && 'font-semibold text-danger')}>{chars} / {c.scriptMax} 字</span>

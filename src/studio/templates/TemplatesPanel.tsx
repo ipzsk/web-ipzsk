@@ -22,7 +22,7 @@ function TemplateCard({ t, onRename, onCover }: { t: UserTemplate; onRename: () 
   const temp = t.id.startsWith('temp-')
   const slots = t.items.reduce((n, i) => n + slotsOf(i).length, 0) + templateAvatarSlots(t.items).length
   return (
-    <li className={cn('group relative flex flex-col overflow-hidden rounded-card border border-line bg-card transition-[transform,box-shadow] duration-(--duration-fast) hover:-translate-y-px hover:shadow-lg', temp && 'opacity-70')}>
+    <li className={cn('group relative flex flex-col overflow-hidden rounded-card border border-line bg-card transition-[transform,box-shadow] duration-(--duration-fast) shadow-[0_2px_8px_rgb(29_31_32/.035)] hover:-translate-y-px hover:border-acid/40 hover:shadow-[0_9px_24px_rgb(29_113_251/.1)]', temp && 'opacity-70')}>
       <div className="aspect-[4/3] overflow-hidden"><Cover t={t} /></div>
       <div className="grid gap-1 px-3 pt-2.5">
         <p className="truncate text-sm font-semibold" title={t.name}>{t.name}</p>

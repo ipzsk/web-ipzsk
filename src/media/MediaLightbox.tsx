@@ -97,8 +97,8 @@ export function MediaLightbox({ items, index, open, onIndexChange, onClose }: Pr
       }}
       labels={{ Previous: '上一张', Next: '下一张', Close: '关闭', Download: '下载', 'Zoom in': '放大', 'Zoom out': '缩小', Lightbox: '媒体预览', Carousel: '轮播', Slide: '媒体', 'Photo gallery': '媒体预览', '{index} of {total}': '第 {index} 个，共 {total} 个' } as Record<string, string>}
       styles={{
-        container: { backgroundColor: 'rgb(22 25 22 / .94)' },
-        captionsTitleContainer: { background: 'linear-gradient(rgb(22 25 22 / .6), transparent)' },
+        container: { backgroundColor: 'rgb(29 31 32 / .94)' },
+        captionsTitleContainer: { background: 'linear-gradient(rgb(29 31 32 / .6), transparent)' },
       }}
     />
   )

@@ -45,7 +45,7 @@ export function ModelPicker({ models, model, status, onRetry, onPick, onAddMany,
                   onCheckedChange={c => setPicked(p => c ? [...p, m.id] : p.filter(x => x !== m.id))}
                   className="mt-0.5"
                 />
-                <button type="button" className="grid min-w-0 flex-1 cursor-pointer gap-1 rounded-[6px] text-left outline-none focus-visible:outline-2 focus-visible:outline-ink" aria-current={m.id === model?.id || undefined} onClick={() => { onPick(m); setOpen(false) }}>
+                <button type="button" className="grid min-w-0 flex-1 cursor-pointer gap-1 rounded-[6px] text-left outline-none focus-visible:outline-2 focus-visible:outline-acid-deep" aria-current={m.id === model?.id || undefined} onClick={() => { onPick(m); setOpen(false) }}>
                   <span className="flex items-center gap-2">
                     <span className="truncate font-semibold">{m.name}</span>
                     {m.billing?.unit && <span className="ml-auto shrink-0 text-xs text-muted">{m.billing.unit}</span>}
@@ -88,7 +88,7 @@ export function ParamChips({ model, params, highlight, onChange }: {
           <Button
             size="sm" variant="ghost" aria-label={`${label}：${formatParam(spec.field, value)}`}
             disabled={options.length < 2} disabledReason={`${model.name} 的${label}只有 ${formatParam(spec.field, value)}`}
-            className={cn('gap-1 px-2 tabular-nums transition-[background-color,box-shadow] duration-(--duration-base)', highlight.has(spec.field) && 'bg-acid ring-2 ring-acid-deep hover:bg-acid')}
+            className={cn('gap-1 px-2 tabular-nums transition-[background-color,box-shadow] duration-(--duration-base)', highlight.has(spec.field) && 'bg-acid-soft text-label ring-2 ring-acid hover:bg-acid-soft')}
           >
             <Icon className="size-4" />{formatParam(spec.field, value)}
           </Button>

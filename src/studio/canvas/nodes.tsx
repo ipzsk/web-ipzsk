@@ -95,8 +95,8 @@ function Shell({ node, kind, title, children, toolbar, className }: {
       <div
         className={cn(
           'group/node relative flex flex-col overflow-hidden rounded-card border border-line bg-card text-ink shadow-sm',
-          'transition-[box-shadow,border-color] duration-(--duration-fast) hover:border-muted hover:shadow-md',
-          node.selected && 'border-ink ring-2 ring-ink hover:border-ink',
+          'transition-[box-shadow,border-color] duration-(--duration-fast) hover:border-acid/40 hover:shadow-[0_9px_24px_rgb(29_113_251/.1)]',
+          node.selected && 'border-acid ring-2 ring-acid/15 shadow-[0_9px_24px_rgb(29_113_251/.12)] hover:border-acid',
           run?.status === 'failed' && 'border-danger ring-1 ring-danger hover:border-danger',
           node.data.locked && 'cursor-default',
           className,
@@ -216,7 +216,7 @@ export const GenNode = memo(function GenNode(p: SlimProps) {
           {showAll && (
             <div className="mt-1 grid grid-cols-4 gap-1">
               {results.map((r, i) => (
-                <div key={r.id} className={cn('relative overflow-hidden rounded-[6px]', i === primary && 'ring-2 ring-ink')}>
+                <div key={r.id} className={cn('relative overflow-hidden rounded-[6px]', i === primary && 'ring-2 ring-acid')}>
                   <AssetView asset={r} label={`结果 ${i + 1}`} />
                   <button
                     type="button"
@@ -224,7 +224,7 @@ export const GenNode = memo(function GenNode(p: SlimProps) {
                     title={i === primary ? '当前主结果' : '设为主结果'}
                     aria-pressed={i === primary}
                     onClick={() => updateData(p.id, { primary: i })}
-                    className="nodrag absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full bg-card/90 hover:bg-acid"
+                    className="nodrag absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full bg-card/90 hover:bg-acid-soft hover:text-label"
                   >
                     <Star className={cn('size-3', i === primary && 'fill-current')} />
                   </button>
@@ -269,14 +269,14 @@ export const GroupNode = memo(function GroupNode(p: SlimProps) {
         minHeight={100}
         onResizeStart={() => beginGesture('resize')}
         onResizeEnd={endGesture}
-        lineClassName="!border-ink"
-        handleClassName="!size-2.5 !rounded-[3px] !border-ink !bg-card"
+        lineClassName="!border-acid"
+        handleClassName="!size-2.5 !rounded-[3px] !border-acid !bg-card"
       />
       <div
         className={cn(
           'h-full w-full rounded-panel border-2 border-dashed border-line bg-ink/[.025] transition-colors duration-(--duration-fast) hover:border-muted',
-          p.selected && 'border-solid border-ink hover:border-ink',
-          dropping && 'border-acid-deep bg-acid/15 hover:border-acid-deep',
+          p.selected && 'border-solid border-acid hover:border-acid',
+          dropping && 'border-acid bg-acid-soft hover:border-acid',
         )}
         data-drop-target={dropping || undefined}
       >
@@ -287,7 +287,7 @@ export const GroupNode = memo(function GroupNode(p: SlimProps) {
               aria-label="编组标题"
               defaultValue={p.data.title}
               maxLength={40}
-              className="nodrag h-7 w-48 rounded-[6px] border border-ink bg-card px-2 outline-none"
+              className="nodrag h-7 w-48 rounded-[6px] border border-acid bg-card px-2 outline-none ring-3 ring-acid/10"
               onBlur={e => { setEditing(false); if (e.target.value !== p.data.title) updateData(p.id, { title: e.target.value || '编组' }) }}
               onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') { e.currentTarget.value = p.data.title ?? ''; e.currentTarget.blur() } e.stopPropagation() }}
             />

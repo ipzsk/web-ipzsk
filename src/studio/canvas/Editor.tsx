@@ -48,13 +48,13 @@ const SHORTCUTS: [string, string][] = [
 const flowVars = {
   '--xy-edge-stroke': 'var(--color-muted)',
   '--xy-edge-stroke-width': 2,
-  '--xy-edge-stroke-selected': 'var(--color-ink)',
+  '--xy-edge-stroke-selected': 'var(--color-acid)',
   '--xy-connectionline-stroke': 'var(--color-ink)',
   '--xy-connectionline-stroke-width': 2,
   '--xy-selection-background-color': 'color-mix(in srgb, var(--color-acid) 16%, transparent)',
   '--xy-selection-border': '1px dashed var(--color-acid-deep)',
   '--xy-minimap-background-color': 'var(--color-card)',
-  '--xy-minimap-mask-background-color': 'rgb(22 25 22 / .08)',
+  '--xy-minimap-mask-background-color': 'rgb(29 31 32 / .08)',
   '--xy-attribution-background-color': 'transparent',
 } as CSSProperties
 
@@ -71,13 +71,13 @@ function SaveStatus({ onConflict }: { onConflict: () => void }) {
   if (status === 'conflict') {
     return (
       <button type="button" aria-live="polite" onClick={onConflict} title="远端有更新，点击处理"
-        className="inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-full border border-warning/50 bg-warning/10 px-2.5 text-xs font-semibold text-warning hover:bg-warning/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+        className="inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-full border border-warning/50 bg-warning/10 px-2.5 text-xs font-semibold text-warning hover:bg-warning/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acid-deep">
         <TriangleAlert className="size-4" />冲突
       </button>
     )
   }
   const map = {
-    saved: { icon: <Check className="size-4 text-success" />, text: '已保存' },
+    saved: { icon: <Check className="size-4 text-label" />, text: '已保存' },
     saving: { icon: <LoaderCircle className="size-4 motion-safe:animate-spin-slow" />, text: '保存中' },
     offline: { icon: <CloudOff className="size-4 text-warning" />, text: '离线 · 已存本地' },
   }[status]
@@ -184,7 +184,7 @@ function TitleInput() {
       aria-label="画布名称"
       defaultValue={title}
       maxLength={80}
-      className="h-8 min-w-24 max-w-64 flex-1 truncate rounded-[8px] border border-transparent bg-transparent px-2 text-sm font-bold hover:border-line focus:border-ink focus:bg-card focus:outline-none"
+      className="h-8 min-w-24 max-w-64 flex-1 truncate rounded-[8px] border border-transparent bg-transparent px-2 text-sm font-bold hover:border-line focus:border-acid focus:ring-3 focus:ring-acid/10 focus:bg-card focus:outline-none"
       onBlur={e => { if (e.target.value.trim() !== title) void renameProject(e.target.value) }}
       onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') { e.currentTarget.value = title; e.currentTarget.blur() } }}
     />
@@ -374,7 +374,7 @@ function Inner() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-paper px-3">
-        <Link to="/studio/canvas" aria-label="返回画布列表" title="返回画布列表" className="grid size-8 shrink-0 place-items-center rounded-control hover:bg-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><ArrowLeft className="size-[18px]" /></Link>
+        <Link to="/studio/canvas" aria-label="返回画布列表" title="返回画布列表" className="grid size-8 shrink-0 place-items-center rounded-control hover:bg-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acid-deep"><ArrowLeft className="size-[18px]" /></Link>
         <TitleInput />
         <SaveStatus onConflict={() => setConflictOpen(true)} />
         <span className="flex-1" />
@@ -436,7 +436,7 @@ function Inner() {
           style={flowVars}
           className="bg-paper [&_.react-flow__edge:hover_.react-flow__edge-path]:stroke-ink"
         >
-          <Background variant={BackgroundVariant.Dots} gap={16} size={1.2} color="#cfd0c6" />
+          <Background variant={BackgroundVariant.Dots} gap={16} size={1.2} color="var(--color-line)" />
           <Guides />
           <Panel position="bottom-left" className="max-md:!mb-3"><ZoomControls /></Panel>
           <MiniMap
@@ -460,7 +460,7 @@ function Inner() {
         )}
 
         {fileDrag && (
-          <div className="pointer-events-none absolute inset-3 z-40 grid place-items-center rounded-panel border-2 border-dashed border-acid-deep bg-acid/10 motion-safe:animate-fade-in">
+          <div className="pointer-events-none absolute inset-3 z-40 grid place-items-center rounded-panel border-2 border-dashed border-acid bg-acid-soft/70 motion-safe:animate-fade-in">
             <span className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"><ImagePlus className="size-[18px]" />松开，在这里创建图片 / 视频节点</span>
           </div>
         )}

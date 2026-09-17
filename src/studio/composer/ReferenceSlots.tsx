@@ -25,7 +25,7 @@ function Slot({ slot, index, dim, warn }: { slot: RefSlot; index: number; dim: b
         aria-label={`图${index + 1}，按空格后用方向键排序`}
         onKeyDown={e => { if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); remove() } else listeners?.onKeyDown?.(e) }}
         className={cn(
-          'size-full cursor-grab overflow-hidden rounded-[10px] border border-line bg-subtle outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:cursor-grabbing',
+          'size-full cursor-grab overflow-hidden rounded-[10px] border border-line bg-subtle outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acid-deep active:cursor-grabbing',
           dim && 'opacity-45', warn && 'border-warning ring-2 ring-warning/40',
         )}
       >
@@ -84,7 +84,7 @@ export function ReferenceSlots({ refs, upload, onFiles }: { refs: ReferenceState
       {refs.supported && (
         <>
           <IconButton
-            label="添加参考图（也可粘贴或拖入）" variant="secondary" className="size-14 rounded-[10px] border-dashed"
+            label="添加参考图（也可粘贴或拖入）" variant="secondary" className="size-14 rounded-[10px] border-dashed border-acid/30 bg-acid-soft/50 text-label hover:border-acid hover:bg-acid-soft"
             disabled={full} disabledReason={`最多 ${refs.max} 张参考图`}
             onClick={() => input.current?.click()}
           ><Plus className="size-5" /></IconButton>

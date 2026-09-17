@@ -49,7 +49,7 @@ function NameInput({ initial, folders, selfId, onDone }: { initial: string; fold
         onKeyDown={onKeyDown}
         onBlur={() => (value.trim() && value.trim() !== initial && !validName(value, folders, selfId) ? onDone(value.trim()) : onDone(null))}
         onFocus={(e) => e.currentTarget.select()}
-        className={cn('h-9 w-full rounded-control border border-ink bg-card px-2.5 text-sm text-ink aria-invalid:border-danger', focusRing, 'focus-visible:outline-offset-0')}
+        className={cn('h-9 w-full rounded-control border border-acid bg-card px-2.5 ring-3 ring-acid/10 text-sm text-ink aria-invalid:border-danger', focusRing, 'focus-visible:outline-offset-0')}
       />
       {error ? <p className="px-1 text-xs text-danger">{error}</p> : <p className="px-1 text-xs text-muted">Enter 确认 · Esc 取消</p>}
     </div>

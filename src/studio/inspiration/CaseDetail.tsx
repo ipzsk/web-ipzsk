@@ -116,7 +116,7 @@ export function CaseDetail({ id, list, hasMore, loadMore, onClose, onNavigate }:
                 {c.tags.length > 0 && (
                   <section className="grid gap-2">
                     <h3 className="text-[13px] font-semibold">标签</h3>
-                    <div className="flex flex-wrap gap-1.5">{c.tags.map((t) => <Badge key={t}>{t}</Badge>)}</div>
+                    <div className="flex flex-wrap gap-1.5">{c.tags.map((t) => <Badge key={t} tone="acid">{t}</Badge>)}</div>
                   </section>
                 )}
 

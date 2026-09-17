@@ -62,7 +62,7 @@ function Tile({ asset, index, isCover, onCover, onRemove, removeReason }: {
       <div
         {...attributes} {...listeners}
         aria-label={`参考图 ${index + 1}${isCover ? '（封面）' : ''}，按空格后用方向键排序`}
-        className={cn('size-full cursor-grab overflow-hidden rounded-[10px] border bg-subtle outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:cursor-grabbing', isCover ? 'border-2 border-ink' : 'border-line')}
+        className={cn('size-full cursor-grab overflow-hidden rounded-[10px] border bg-subtle outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acid-deep active:cursor-grabbing', isCover ? 'border-2 border-acid' : 'border-line')}
       >
         <MediaImage asset={asset} alt={`参考图 ${index + 1}`} hideBadge className="size-full" />
       </div>
@@ -271,7 +271,7 @@ export function AssetPicker({ open, onOpenChange, room, existing, onPick, descri
                   <li key={a.id}>
                     <button
                       type="button" aria-pressed={on} disabled={!!reason} title={reason ?? undefined} aria-description={reason ?? undefined} onClick={() => toggle(a)}
-                      className={cn('relative block aspect-square w-full cursor-pointer overflow-hidden rounded-[10px] border-2 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-45', on ? 'border-ink' : 'border-transparent')}
+                      className={cn('relative block aspect-square w-full cursor-pointer overflow-hidden rounded-[10px] border-2 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acid-deep disabled:cursor-not-allowed disabled:opacity-45', on ? 'border-acid' : 'border-transparent')}
                     >
                       <MediaImage asset={a} alt="" hideBadge className="size-full" />
                       {(on || already) && <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-acid text-white"><Check className="size-3" /></span>}

@@ -11,7 +11,7 @@ import { AssetPicker } from '../subjects/SubjectEditor'
 
 type Gender = 'all' | 'female' | 'male'
 type Kind = 'all' | 'avatar' | 'talking_photo'
-const chip = (on: boolean) => cn('inline-flex h-8 shrink-0 cursor-pointer items-center rounded-full border px-3 text-[13px] font-semibold transition-colors duration-(--duration-fast)', on ? 'border-acid bg-acid text-white' : 'border-line bg-card hover:bg-subtle', focusRing)
+const chip = (on: boolean) => cn('inline-flex h-8 shrink-0 cursor-pointer items-center rounded-full border px-3 text-[13px] font-semibold transition-colors duration-(--duration-fast)', on ? 'border-acid bg-acid text-white' : 'border-line bg-card text-ink hover:border-muted hover:bg-subtle', focusRing)
 
 /** 预览图作为 MediaImage 的 urls（无 asset id，签名刷新不适用：HeyGen 公网地址）。 */
 export const previewUrls = (url: string | null | undefined) => url ? { orig: url } : null
@@ -32,7 +32,7 @@ const EngineBadges = ({ engines }: { engines: string[] }) => (
 
 function AvatarCard({ avatar, selected, onPick }: { avatar: AvatarItem; selected: boolean; onPick: () => void }) {
   return (
-    <li className={cn('group relative overflow-hidden rounded-card border bg-card transition-[transform,box-shadow] duration-(--duration-fast) hover:-translate-y-px hover:shadow-lg', selected ? 'border-2 border-ink' : 'border-line')}>
+    <li className={cn('group relative overflow-hidden rounded-card border bg-card transition-[transform,box-shadow] duration-(--duration-fast) hover:-translate-y-px', selected ? 'border-acid shadow-[0_0_0_2px_rgb(29_113_251/.12),0_9px_24px_rgb(29_113_251/.12)]' : 'border-line shadow-[0_2px_8px_rgb(29_31_32/.035)] hover:border-acid/40 hover:shadow-[0_9px_24px_rgb(29_113_251/.1)]')}>
       <button type="button" onClick={onPick} aria-pressed={selected} aria-label={`选择形象 ${avatar.name}`} className={cn('block w-full cursor-pointer text-left', focusRing)}>
         <div className="relative aspect-[4/5] bg-subtle">
           {avatar.preview_video_url
@@ -130,9 +130,9 @@ function PhotoTab({ onDone }: { onDone: () => void }) {
         type="button" onClick={ph.open}
         onDragOver={e => { e.preventDefault(); setOver(true) }} onDragLeave={() => setOver(false)}
         onDrop={e => { e.preventDefault(); setOver(false); ph.add([...e.dataTransfer.files]) }}
-        className={cn('flex min-h-48 cursor-pointer flex-col items-center justify-center gap-2 rounded-card border-2 border-dashed px-6 text-center transition-colors', over ? 'border-acid-deep bg-acid/15' : 'border-line hover:bg-subtle', focusRing)}
+        className={cn('flex min-h-48 cursor-pointer flex-col items-center justify-center gap-2 rounded-card border-2 border-dashed px-6 text-center transition-colors', over ? 'border-acid bg-acid-soft' : 'border-acid/30 bg-acid-soft/50 hover:border-acid hover:bg-acid-soft', focusRing)}
       >
-        <ImageUp className="size-8 text-muted" />
+        <ImageUp className="size-8 text-label" />
         <span className="text-sm font-semibold">上传一张正脸人像照片</span>
         <span className="text-xs text-muted">仅 PNG / JPEG，≤20MB；HeyGen 不支持 WebP。照片需要清晰人脸、光线充足。</span>
       </button>

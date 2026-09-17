@@ -82,7 +82,7 @@ function ChipView({ node, selected }: NodeViewProps) {
       className={cn(
         'mx-px inline-flex h-6 select-none items-center gap-1 rounded-full border py-0 pl-0.5 pr-2 align-middle text-[13px] font-semibold leading-none',
         warn ? 'border-warning/50 bg-warning/12 text-warning' : 'border-line bg-subtle text-ink',
-        selected && 'outline-2 outline-offset-1 outline-ink',
+        selected && 'outline-2 outline-offset-1 outline-acid',
       )}
     >
       {cover

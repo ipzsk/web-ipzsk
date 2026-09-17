@@ -16,7 +16,7 @@ function SubjectCard({ subject }: { subject: Subject }) {
   const temp = subject.id.startsWith('temp-')
   const reason = temp ? '正在创建…' : undefined
   return (
-    <li className={cn('group relative overflow-hidden rounded-card border border-line bg-card transition-[transform,box-shadow] duration-(--duration-fast) hover:-translate-y-px hover:shadow-lg', temp && 'opacity-70')}>
+    <li className={cn('group relative overflow-hidden rounded-card border border-line bg-card transition-[transform,box-shadow] duration-(--duration-fast) shadow-[0_2px_8px_rgb(29_31_32/.035)] hover:-translate-y-px hover:border-acid/40 hover:shadow-[0_9px_24px_rgb(29_113_251/.1)]', temp && 'opacity-70')}>
       <button type="button" disabled={temp} onClick={() => openSubjectEditor({ subject })} aria-label={`编辑主体 ${subject.name}`} className={cn('block w-full cursor-pointer text-left', focusRing)}>
         <div className="relative aspect-square bg-subtle">
           {!subject.cover && subject.external_ref?.preview_image_url && <MediaImage urls={{ orig: subject.external_ref.preview_image_url }} alt="" hideBadge className="size-full" />}
@@ -59,7 +59,7 @@ export function SubjectsPanel() {
   const chip = (value: SubjectKind | null, label: string, n: number) => (
     <button
       key={value ?? 'all'} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}
-      className={cn('inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors duration-(--duration-fast)', kind === value ? 'border-acid bg-acid text-white' : 'border-line bg-card hover:bg-subtle', focusRing)}
+      className={cn('inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors duration-(--duration-fast)', kind === value ? 'border-acid bg-acid text-white' : 'border-line bg-card text-ink hover:border-muted hover:bg-subtle', focusRing)}
     >{value && (() => { const I = SUBJECT_KIND_ICON[value]; return <I className="size-3.5" /> })()}{label}<span className="font-normal opacity-70 tabular-nums">{n}</span></button>
   )
 

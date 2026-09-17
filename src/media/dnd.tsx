@@ -134,7 +134,7 @@ export function DropTarget({ id, accept, onDrop, onFiles, className, children }:
       className={cn(
         'relative rounded-card outline-2 outline-offset-2 outline-transparent transition-[outline-color,background-color,opacity] duration-fast',
         valid && 'outline-dashed outline-acid-deep',
-        valid && (isOver || fileOver) && 'bg-acid/15',
+        valid && (isOver || fileOver) && 'bg-acid-soft',
         invalid && 'cursor-not-allowed opacity-60',
         landed > 0 && 'bg-acid/30',
         className,

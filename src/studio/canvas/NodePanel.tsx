@@ -8,7 +8,7 @@ import { KIND_ICON } from './nodes'
 import { paramLabel } from '../composer/logic'
 import { runBlocker, runNode, sendToComposer, updateData, useCanvas } from './store'
 
-const selectClass = 'h-9 w-full cursor-pointer rounded-control border border-line bg-card px-2.5 text-sm hover:border-muted focus:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-45'
+const selectClass = 'h-9 w-full cursor-pointer rounded-control border border-line bg-card px-2.5 text-sm hover:border-muted focus:border-acid focus:ring-3 focus:ring-acid/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acid-deep disabled:cursor-not-allowed disabled:opacity-45'
 
 function RefChip({ asset, index, dimmed }: { asset: AssetRef; index: number; dimmed: boolean }) {
   const urls = useAssetUrls(asset)

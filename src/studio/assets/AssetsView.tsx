@@ -408,7 +408,7 @@ function AssetsPage() {
       {fileOver && (
         <div aria-live="polite" className="pointer-events-none fixed inset-0 z-[70] grid place-items-center bg-ink/40 p-6 motion-safe:animate-fade-in">
           <div className="flex flex-col items-center gap-3 rounded-panel border-2 border-dashed border-acid bg-card/95 px-10 py-8 text-center shadow-2xl">
-            <UploadCloud className="size-8 text-ink" aria-hidden />
+            <UploadCloud className="size-8 text-label" aria-hidden />
             <p className="text-base font-semibold text-ink">{online ? `松开即可上传${currentFolder ? `到「${currentFolder.name}」` : '到素材'}` : OFFLINE}</p>
             <p className="text-xs text-muted">PNG / JPEG / WebP ≤ 20MB，MP4 ≤ 200MB</p>
           </div>

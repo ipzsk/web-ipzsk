@@ -40,11 +40,11 @@ function Row({ item, index, current, models, points, submitting, editing, onRemo
       ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
         'group flex items-start gap-1.5 rounded-[10px] px-1.5 py-1.5 text-[13px] hover:bg-subtle',
-        isDragging && 'z-10 bg-card opacity-60 shadow-lg', editing && 'bg-acid/25 hover:bg-acid/30',
+        isDragging && 'z-10 bg-card opacity-60 shadow-lg', editing && 'bg-acid-soft hover:bg-acid-soft',
         (item.state === 'failed' || item.missing) && 'bg-danger/5 hover:bg-danger/8',
       )}
     >
-      <button type="button" {...attributes} {...listeners} aria-label={`拖动排序第 ${index + 1} 项`} className="mt-0.5 grid size-5 shrink-0 cursor-grab place-items-center rounded-[4px] text-muted outline-none focus-visible:outline-2 focus-visible:outline-ink active:cursor-grabbing max-md:hidden">
+      <button type="button" {...attributes} {...listeners} aria-label={`拖动排序第 ${index + 1} 项`} className="mt-0.5 grid size-5 shrink-0 cursor-grab place-items-center rounded-[4px] text-muted outline-none focus-visible:outline-2 focus-visible:outline-acid-deep active:cursor-grabbing max-md:hidden">
         <GripVertical className="size-3.5" />
       </button>
       <Num i={index} />
@@ -105,7 +105,7 @@ export function QueueBar({ current, models, pointsById, total, onSendAll, sendRe
   return (
     <section aria-label="待发送队列" className="mb-2 rounded-card border border-line bg-card/95 shadow-lg backdrop-blur-md">
       <header className="flex items-center gap-2 px-3 py-2">
-        <button type="button" aria-expanded={!collapsed} onClick={() => setCollapsed(c => !c)} className="flex cursor-pointer items-center gap-1.5 rounded-control text-[13px] font-semibold outline-none focus-visible:outline-2 focus-visible:outline-ink">
+        <button type="button" aria-expanded={!collapsed} onClick={() => setCollapsed(c => !c)} className="flex cursor-pointer items-center gap-1.5 rounded-control text-[13px] font-semibold outline-none focus-visible:outline-2 focus-visible:outline-acid-deep">
           <ChevronDown className={cn('size-4 transition-transform duration-(--duration-fast)', collapsed && '-rotate-90')} />
           待发送队列 · {queue.length} 项{total != null && <span className="font-normal text-muted"> · 约 {total} 点</span>}
         </button>

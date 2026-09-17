@@ -74,12 +74,12 @@ function SaveTemplateDialog({ req, onClose }: { req: SaveRequest | null; onClose
             {req?.covers.length ? (
               <div role="radiogroup" aria-label="封面" className="flex gap-2 overflow-x-auto pb-1">
                 <button type="button" role="radio" aria-checked={cover === null} onClick={() => setCover(null)}
-                  className={cn('grid size-16 shrink-0 cursor-pointer place-items-center rounded-[10px] border-2 bg-subtle text-[11px] text-muted', cover === null ? 'border-ink' : 'border-transparent')}>
+                  className={cn('grid size-16 shrink-0 cursor-pointer place-items-center rounded-[10px] border-2 bg-subtle text-[11px] text-muted', cover === null ? 'border-acid' : 'border-transparent')}>
                   <ImageOff className="size-4" />不设
                 </button>
                 {req.covers.slice(0, 12).map(a => (
                   <button key={a.id} type="button" role="radio" aria-checked={cover === a.id} aria-label="设为封面" onClick={() => setCover(a.id)}
-                    className={cn('relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-[10px] border-2', cover === a.id ? 'border-ink' : 'border-transparent')}>
+                    className={cn('relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-[10px] border-2', cover === a.id ? 'border-acid' : 'border-transparent')}>
                     <MediaImage asset={a} alt="" hideBadge className="size-full" />
                     {cover === a.id && <span className="absolute right-0.5 top-0.5 grid size-4 place-items-center rounded-full bg-acid text-white"><Check className="size-3" /></span>}
                   </button>
@@ -98,9 +98,9 @@ function SaveTemplateDialog({ req, onClose }: { req: SaveRequest | null; onClose
                   <li key={v.name} className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2 rounded-card border border-line p-2 max-sm:grid-cols-2">
                     <code className="rounded bg-subtle px-1.5 py-0.5 text-xs max-sm:col-span-2">{`{{${v.name}}}`}</code>
                     <input aria-label={`${v.name} 显示名称`} placeholder="显示名称" value={v.label} maxLength={30} onChange={e => patchVar(v.name, { label: e.target.value })}
-                      className="h-9 min-w-0 rounded-control border border-line bg-card px-2 text-sm focus:border-ink" />
+                      className="h-9 min-w-0 rounded-control border border-line bg-card px-2 text-sm focus:border-acid focus:ring-3 focus:ring-acid/10" />
                     <input aria-label={`${v.name} 默认值`} placeholder="默认值（可空）" value={v.default ?? ''} maxLength={200} onChange={e => patchVar(v.name, { default: e.target.value })}
-                      className="h-9 min-w-0 rounded-control border border-line bg-card px-2 text-sm focus:border-ink" />
+                      className="h-9 min-w-0 rounded-control border border-line bg-card px-2 text-sm focus:border-acid focus:ring-3 focus:ring-acid/10" />
                     <Checkbox label="必填" checked={v.required} onCheckedChange={c => patchVar(v.name, { required: c === true })} />
                   </li>
                 ))}

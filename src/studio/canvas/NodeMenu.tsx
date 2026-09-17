@@ -51,7 +51,7 @@ export function NodeMenu({ x, y, kinds, title, onPick, onClose }: {
         placeholder="搜索节点…"
         value={q}
         onChange={e => { setQ(e.target.value); setActive(0) }}
-        className="mb-1 h-8 w-full rounded-[8px] border border-line bg-paper px-2 text-sm outline-none focus:border-ink"
+        className="mb-1 h-8 w-full rounded-[8px] border border-line bg-paper px-2 text-sm outline-none focus:border-acid focus:ring-3 focus:ring-acid/10"
       />
       <ul role="listbox" aria-label="节点类型">
         {list.map((k, i) => {

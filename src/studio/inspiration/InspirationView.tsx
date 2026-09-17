@@ -104,7 +104,7 @@ export function InspirationView() {
             onChange={(e) => setText(e.target.value)}
             placeholder="搜索标题、提示词、标签"
             className={cn(
-              'h-9 w-full rounded-control border border-line bg-card pl-9 pr-9 text-sm text-ink placeholder:text-muted transition-colors duration-(--duration-fast) hover:border-muted focus:border-ink [&::-webkit-search-cancel-button]:hidden',
+              'h-9 w-full rounded-control border border-line bg-card pl-9 pr-9 text-sm text-ink placeholder:text-muted transition-colors duration-(--duration-fast) hover:border-muted focus:border-acid focus:ring-3 focus:ring-acid/10 [&::-webkit-search-cancel-button]:hidden',
               focusRing, 'focus-visible:outline-offset-0',
             )}
           />

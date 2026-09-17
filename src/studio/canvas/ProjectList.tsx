@@ -64,7 +64,7 @@ function Card({ p }: { p: CanvasProjectMeta }) {
   }
 
   return (
-    <article className="group relative overflow-hidden rounded-card border border-line bg-card transition-[box-shadow,transform,border-color] duration-(--duration-fast) hover:-translate-y-px hover:border-muted hover:shadow-md motion-reduce:hover:translate-y-0">
+    <article className="group relative overflow-hidden rounded-card border border-line bg-card transition-[box-shadow,transform,border-color] duration-(--duration-fast) shadow-[0_2px_8px_rgb(29_31_32/.035)] hover:-translate-y-px hover:border-acid/40 hover:shadow-[0_9px_24px_rgb(29_113_251/.1)] motion-reduce:hover:translate-y-0">
       <Link to={`/studio/canvas/${p.id}`} className={cn('block', focusRing, 'focus-visible:outline-offset-[-2px] rounded-card')} aria-label={`打开画布「${p.title}」`}>
         <div className="aspect-[16/10] border-b border-line bg-paper p-3"><Thumb boxes={p.preview} /></div>
       </Link>
@@ -76,7 +76,7 @@ function Card({ p }: { p: CanvasProjectMeta }) {
               aria-label="画布名称"
               defaultValue={p.title}
               maxLength={80}
-              className="h-7 w-full rounded-[8px] border border-ink bg-card px-2 text-sm font-semibold outline-none"
+              className="h-7 w-full rounded-[8px] border border-acid bg-card px-2 ring-3 ring-acid/10 text-sm font-semibold outline-none"
               onBlur={e => void rename(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setRenaming(false) }}
             />

@@ -51,13 +51,13 @@ export function UploadDropzone({ upload, paste = true, disabled, className }: Pr
         onDragLeave={(e) => { if (isFiles(e) && --depth.current <= 0) { depth.current = 0; setOver(false) } }}
         onDrop={(e) => { e.preventDefault(); depth.current = 0; setOver(false); take(Array.from(e.dataTransfer.files)) }}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line bg-card px-4 py-6 text-center transition-[background-color,border-color,transform] duration-fast',
-          'hover:border-muted hover:bg-subtle active:scale-[.99] motion-reduce:active:scale-100',
-          over && !disabled && 'border-acid-deep bg-acid/15',
-          disabled && 'cursor-not-allowed opacity-45 hover:border-line hover:bg-card',
+          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-card border border-dashed border-acid/30 bg-acid-soft/50 px-4 py-6 text-center transition-[background-color,border-color,transform] duration-fast',
+          'hover:border-acid hover:bg-acid-soft active:scale-[.99] motion-reduce:active:scale-100',
+          over && !disabled && 'border-acid bg-acid-soft',
+          disabled && 'cursor-not-allowed opacity-45 hover:border-acid/30 hover:bg-acid-soft/50',
         )}
       >
-        <Upload size={24} className="text-muted" aria-hidden />
+        <Upload size={24} className="text-label" aria-hidden />
         <p className="text-sm text-ink">{over ? '松开即可上传' : '拖入、粘贴或点击选择文件'}</p>
         <p className="text-xs text-muted">{disabled ?? 'PNG / JPEG / WebP ≤ 20MB，MP4 ≤ 200MB'}</p>
         <input

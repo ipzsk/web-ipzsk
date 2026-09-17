@@ -371,7 +371,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
           <QueueBar current={current} models={new Map((models.data ?? []).map(m => [m.id, m]))} pointsById={pointsById} total={queueTotal}
             onSendAll={account.signedIn ? sendAll : saveDraftAndLogin} sendReason={account.signedIn ? blockReason(allSendable, false) : null} sending={sending} />
           <DropTarget id="composer" accept={acceptAssets} onDrop={items => useComposer.setState(s => ({ slots: addManual(s.slots, items) }))} onFiles={onFiles} className="rounded-panel">
-            <div className={cn('rounded-panel border border-line bg-card p-3 shadow-xl', editingId && 'border-ink')}>
+            <div className={cn('rounded-panel border border-line bg-card p-3 shadow-xl', editingId && 'border-acid ring-3 ring-acid/10')}>
               {editingId && (
                 <div className="mb-1 flex items-center gap-2 px-1 text-xs text-muted">
                   <RefreshCw className="size-3.5" />正在编辑队列第 {queue.findIndex(i => i.item_id === editingId) + 1} 项
