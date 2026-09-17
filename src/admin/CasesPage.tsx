@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useInfiniteQuery, useMutation, useQuery, type InfiniteData } from '@tanstack/react-query'
-import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type Announcements, type DragEndEvent, type UniqueIdentifier } from '@dnd-kit/core'
 import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Eye, EyeOff, GripVertical, LayoutGrid, Pencil, Plus, Rows3, SearchX, Trash2 } from 'lucide-react'
 import { Button, Checkbox, EmptyState, ErrorState, IconButton, SegmentedControl, Skeleton, cn, focusRing, toast } from '@/ui'
@@ -106,6 +106,14 @@ export function CasesPage() {
   })
 
   const [deleting, setDeleting] = useState<AdminCase | null>(null)
+  // Chinese live-region text for dnd-kit (defaults are English).
+  const where = (id: UniqueIdentifier | undefined) => { const i = items.findIndex(c => c.id === id); return i < 0 ? '' : `「${items[i]!.title}」（第 ${i + 1} / ${items.length} 位）` }
+  const announcements: Announcements = {
+    onDragStart: ({ active }) => `已拿起${where(active.id)}`,
+    onDragOver: ({ active, over }) => !over ? `${where(active.id)}不在可放置区域` : over.id === active.id ? `已拿起${where(active.id)}，当前在原位` : `${where(active.id)}移到${where(over.id)}的位置`,
+    onDragEnd: ({ active, over }) => over ? `已放下${where(active.id)}，放到${where(over.id)}的位置` : `已放下${where(active.id)}`,
+    onDragCancel: ({ active }) => `已取消拖动，${where(active.id)}回到原位`,
+  }
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
 
   const allSelected = items.length > 0 && items.every(c => selected.has(c.id))
@@ -148,7 +156,7 @@ export function CasesPage() {
         : list.isPending ? <div className="grid gap-2">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-16" />)}</div>
         : !items.length ? <EmptyState icon={SearchX} text="没有符合筛选的案例" action={{ label: '清除筛选', onClick: () => { setText(''); setSp({}, { replace: true }) } }} />
         : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ screenReaderInstructions: { draggable: '按空格拿起，用方向键移动，再按空格放下' } }}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ screenReaderInstructions: { draggable: '按空格拿起，用方向键移动，再按空格放下' }, announcements }}>
             <SortableContext items={items.map(c => c.id)} strategy={view === 'grid' ? rectSortingStrategy : verticalListSortingStrategy} disabled={!writable || !!reorderBlocked}>
               {view === 'table' ? (
                 // Phones: the table scrolls in its own box (sticky header only matters on wide screens).
@@ -232,7 +240,7 @@ function CaseRow(p: RowProps) {
   const s = useRowSortable(c.id)
   const td = 'border-b border-line py-2 align-middle'
   return (
-    <tr ref={s.setNodeRef} style={s.style} className={cn('bg-paper transition-colors hover:bg-card', s.isDragging && 'bg-card opacity-80 shadow-lg', selected && 'bg-card')}>
+    <tr ref={s.setNodeRef} style={s.style} data-case-id={c.id} className={cn('bg-paper transition-colors hover:bg-card', s.isDragging && 'bg-card opacity-80 shadow-lg', selected && 'bg-card')}>
       {writable && (
         <td className={cn(td, 'pl-2')}>
           <div className="flex items-center gap-1">
@@ -258,7 +266,7 @@ function CaseTile(p: RowProps) {
   const { c, writable, reorderBlocked, selected, onToggle, priority } = p
   const s = useRowSortable(c.id)
   return (
-    <li ref={s.setNodeRef} style={s.style} className={cn('overflow-hidden rounded-card border bg-card transition-shadow hover:shadow-md', selected ? 'border-2 border-ink' : 'border-line', s.isDragging && 'opacity-80 shadow-xl')}>
+    <li ref={s.setNodeRef} style={s.style} data-case-id={c.id} className={cn('overflow-hidden rounded-card border bg-card transition-shadow hover:shadow-md', selected ? 'border-2 border-ink' : 'border-line', s.isDragging && 'opacity-80 shadow-xl')}>
       <div className="relative">
         <MediaImage asset={c.cover ?? undefined} alt="" priority={priority} className="aspect-[4/3]!" hideBadge />
         <span className="absolute left-2 top-2"><StatusBadge status={c.status} /></span>

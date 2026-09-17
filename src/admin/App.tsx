@@ -94,9 +94,9 @@ function Shell() {
     <div className="grid grid-cols-[220px_1fr] max-md:grid-cols-1">
       <aside aria-label="管理中台" className="sticky top-16 flex h-[calc(100dvh-64px)] flex-col gap-1 border-r border-line p-3 max-md:static max-md:h-auto max-md:flex-row max-md:overflow-x-auto max-md:border-b max-md:border-r-0">
         <div className="mb-2 grid gap-1.5 rounded-card bg-subtle px-3 py-2.5 max-md:hidden">
-          <span className="truncate text-xs text-muted">{me.user.email}</span>
+          <span className="truncate text-xs text-ink/80">{me.user.email}</span>
           <span className="flex flex-wrap gap-1" aria-label="当前角色">{me.roles.map(r => <Badge key={r} tone={r === 'admin' ? 'ink' : r === 'operator' ? 'acid' : 'outline'}>{ROLE_LABEL[r]}</Badge>)}</span>
-          <span className="text-[11px] text-muted">会话剩余约 {Math.floor(left / 3600_000)} 小时</span>
+          <span className="text-[11px] text-ink/80">会话剩余约 {Math.floor(left / 3600_000)} 小时</span>
         </div>
         {nav.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} className={({ isActive }) => cn('flex h-10 shrink-0 items-center gap-2.5 rounded-control px-3 text-sm font-semibold transition-colors duration-(--duration-fast) hover:bg-subtle', isActive ? 'bg-ink text-acid hover:bg-ink' : 'text-ink/80', focusRing)}>

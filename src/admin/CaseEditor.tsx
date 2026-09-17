@@ -42,6 +42,9 @@ function Form({ initial }: { initial: AdminCase | null }) {
   const [draft, setDraft] = useState<Draft>(initial ? toDraft(initial) : EMPTY)
   const [tagsText, setTagsText] = useState(draft.tags.join('，'))
   const [issues, setIssues] = useState<FieldIssue[]>([])
+  // Focus the summary after it renders (it doesn't exist yet when submit() runs).
+  const focusIssues = useRef(false)
+  useEffect(() => { if (focusIssues.current && issues.length) { focusIssues.current = false; document.getElementById('issues')?.focus() } }, [issues])
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(fieldsOf(draft)))
   const status: CaseStatus = initial?.status ?? 'draft'
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => { setDraft(d => ({ ...d, [k]: v })); setIssues(xs => xs.filter(i => i.field !== k)) }
@@ -98,7 +101,7 @@ function Form({ initial }: { initial: AdminCase | null }) {
           setSavedJson(JSON.stringify(fieldsOf(toDraft(initial))))
         }
       }
-      if (e instanceof ApiError && e.code === 'case_publish_invalid') setIssues(serverIssues(e.body))
+      if (e instanceof ApiError && e.code === 'case_publish_invalid') { focusIssues.current = true; setIssues(serverIssues(e.body)) }
       toast({ title: '未保存', description: adminErrorText(e), tone: 'error' })
     },
   })
@@ -117,7 +120,7 @@ function Form({ initial }: { initial: AdminCase | null }) {
     if (found.length) {
       setIssues(found)
       toast({ title: to === 'published' ? '还不能发布' : '还不能保存', description: found[0]!.reason + (found.length > 1 ? ` 等 ${found.length} 项` : ''), tone: 'error' })
-      document.getElementById('issues')?.focus()
+      focusIssues.current = true
       return
     }
     save.mutate({ next, status: to })
@@ -184,26 +187,28 @@ function Form({ initial }: { initial: AdminCase | null }) {
       {issues.length > 0 && (
         <div id="issues" tabIndex={-1} role="alert" className="mb-4 rounded-card border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger outline-none">
           <p className="flex items-center gap-2 font-semibold"><AlertCircle aria-hidden />还有 {issues.length} 项需要处理</p>
-          <ul className="mt-1 list-disc pl-6">{issues.map((i, n) => <li key={n}>{i.reason}</li>)}</ul>
+          <ul className="mt-1 list-disc pl-6">{issues.map((i, n) => (
+            <li key={n}><button type="button" className={cn('rounded-[4px] text-left underline underline-offset-2 hover:no-underline', focusRing)} onClick={() => { const el = document.getElementById(`f-${i.field}`); el?.scrollIntoView({ block: 'center' }); el?.focus({ preventScroll: true }) }}>{i.reason}</button></li>
+          ))}</ul>
         </div>
       )}
 
       <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
         <fieldset disabled={!writable} className="grid min-w-0 gap-6">
           <Section title="内容">
-            <Input label="标题" value={draft.title} onChange={e => set('title', e.target.value)} error={err('title')} maxLength={100} />
-            <Textarea label="提示词" value={draft.prompt} onChange={e => set('prompt', e.target.value)} error={err('prompt')} className="max-h-[calc(16lh+1rem)] font-mono text-[13px]" />
+            <Input id="f-title" label="标题" value={draft.title} onChange={e => set('title', e.target.value)} error={err('title')} maxLength={100} />
+            <Textarea id="f-prompt" label="提示词" value={draft.prompt} onChange={e => set('prompt', e.target.value)} error={err('prompt')} className="max-h-[calc(16lh+1rem)] font-mono text-[13px]" />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="分类 id" list="case-cats" value={draft.category} onChange={e => { const v = e.target.value; const hit = cats.data?.find(c => c.category === v); setDraft(d => ({ ...d, category: v, category_zh: hit?.category_zh ?? d.category_zh })); setIssues(xs => xs.filter(i => i.field !== 'category')) }} error={err('category')} hint="小写字母、数字、连字符；可选已有分类" />
+              <Input id="f-category" label="分类 id" list="case-cats" value={draft.category} onChange={e => { const v = e.target.value; const hit = cats.data?.find(c => c.category === v); setDraft(d => ({ ...d, category: v, category_zh: hit?.category_zh ?? d.category_zh })); setIssues(xs => xs.filter(i => i.field !== 'category')) }} error={err('category')} hint="小写字母、数字、连字符；可选已有分类" />
               <datalist id="case-cats">{cats.data?.map(c => <option key={c.category} value={c.category}>{c.category_zh}</option>)}</datalist>
-              <Input label="分类中文名" value={draft.category_zh ?? ''} onChange={e => set('category_zh', nil(e.target.value))} />
+              <Input id="f-category_zh" label="分类中文名" value={draft.category_zh ?? ''} onChange={e => set('category_zh', nil(e.target.value))} />
             </div>
-            <Input label="标签" value={tagsText} onChange={e => setTagsText(e.target.value)} hint="用逗号或空格分隔" />
+            <Input id="f-tags" label="标签" value={tagsText} onChange={e => setTagsText(e.target.value)} hint="用逗号或空格分隔" />
           </Section>
 
-          <Section title="型号与参数">
+          <Section id="f-params" title="型号与参数">
             <div className="flex flex-wrap gap-4">
-              <Select label="型号" value={draft.model ?? ''} onChange={e => set('model', e.target.value || null)}>
+              <Select id="f-model" label="型号" value={draft.model ?? ''} onChange={e => set('model', e.target.value || null)}>
                 <option value="">不指定</option>
                 {models.data?.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                 {draft.model && !model && <option value={draft.model}>{draft.model}（目录中不存在）</option>}
@@ -218,7 +223,7 @@ function Form({ initial }: { initial: AdminCase | null }) {
             {Object.keys(draft.params).length > 0 && <p className="text-xs text-muted">当前参数：{Object.entries(draft.params).map(([k, v]) => `${k}=${v}`).join(' · ')}</p>}
           </Section>
 
-          <Section title="封面与参考图" error={err('cover')}>
+          <Section id="f-cover" title="封面与参考图" error={err('cover')}>
             <div className="flex flex-wrap items-start gap-4">
               <div className="w-48">
                 {coverPending?.previewUrl ? <UploadPreview item={coverPending} onRetry={() => coverUp.retry(coverPending.clientId)} />
@@ -246,7 +251,7 @@ function Form({ initial }: { initial: AdminCase | null }) {
             </div>
           </Section>
 
-          <Section title="套图模板" error={err('template')} aside={draft.template && <Badge tone={outputs > MAX_OUTPUTS ? 'danger' : 'outline'} className="tabular-nums">{draft.template.items.length} 项 · {outputs}/{MAX_OUTPUTS} 张</Badge>}>
+          <Section id="f-template" title="套图模板" error={err('template')} aside={draft.template && <Badge tone={outputs > MAX_OUTPUTS ? 'danger' : 'outline'} className="tabular-nums">{draft.template.items.length} 项 · {outputs}/{MAX_OUTPUTS} 张</Badge>}>
             <Checkbox
               label="这个案例是套图模板（做同款时展开为多项队列）"
               checked={!!draft.template}
@@ -257,12 +262,12 @@ function Form({ initial }: { initial: AdminCase | null }) {
 
           <Section title="来源与授权" hint="发布必填：授权说明，以及来源仓库或原帖链接之一（§14）">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="作者" value={draft.author ?? ''} onChange={e => set('author', nil(e.target.value))} />
-              <Input label="作者主页" type="url" value={draft.author_url ?? ''} onChange={e => set('author_url', nil(e.target.value))} error={err('author_url')} placeholder="https://" />
-              <Input label="来源仓库" value={draft.source_repo ?? ''} onChange={e => set('source_repo', nil(e.target.value))} placeholder="例如 awesome-gpt-image-2" />
-              <Input label="原帖链接" type="url" value={draft.source_url ?? ''} onChange={e => { set('source_url', nil(e.target.value)) }} error={err('source_url')} placeholder="https://" />
+              <Input id="f-author" label="作者" value={draft.author ?? ''} onChange={e => set('author', nil(e.target.value))} />
+              <Input id="f-author_url" label="作者主页" type="url" value={draft.author_url ?? ''} onChange={e => set('author_url', nil(e.target.value))} error={err('author_url')} placeholder="https://" />
+              <Input id="f-source_repo" label="来源仓库" value={draft.source_repo ?? ''} onChange={e => set('source_repo', nil(e.target.value))} placeholder="例如 awesome-gpt-image-2" />
+              <Input id="f-source_url" label="原帖链接" type="url" value={draft.source_url ?? ''} onChange={e => { set('source_url', nil(e.target.value)) }} error={err('source_url')} placeholder="https://" />
             </div>
-            <Textarea label="授权说明" value={draft.license_note ?? ''} onChange={e => set('license_note', nil(e.target.value))} error={err('license_note')} placeholder="来源仓库 · 授权 · 采集时间，如「Punk-Skill (adrianpunk) · MIT · fetched 2026-09-07」" />
+            <Textarea id="f-license_note" label="授权说明" value={draft.license_note ?? ''} onChange={e => set('license_note', nil(e.target.value))} error={err('license_note')} placeholder="来源仓库 · 授权 · 采集时间，如「Punk-Skill (adrianpunk) · MIT · fetched 2026-09-07」" />
           </Section>
         </fieldset>
 
@@ -296,9 +301,9 @@ function Form({ initial }: { initial: AdminCase | null }) {
 const enumValues = (m: { params: { field: string; values?: (string | number)[] }[] } | undefined, name: string) =>
   m?.params.find(p => p.field === name)?.values?.map(String) ?? []
 
-function Section({ title, hint, error, aside, children }: { title: string; hint?: string; error?: string; aside?: ReactNode; children: ReactNode }) {
+function Section({ id, title, hint, error, aside, children }: { id?: string; title: string; hint?: string; error?: string; aside?: ReactNode; children: ReactNode }) {
   return (
-    <section className={cn('grid gap-4 rounded-panel border bg-card p-5', error ? 'border-danger/50' : 'border-line')}>
+    <section id={id} tabIndex={id ? -1 : undefined} className={cn('grid gap-4 rounded-panel outline-none border bg-card p-5', error ? 'border-danger/50' : 'border-line')}>
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-base font-bold">{title}</h2>{aside}
         {hint && <p className="w-full text-xs text-muted">{hint}</p>}

@@ -87,14 +87,13 @@ e2eDescribe('admin (mock)', () => {
     await openCases(page, 'admin')
     const titles = () => page.locator('tbody tr td:nth-child(3) a').allTextContents()
     const [first, second] = await titles()
-    const [, secondId] = (await page.locator('tbody tr td:nth-child(3) span').allTextContents()).map(x => x.match(/#(\S+)/)![1]!)
     // dnd-kit measures between key presses: wait on its live-region announcements instead of sleeping.
     const announced = (text: string) => page.waitForFunction(t => [...document.querySelectorAll('[aria-live]')].some(e => e.textContent?.includes(t)), text)
     await page.getByRole('button', { name: `拖动排序：${first}` }).focus()
     await page.keyboard.press('Space')
-    await announced('droppable area')
+    await announced(`已拿起「${first}」`)
     await page.keyboard.press('ArrowDown')
-    await announced(`droppable area ${secondId}`)
+    await announced(`移到「${second}」`)
     await page.keyboard.press('Space')
     await expect.poll(async () => (await titles()).slice(0, 2)).toEqual([second, first])
     // Persisted in the (in-memory) mock: survives the list refetch after settle.
