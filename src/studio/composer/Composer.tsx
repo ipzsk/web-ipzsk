@@ -1,26 +1,261 @@
-import { ArrowUp, Clapperboard, Image } from 'lucide-react'
-import { Button, SegmentedControl } from '@/ui'
-import { useComposer } from '../store'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowUp, ChevronDown, Clapperboard, Image, ListPlus, LogIn, RefreshCw, Sparkles, Wallet, X } from 'lucide-react'
+import type { GenerationParams, MediaKind, ModelSpec } from '@/shared/contracts'
+import { loginUrl } from '@/shared/api'
+import { useOnline } from '@/shared/query'
+import { Button, IconButton, SegmentedControl, Tooltip, cn, toast } from '@/ui'
+import { DropTarget, useUpload, type MediaAsset } from '@/media'
+import { enhancePrompt } from '../api/catalog'
+import type { QueueEntry } from '../api/queue'
+import { clearDraft, loadDraft, useComposer } from '../store'
+import { useAccount, useModels, useQueueSync, useQuote, useSubjects } from './hooks'
+import {
+  addManual, chipsOf, docFromText, expandModels, itemFromDraft, normalizeParams, planSend, queueRoom, quoteEntry, referenceState,
+} from './logic'
+import { ModelPicker, ParamChips } from './ModelControls'
+import { PromptEditor, useEditorFlags } from './PromptEditor'
+import { QueueBar, useSubmittingIds } from './QueueBar'
+import { ReferenceSlots } from './ReferenceSlots'
+import { sender } from './send'
+import { uploadApi } from './uploadApi'
+
+const DRAFT_KEY = 'ipzsk.composer.draft'
+
+/** Signed-out send: stash the draft, go log in, restore on return (§2.2). */
+function saveDraftAndLogin() {
+  const s = useComposer.getState()
+  try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ kind: s.kind, ...s.memory[s.kind], doc: s.doc, slots: s.slots })) } catch { /* ignore */ }
+  location.href = loginUrl()
+}
+
+function useRestoreDraft() {
+  useEffect(() => {
+    let raw: string | null = null
+    try { raw = sessionStorage.getItem(DRAFT_KEY); sessionStorage.removeItem(DRAFT_KEY) } catch { return }
+    if (!raw) return
+    try { loadDraft(JSON.parse(raw)) } catch { /* corrupt draft: ignore */ }
+  }, [])
+}
+
+/** Brief highlight of params that were reset (§2.2: 1.2s). */
+function useHighlight() {
+  const [names, setNames] = useState<Set<string>>(new Set())
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const flash = (n: string[]) => {
+    if (!n.length) return
+    clearTimeout(timer.current)
+    setNames(new Set(n))
+    timer.current = setTimeout(() => setNames(new Set()), 1200)
+  }
+  useEffect(() => () => clearTimeout(timer.current), [])
+  return [names, flash] as const
+}
 
 // Owned by F3. Bottom floating composer shared by inspiration / create / assets views.
 export function Composer({ hidden }: { hidden: boolean }) {
-  const { kind, setKind } = useComposer()
+  const account = useAccount()
+  const online = useOnline()
+  const models = useModels()
+  const subjects = useSubjects(account.signedIn)
+  useQueueSync(account.signedIn, account.pending)
+  useRestoreDraft()
+
+  const kind = useComposer(s => s.kind)
+  const memory = useComposer(s => s.memory[s.kind])
+  const doc = useComposer(s => s.doc)
+  const slots = useComposer(s => s.slots)
+  const queue = useComposer(s => s.queue)
+  const editingId = useComposer(s => s.editingId)
+  const submitting = useSubmittingIds()
+
+  const kindModels = useMemo(() => (models.data ?? []).filter(m => m.kind === kind), [models.data, kind])
+  const model = kindModels.find(m => m.id === memory.model) ?? kindModels[0]
+  const params = useMemo(() => model ? normalizeParams(model, memory.params).params : {}, [model, memory.params])
+  const [highlight, flash] = useHighlight()
+
+  const current = useMemo(() => itemFromDraft({ kind, model, params, doc, slots }), [kind, model, params, doc, slots])
+  const hasPrompt = !!current.prompt
+  const refs = referenceState(model, slots.length)
+  useEffect(() => { useEditorFlags.setState({ refsOver: refs.over ? refs.message : null }) }, [refs.over, refs.message])
+
+  // Uploads → slots once the server asset exists.
+  const upload = useUpload({ api: uploadApi, storageKey: 'ipzsk:composer-uploads' })
+  useEffect(() => {
+    const done = upload.items.filter(u => u.status === 'done' && u.asset)
+    if (!done.length) return
+    useComposer.setState(s => ({ slots: addManual(s.slots, done.map(u => u.asset!)) }))
+    done.forEach(u => upload.remove(u.clientId))
+  }, [upload.items]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const acceptAssets = (items: MediaAsset[]): true | string => {
+    if (!refs.supported) return model ? `${model.name} 不支持参考图` : '型号加载中'
+    if (items.some(a => a.kind !== 'image')) return '参考图只能是图片'
+    const fresh = items.filter(a => !slots.some(s => s.asset.id === a.id)).length
+    return slots.length + fresh > refs.max ? `最多 ${refs.max} 张参考图` : true
+  }
+  const onFiles = (files: File[]) => {
+    const reason = acceptAssets(files.map(() => ({ kind: 'image' }) as MediaAsset))
+    if (reason !== true) { toast({ title: '无法添加参考图', description: reason, tone: 'error' }); return }
+    const images = files.filter(f => f.type.startsWith('image/'))
+    const errors = [...(images.length < files.length ? ['参考图只能是图片'] : []), ...upload.add(images)]
+    if (errors.length) toast({ title: '部分文件未添加', description: errors.join('；'), tone: 'error' })
+  }
+
+  // ── model / params ──
+  const setKind = (k: MediaKind) => useComposer.getState().setKind(k)
+  const remember = (m: ModelSpec | undefined, p: GenerationParams) => useComposer.getState().remember(kind, { model: m?.id, params: p })
+  const pickModel = (m: ModelSpec) => {
+    const n = normalizeParams(m, params)
+    remember(m, n.params)
+    flash(n.changes.map(c => c.name))
+  }
+  const setParam = (name: string, v: GenerationParams[string]) => remember(model, { ...params, [name]: v })
+
+  // ── quote ──
+  const sendable = planSend(queue.filter(i => !submitting.has(i.item_id)), current)
+  const quoteItems = useMemo(() => [...queue, ...(hasPrompt ? [current] : [])], [queue, current, hasPrompt])
+  const quote = useQuote(quoteItems.map(quoteEntry), account.signedIn && !!model)
+  const pointsById = new Map(quoteItems.map((it, i) => [it.item_id, quote.data?.[i]?.points ?? null]))
+  const sum = (items: QueueEntry[]) => quote.data && !quote.isPlaceholderData
+    ? Math.round(items.reduce((a, it) => a + (pointsById.get(it.item_id) ?? 0), 0) * 10) / 10 : null
+  const total = sum(sendable)
+  const queueTotal = sum(queue)
+
+  // ── send ──
+  const [sending, setSending] = useState(false)
+  const missingSubject = subjects.data && chipsOf(doc).some(c => c.kind === 'subject' && !subjects.data.some(s => s.id === c.id))
+  const insufficient = account.points != null && total != null && total > account.points
+
+  const blockReason = (items: QueueEntry[], includesComposer: boolean): string | null =>
+    !online ? '网络已断开，恢复后再发送'
+    : !model ? '型号加载中'
+    : !items.length ? (queue.length ? '队列里没有可发送的项（标红的项需要先编辑）' : '先输入提示词')
+    : includesComposer && refs.over ? refs.message
+    : includesComposer && missingSubject ? '有主体已被删除，请先移除对应标签'
+    : null
+
+  const send = (items: QueueEntry[], includesComposer: boolean) => {
+    if (sending || blockReason(items, includesComposer)) return
+    setSending(true)
+    setTimeout(() => setSending(false), 300) // §2.2: only guard ~300ms against double clicks
+    if (includesComposer) clearDraft()
+    void sender.sendBatch(items, { thread_id: useComposer.getState().threadId })
+    toast({ title: `已提交 ${items.length} 项`, description: '可在「创作」里查看进度' })
+    setExpanded(false)
+  }
+  const sendComposer = () => {
+    if (!account.signedIn) return saveDraftAndLogin()
+    send(sendable, hasPrompt)
+  }
+  const sendAll = () => send(queue.filter(i => !submitting.has(i.item_id) && !['failed', 'cancelled', 'waiting'].includes(i.state ?? '')), false)
+
+  // ── queue ──
+  const addReason = !model ? '型号加载中' : !hasPrompt ? '先输入提示词' : refs.over ? refs.message : queueRoom(queue.length, editingId ? 0 : 1)
+  const addToQueue = () => {
+    if (addReason) return
+    if (editingId) {
+      useComposer.setState(s => ({ queue: s.queue.map(i => i.item_id === editingId ? { ...current, item_id: editingId, anchor_of: i.anchor_of } : i), editingId: null }))
+      toast({ title: '已更新队列项' })
+      return
+    }
+    useComposer.setState(s => ({ queue: [...s.queue, current] }))
+  }
+  const addMany = (ms: ModelSpec[]) => {
+    const reason = !hasPrompt ? '先输入提示词' : queueRoom(queue.length, ms.length)
+    if (reason) { toast({ title: '无法加入队列', description: reason, tone: 'error' }); return }
+    useComposer.setState(s => ({ queue: [...s.queue, ...expandModels({ kind, model, params, doc, slots }, ms)] }))
+  }
+
+  // ── enhance ──
+  const [enhancing, setEnhancing] = useState(false)
+  const enhanceReason = !hasPrompt ? '先输入提示词' : chipsOf(doc).length ? '含 @ 标签时暂不支持增强' : !account.signedIn ? '登录后可用' : null
+  const enhance = async () => {
+    if (enhanceReason) return
+    setEnhancing(true)
+    try {
+      const text = await enhancePrompt(current.prompt)
+      useComposer.setState(s => ({ doc: docFromText(text), docVersion: s.docVersion + 1 }))
+    } catch (e) {
+      toast({ title: '增强失败', description: e instanceof Error ? e.message : '请稍后重试', tone: 'error' })
+    } finally { setEnhancing(false) }
+  }
+
+  // ── mobile sheet ──
+  const [expanded, setExpanded] = useState(false)
+  const sendLabel = total != null ? `约 ${total} 点` : null
+
+  const sendButton = account.pending
+    ? <Button variant="primary" loading icon={<ArrowUp className="size-[18px]" />}>发送</Button>
+    : !account.signedIn
+      ? <Button variant="primary" icon={<LogIn className="size-[18px]" />} onClick={saveDraftAndLogin}>登录后生成</Button>
+      : insufficient
+        ? <Button variant="danger" icon={<Wallet className="size-[18px]" />} onClick={() => { location.href = '/account?recharge=1' }}>点数不足 · 去充值</Button>
+        : (() => {
+          const reason = blockReason(sendable, hasPrompt)
+          const btn = (
+            <Button variant="primary" icon={<ArrowUp className="size-[18px]" />} loading={sending} disabled={!!reason} disabledReason={reason ?? undefined} onClick={sendComposer} aria-keyshortcuts="Meta+Enter Control+Enter">
+              发送{sendLabel && <span className="font-normal opacity-80 tabular-nums">· {sendLabel}</span>}
+            </Button>
+          )
+          return !reason && sendable.length > 1
+            ? <Tooltip content={<div className="grid gap-0.5">{sendable.map((it, i) => <span key={it.item_id}>{String.fromCharCode(0x2460 + i)} {it.model} · {pointsById.get(it.item_id) ?? '…'} 点</span>)}<span className="text-acid">共 {sendable.length} 项 · ⌘/Ctrl+Enter</span></div>}>{btn}</Tooltip>
+            : btn
+        })()
+
   return (
-    <div hidden={hidden} className="pointer-events-none fixed inset-x-0 bottom-4 z-30 px-4 max-md:bottom-[72px] md:left-52">
-      <div className="pointer-events-auto mx-auto max-w-3xl rounded-panel border border-line bg-card p-3 shadow-xl">
-        <textarea
-          aria-label="提示词"
-          placeholder="描述你想要的画面…"
-          rows={2}
-          className="w-full resize-none bg-transparent px-2 py-1 text-sm leading-6 outline-none placeholder:text-muted [field-sizing:content] max-h-[calc(8lh+.5rem)]"
-        />
-        <div className="mt-2 flex items-center gap-2">
-          <SegmentedControl label="类型" value={kind} onValueChange={setKind} options={[{ value: 'image', label: '图片', icon: Image }, { value: 'video', label: '视频', icon: Clapperboard }]} />
-          <div className="flex-1" />
-          <Button variant="primary" icon={<ArrowUp className="size-[18px]" />} disabled disabledReason="输入框将在 F3 接入">发送</Button>
+    <div hidden={hidden} className={cn('pointer-events-none fixed inset-x-0 bottom-4 z-30 px-4 max-md:bottom-[72px] md:left-52', expanded && 'max-md:bottom-0 max-md:z-50 max-md:px-0')}>
+      {expanded && <div aria-hidden className="pointer-events-auto fixed inset-0 bg-ink/30 md:hidden" onClick={() => setExpanded(false)} />}
+      <div className="pointer-events-auto relative mx-auto max-w-4xl">
+        {/* Mobile collapsed: one line → tap opens the bottom sheet. */}
+        {!expanded && (
+          <button
+            type="button" onClick={() => setExpanded(true)} aria-label="展开输入框"
+            className="flex h-12 w-full cursor-pointer items-center gap-2 rounded-full border border-line bg-card pl-4 pr-1.5 text-left text-sm shadow-xl md:hidden"
+          >
+            <span className={cn('min-w-0 flex-1 truncate', !hasPrompt && 'text-muted')}>{current.prompt || '描述你想要的画面…'}</span>
+            {queue.length > 0 && <span className="rounded-full bg-subtle px-2 text-xs leading-6">队列 {queue.length}</span>}
+            <span className="grid size-9 place-items-center rounded-full bg-ink text-acid"><ArrowUp className="size-[18px]" /></span>
+          </button>
+        )}
+        <div className={cn(!expanded && 'max-md:hidden', expanded && 'max-md:max-h-[85dvh] max-md:overflow-y-auto max-md:rounded-t-panel max-md:bg-paper max-md:p-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))]')}>
+          {expanded && (
+            <div className="mb-1 flex justify-end md:hidden">
+              <IconButton label="收起输入框" size="icon-sm" onClick={() => setExpanded(false)}><ChevronDown className="size-4" /></IconButton>
+            </div>
+          )}
+          <QueueBar current={current} models={new Map((models.data ?? []).map(m => [m.id, m]))} pointsById={pointsById} total={queueTotal}
+            onSendAll={account.signedIn ? sendAll : saveDraftAndLogin} sendReason={account.signedIn ? blockReason(queue, false) : null} sending={sending} />
+          <DropTarget id="composer" accept={acceptAssets} onDrop={items => useComposer.setState(s => ({ slots: addManual(s.slots, items) }))} onFiles={onFiles} className="rounded-panel">
+            <div className={cn('rounded-panel border border-line bg-card p-3 shadow-xl', editingId && 'border-ink')}>
+              {editingId && (
+                <div className="mb-1 flex items-center gap-2 px-1 text-xs text-muted">
+                  <RefreshCw className="size-3.5" />正在编辑队列第 {queue.findIndex(i => i.item_id === editingId) + 1} 项
+                  <button type="button" className="ml-auto inline-flex items-center gap-0.5 rounded-control px-1 hover:bg-subtle hover:text-ink" onClick={clearDraft}><X className="size-3" />取消编辑</button>
+                </div>
+              )}
+              <ReferenceSlots refs={refs} upload={upload} onFiles={onFiles} />
+              <div className="flex items-start gap-1">
+                <div className="min-w-0 flex-1"><PromptEditor onSubmit={sendComposer} onFiles={onFiles} placeholder="描述你想要的画面，输入 @ 引用主体或参考图…" /></div>
+                <IconButton label="增强提示词" loading={enhancing} disabled={!!enhanceReason} disabledReason={enhanceReason ?? undefined} onClick={() => void enhance()}><Sparkles className="size-4" /></IconButton>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <SegmentedControl label="类型" value={kind} onValueChange={setKind} options={[{ value: 'image', label: '图片', icon: Image }, { value: 'video', label: '视频', icon: Clapperboard }]} />
+                <ModelPicker
+                  models={kindModels} model={model} status={!account.signedIn && models.isError ? 'signedOut' : models.status} onRetry={() => void models.refetch()}
+                  onPick={pickModel} onAddMany={addMany} roomFor={n => !hasPrompt ? '先输入提示词' : queueRoom(queue.length, n)}
+                />
+                {model && <ParamChips model={model} params={params} highlight={highlight} onChange={setParam} />}
+                <div className="ml-auto flex items-center gap-1.5">
+                <Button variant="secondary" icon={<ListPlus className="size-[18px]" />} disabled={!!addReason} disabledReason={addReason ?? undefined} onClick={addToQueue}>
+                  {editingId ? '更新' : '加入队列'}
+                </Button>
+                {sendButton}
+                </div>
+              </div>
+            </div>
+          </DropTarget>
         </div>
       </div>
     </div>
   )
 }
-
