@@ -69,7 +69,7 @@ export function SiteHeader() {
           )}
           {isPending ? null : user
             ? <a href="/account" className={linkClass}>我的</a>
-            : <a href={loginUrl()} className={cn(linkClass, 'bg-ink font-bold text-white hover:bg-ink/88')}>登录 / 注册</a>}
+            : <a href={loginUrl()} className={cn(linkClass, 'bg-acid font-bold text-white hover:bg-acid-deep')}>登录 / 注册</a>}
         </div>
       </nav>
     </header>

@@ -11,7 +11,7 @@ import { AssetPicker } from '../subjects/SubjectEditor'
 
 type Gender = 'all' | 'female' | 'male'
 type Kind = 'all' | 'avatar' | 'talking_photo'
-const chip = (on: boolean) => cn('inline-flex h-8 shrink-0 cursor-pointer items-center rounded-full border px-3 text-[13px] font-semibold transition-colors duration-(--duration-fast)', on ? 'border-ink bg-ink text-acid' : 'border-line bg-card hover:bg-subtle', focusRing)
+const chip = (on: boolean) => cn('inline-flex h-8 shrink-0 cursor-pointer items-center rounded-full border px-3 text-[13px] font-semibold transition-colors duration-(--duration-fast)', on ? 'border-acid bg-acid text-white' : 'border-line bg-card hover:bg-subtle', focusRing)
 
 /** 预览图作为 MediaImage 的 urls（无 asset id，签名刷新不适用：HeyGen 公网地址）。 */
 export const previewUrls = (url: string | null | undefined) => url ? { orig: url } : null
@@ -39,7 +39,7 @@ function AvatarCard({ avatar, selected, onPick }: { avatar: AvatarItem; selected
             ? <MediaVideo src={avatar.preview_video_url} poster={avatar.preview_image_url ?? undefined} width={4} height={5} label={`${avatar.name} 预览`} className="size-full" focusable={false} />
             : <AvatarThumb avatar={avatar} className="size-full" />}
           <span className="absolute left-1.5 top-1.5"><EngineBadges engines={avatar.engines} /></span>
-          {selected && <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-ink text-acid"><Check className="size-4" /></span>}
+          {selected && <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-acid text-white"><Check className="size-4" /></span>}
         </div>
         <div className="grid gap-0.5 px-2.5 py-2">
           <span className="truncate text-[13px] font-semibold">{avatar.name}</span>

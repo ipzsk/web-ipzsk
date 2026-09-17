@@ -49,7 +49,7 @@ function NavItem({ to, label, icon: Icon, variant }: (typeof views)[number] & { 
       className={({ isActive }) => cn(
         'flex items-center rounded-control font-semibold transition-colors duration-(--duration-fast)',
         variant === 'side' ? 'h-10 gap-2.5 px-3 text-sm hover:bg-subtle' : 'h-14 flex-1 flex-col justify-center gap-0.5 text-[11px]',
-        isActive ? (variant === 'side' ? 'bg-ink text-acid hover:bg-ink' : 'text-ink') : 'text-ink/80',
+        isActive ? (variant === 'side' ? 'bg-acid-soft text-label hover:bg-acid-soft' : 'text-ink') : 'text-ink/80',
         focusRing,
       )}
     >

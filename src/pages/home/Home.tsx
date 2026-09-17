@@ -67,7 +67,7 @@ function DownloadMenu() {
     <div ref={root} id="download" className="group/dl scroll-mt-32 md:relative">
       <button
         ref={trigger} type="button" aria-haspopup="true" aria-expanded={open} aria-controls="download-menu" onClick={() => setOpen(o => !o)}
-        className={cn('inline-flex h-[54px] min-w-[148px] cursor-pointer items-center justify-center gap-2 rounded-full border border-ink bg-ink px-6 text-[14px] font-extrabold text-acid shadow-[0_14px_28px_rgba(21,24,21,.16)] transition-[transform,box-shadow] duration-(--duration-fast) hover:shadow-[0_18px_32px_rgba(21,24,21,.23)] motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[.98]', focusRing)}
+        className={cn('inline-flex h-[54px] min-w-[148px] cursor-pointer items-center justify-center gap-2 rounded-full border border-ink bg-ink px-6 text-[14px] font-extrabold text-white shadow-[0_14px_28px_rgba(21,24,21,.16)] transition-[transform,box-shadow] duration-(--duration-fast) hover:shadow-[0_18px_32px_rgba(21,24,21,.23)] motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[.98]', focusRing)}
       >
         <Download aria-hidden className="size-[18px]" />立即下载<ChevronDown aria-hidden className={cn('size-4 transition-transform duration-(--duration-fast)', open && 'rotate-180')} />
       </button>
@@ -160,10 +160,10 @@ export function Home() {
                   f.dark ? 'bg-ink text-card' : 'bg-card', focusRing,
                 )}
               >
-                <span className={cn('self-start rounded-full px-2.5 py-1.5 text-[10px] font-black', f.dark ? 'bg-acid/12 text-acid' : 'bg-subtle text-muted')}>{f.badge}</span>
+                <span className={cn('self-start rounded-full px-2.5 py-1.5 text-[10px] font-black', f.dark ? 'bg-white/12 text-white' : 'bg-subtle text-muted')}>{f.badge}</span>
                 <h3 className="mb-2 mt-auto pt-6 text-[28px] font-bold tracking-[-.045em]">{f.title}</h3>
                 <p className={cn('max-w-[460px] text-[13px] leading-[1.75]', f.dark ? 'text-card/70' : 'text-muted')}>{f.text}</p>
-                <span className={cn('mt-5 inline-flex items-center gap-2 text-[12px] font-black', f.dark ? 'text-acid' : 'text-label')}>{f.link}<ArrowUpRight aria-hidden className="size-4 transition-transform duration-(--duration-fast) motion-safe:group-hover:translate-x-0.5 motion-safe:group-hover:-translate-y-0.5" /></span>
+                <span className={cn('mt-5 inline-flex items-center gap-2 text-[12px] font-black', f.dark ? 'text-white' : 'text-label')}>{f.link}<ArrowUpRight aria-hidden className="size-4 transition-transform duration-(--duration-fast) motion-safe:group-hover:translate-x-0.5 motion-safe:group-hover:-translate-y-0.5" /></span>
               </a>
             ))}
           </div>

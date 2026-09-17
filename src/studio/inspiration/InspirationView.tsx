@@ -125,12 +125,12 @@ export function InspirationView() {
                 onClick={() => setCat(ch.id)}
                 className={cn(
                   'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-[background-color,border-color,transform] duration-(--duration-fast) active:scale-[.98] motion-reduce:active:scale-100',
-                  on ? 'border-ink bg-ink text-acid' : 'border-line bg-card text-ink hover:border-muted hover:bg-subtle',
+                  on ? 'border-acid bg-acid text-white' : 'border-line bg-card text-ink hover:border-muted hover:bg-subtle',
                   focusRing,
                 )}
               >
                 {ch.label}
-                {ch.count != null && <span className={cn('tabular-nums text-xs font-normal', on ? 'text-acid/70' : 'text-muted')}>{ch.count}</span>}
+                {ch.count != null && <span className={cn('tabular-nums text-xs font-normal', on ? 'text-white' : 'text-muted')}>{ch.count}</span>}
               </button>
             )
           })}
@@ -203,7 +203,7 @@ function CaseCard({ c, priority, fav, onOpen }: { c: CaseItem; priority: boolean
               <button
                 type="button"
                 onClick={() => fillComposer(c)}
-                className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-control bg-acid px-3 text-[13px] font-semibold text-ink transition-[filter,transform] duration-(--duration-fast) hover:brightness-95 active:scale-[.98] motion-reduce:active:scale-100', focusRing, 'focus-visible:outline-card')}
+                className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-control bg-acid px-3 text-[13px] font-semibold text-white transition-[filter,transform] duration-(--duration-fast) hover:brightness-95 active:scale-[.98] motion-reduce:active:scale-100', focusRing, 'focus-visible:outline-card')}
               >
                 <WandSparkles aria-hidden />做同款
               </button>

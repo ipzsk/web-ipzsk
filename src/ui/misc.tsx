@@ -13,8 +13,8 @@ const badgeVariants = cva('inline-flex h-6 items-center gap-1 rounded-full px-2.
   variants: {
     tone: {
       neutral: 'bg-subtle text-ink',
-      acid: 'bg-acid text-ink',
-      ink: 'bg-ink text-acid',
+      acid: 'bg-acid-soft text-label',
+      ink: 'bg-ink text-white',
       success: 'bg-success/12 text-success',
       warning: 'bg-warning/12 text-warning',
       danger: 'bg-danger/10 text-danger',
@@ -31,7 +31,7 @@ const fieldClass = cn(
   'transition-colors duration-(--duration-fast) hover:border-muted',
   'disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-line',
   'aria-invalid:border-danger aria-invalid:hover:border-danger',
-  focusRing, 'focus-visible:outline-offset-0 focus:border-ink',
+  focusRing, 'focus-visible:outline-offset-0 focus:border-acid focus:ring-3 focus:ring-acid/10',
 )
 
 type FieldExtras = { label?: string; error?: string; hint?: string; disabledReason?: string }
@@ -76,7 +76,7 @@ export function Checkbox({ label, className, disabledReason, ...props }: Compone
         id={id}
         className={cn(
           'grid size-[18px] shrink-0 cursor-pointer place-items-center rounded-[5px] border border-muted bg-card transition-colors duration-(--duration-fast)',
-          'hover:border-ink data-[state=checked]:border-ink data-[state=checked]:bg-ink data-[state=checked]:text-acid disabled:cursor-not-allowed',
+          'hover:border-ink data-[state=checked]:border-acid data-[state=checked]:bg-acid data-[state=checked]:text-white disabled:cursor-not-allowed',
           'aria-invalid:border-danger',
           focusRing, className,
         )}
@@ -113,7 +113,7 @@ export function SegmentedControl<V extends string>({ value, onValueChange, optio
             className={cn(
               'inline-flex h-full cursor-pointer items-center gap-1.5 rounded-[8px] px-3 text-[13px] font-semibold text-ink',
               'transition-colors duration-(--duration-fast) hover:bg-subtle',
-              'data-[state=on]:bg-ink data-[state=on]:text-acid',
+              'data-[state=on]:bg-acid-soft data-[state=on]:text-label',
               'disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent',
               focusRing,
             )}
@@ -182,7 +182,7 @@ export function SessionExpiredBanner({ loginHref }: { loginHref: string }) {
 
 export function OfflineBanner() {
   return (
-    <div role="status" className="flex h-8 items-center justify-center gap-2 bg-ink text-xs text-acid">
+    <div role="status" className="flex h-8 items-center justify-center gap-2 bg-ink text-xs text-white">
       <WifiOff className="size-4" />网络已断开，操作会在恢复后同步
     </div>
   )

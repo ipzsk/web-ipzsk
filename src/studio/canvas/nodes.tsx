@@ -200,7 +200,7 @@ export const GenNode = memo(function GenNode(p: SlimProps) {
       {main ? (
         <div className="relative">
           <AssetView asset={main} label="主结果" />
-          {results.length > 1 && <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-ink/80 px-2 py-0.5 text-[11px] text-acid"><Star className="size-3 fill-current" />主结果</span>}
+          {results.length > 1 && <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-ink/80 px-2 py-0.5 text-[11px] text-white"><Star className="size-3 fill-current" />主结果</span>}
         </div>
       ) : run?.status !== 'running' && (
         <p className={cn('line-clamp-3 px-3 pt-2 text-sm leading-6', !p.data.prompt && 'text-muted')}>{p.data.prompt || '选中节点，在面板里写提示词'}</p>

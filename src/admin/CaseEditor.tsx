@@ -341,7 +341,7 @@ function Preview({ d }: { d: Draft }) {
             <div className="grid gap-1.5">
               {d.author && <p className="truncate text-xs text-card/80">{d.author}</p>}
               <div className="flex items-center gap-1">
-                <span className="inline-flex h-8 items-center gap-1.5 rounded-control bg-acid px-3 text-[13px] font-semibold text-ink"><WandSparkles aria-hidden />做同款</span>
+                <span className="inline-flex h-8 items-center gap-1.5 rounded-control bg-acid px-3 text-[13px] font-semibold text-white"><WandSparkles aria-hidden />做同款</span>
                 <span className="grid size-8 place-items-center text-card"><Heart aria-hidden /></span>
                 <p className="ml-auto min-w-0 truncate text-[11px] text-card/60">{label}</p>
               </div>

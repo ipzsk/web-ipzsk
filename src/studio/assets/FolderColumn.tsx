@@ -11,7 +11,7 @@ import { positionAt, useFolderMutations, useFolders } from './queries'
 
 const rowClass = (active: boolean) => cn(
   'flex h-9 min-w-0 flex-1 items-center gap-2 rounded-control px-2.5 text-sm font-semibold transition-colors duration-(--duration-fast)',
-  active ? 'bg-ink text-acid hover:bg-ink' : 'text-ink hover:bg-subtle',
+  active ? 'bg-acid-soft text-label hover:bg-acid-soft' : 'text-ink hover:bg-subtle',
   focusRing,
 )
 
@@ -127,7 +127,7 @@ export function FolderColumn({ current, onNavigate }: { current: string | null; 
                       <GripVertical className="-ml-1 size-3.5 shrink-0 cursor-grab opacity-0 transition-opacity group-hover/folder:opacity-50 [@media(hover:none)]:hidden" aria-hidden />
                       <FolderIcon className="size-4 shrink-0" aria-hidden />
                       <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                      <span className={cn('tabular-nums text-xs font-normal group-hover/folder:invisible', current === f.id ? 'text-acid/70' : 'text-muted')} aria-label={`${f.count} 项`}>{f.count}</span>
+                      <span className={cn('tabular-nums text-xs font-normal group-hover/folder:invisible', current === f.id ? 'text-label' : 'text-muted')} aria-label={`${f.count} 项`}>{f.count}</span>
                     </Link>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -137,7 +137,7 @@ export function FolderColumn({ current, onNavigate }: { current: string | null; 
                           disabled={temp}
                           className={cn(
                             'absolute right-1 grid size-7 place-items-center rounded-[8px] opacity-0 transition-[opacity,background-color] duration-(--duration-fast) group-hover/folder:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100',
-                            current === f.id ? 'text-acid hover:bg-card/15' : 'text-muted hover:bg-line',
+                            current === f.id ? 'text-label hover:bg-card' : 'text-muted hover:bg-line',
                             focusRing,
                           )}
                         >

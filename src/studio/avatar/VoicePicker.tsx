@@ -5,7 +5,7 @@ import { listErrorMessage, useVoices } from './api'
 import type { VoiceItem } from './contract'
 
 const LANGS = [['Chinese', '中文'], ['English', 'English'], ['Japanese', '日本語'], ['', '全部']] as const
-const chip = (on: boolean) => cn('inline-flex h-7 shrink-0 cursor-pointer items-center rounded-full border px-2.5 text-xs font-semibold', on ? 'border-ink bg-ink text-acid' : 'border-line bg-card hover:bg-subtle', focusRing)
+const chip = (on: boolean) => cn('inline-flex h-7 shrink-0 cursor-pointer items-center rounded-full border px-2.5 text-xs font-semibold', on ? 'border-acid bg-acid text-white' : 'border-line bg-card hover:bg-subtle', focusRing)
 const genderText = (g: string | null) => g === 'female' ? '女' : g === 'male' ? '男' : g ?? ''
 
 // Page-wide: one preview plays at a time.

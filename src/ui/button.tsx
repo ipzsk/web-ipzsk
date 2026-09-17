@@ -5,7 +5,7 @@ import { cn } from './cn'
 import { Tooltip } from './tooltip'
 
 // Shared by every clickable control so the §4.1 matrix stays identical everywhere.
-export const focusRing = 'outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink'
+export const focusRing = 'outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acid-deep'
 
 export const buttonVariants = cva(
   cn(
@@ -18,9 +18,9 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-ink text-acid hover:bg-ink/88 aria-selected:ring-2 aria-selected:ring-acid-deep',
-        secondary: 'border border-line bg-card text-ink hover:border-muted hover:bg-subtle aria-pressed:bg-ink aria-pressed:text-acid aria-pressed:border-ink',
-        ghost: 'text-ink hover:bg-subtle aria-pressed:bg-ink aria-pressed:text-acid',
+        primary: 'bg-acid text-white shadow-[0_8px_19px_rgb(29_113_251/.22)] hover:bg-acid-deep aria-selected:ring-2 aria-selected:ring-acid-deep',
+        secondary: 'border border-line bg-card text-ink hover:border-muted hover:bg-subtle aria-pressed:bg-acid-soft aria-pressed:text-label aria-pressed:border-acid',
+        ghost: 'text-ink hover:bg-subtle aria-pressed:bg-acid-soft aria-pressed:text-label',
         danger: 'bg-danger text-card hover:bg-danger/90',
         'danger-ghost': 'text-danger hover:bg-danger/8',
       },

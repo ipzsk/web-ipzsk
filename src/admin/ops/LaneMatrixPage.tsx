@@ -202,12 +202,12 @@ export function LaneMatrixPage() {
       )}
 
       {writable && n > 0 && (
-        <div role="region" aria-label="未保存的改动" className="sticky bottom-4 z-30 mt-4 flex flex-wrap items-center gap-2 rounded-card bg-ink px-4 py-2.5 text-sm text-acid shadow-xl">
+        <div role="region" aria-label="未保存的改动" className="sticky bottom-4 z-30 mt-4 flex flex-wrap items-center gap-2 rounded-card bg-ink px-4 py-2.5 text-sm text-white shadow-xl">
           <span className="font-semibold" aria-live="polite">{n} 处改动未保存</span>
           <span className="text-xs text-card/70">涉及 {Object.keys(draft).length} 个渠道</span>
           <span className="ml-auto flex gap-2">
             <Button size="sm" onClick={() => setCompare(true)}>查看对比</Button>
-            <Button size="sm" variant="ghost" className="text-acid hover:bg-card/10" onClick={() => setDiscard(true)}>放弃</Button>
+            <Button size="sm" variant="ghost" className="text-white hover:bg-card/10" onClick={() => setDiscard(true)}>放弃</Button>
             <Button size="sm" className="border-acid bg-acid hover:bg-acid/90" loading={save.isPending} loadingText="保存中" onClick={() => save.mutate()}>保存</Button>
           </span>
         </div>

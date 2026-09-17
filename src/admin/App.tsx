@@ -113,7 +113,7 @@ function Shell() {
         {nav.map(({ group, items }) => [
           group && <p key={group} className="mt-3 px-3 pb-1 text-[11px] font-semibold text-muted max-md:hidden">{group}</p>,
           ...items.map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} className={({ isActive }) => cn('flex h-10 shrink-0 items-center gap-2.5 rounded-control px-3 text-sm font-semibold transition-colors duration-(--duration-fast) hover:bg-subtle', isActive ? 'bg-ink text-acid hover:bg-ink' : 'text-ink/80', focusRing)}>
+          <NavLink key={to} to={to} className={({ isActive }) => cn('flex h-10 shrink-0 items-center gap-2.5 rounded-control px-3 text-sm font-semibold transition-colors duration-(--duration-fast) hover:bg-subtle', isActive ? 'bg-acid-soft text-label hover:bg-acid-soft' : 'text-ink/80', focusRing)}>
             <Icon className="size-[18px]" aria-hidden />{label}
           </NavLink>
         ))])}

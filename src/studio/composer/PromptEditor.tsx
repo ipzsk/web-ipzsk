@@ -96,7 +96,7 @@ function ChipView({ node, selected }: NodeViewProps) {
       <div className="grid gap-1.5">
         <span>{subject.name} · {SUBJECT_KIND_LABEL[subject.kind]} · {subject.assets.length} 张参考图</span>
         <span className="flex gap-1">{subject.assets.slice(0, 8).map(a => isMissingAsset(a) ? <MissingMedia key={a.id} label="已删除" className="size-10 overflow-hidden rounded-[6px]" /> : <MediaImage key={a.id} asset={a} alt="" hideBadge className="size-10 overflow-hidden rounded-[6px]" />)}</span>
-        {over && <span className="text-acid">{over}</span>}
+        {over && <span className="font-semibold text-white">{over}</span>}
       </div>
     ) : null
   return (

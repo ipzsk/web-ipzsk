@@ -62,7 +62,7 @@ function DragGhost({ items }: { items: MediaAsset[] }) {
         </div>
       ))}
       {items.length > 1 && (
-        <span className="absolute -right-2 -top-4 z-10 min-w-6 rounded-full bg-ink px-1.5 text-center text-xs leading-6 text-acid">{items.length}</span>
+        <span className="absolute -right-2 -top-4 z-10 min-w-6 rounded-full bg-ink px-1.5 text-center text-xs leading-6 text-white">{items.length}</span>
       )}
     </div>
   )

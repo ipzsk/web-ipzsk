@@ -81,7 +81,7 @@ function SaveTemplateDialog({ req, onClose }: { req: SaveRequest | null; onClose
                   <button key={a.id} type="button" role="radio" aria-checked={cover === a.id} aria-label="设为封面" onClick={() => setCover(a.id)}
                     className={cn('relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-[10px] border-2', cover === a.id ? 'border-ink' : 'border-transparent')}>
                     <MediaImage asset={a} alt="" hideBadge className="size-full" />
-                    {cover === a.id && <span className="absolute right-0.5 top-0.5 grid size-4 place-items-center rounded-full bg-ink text-acid"><Check className="size-3" /></span>}
+                    {cover === a.id && <span className="absolute right-0.5 top-0.5 grid size-4 place-items-center rounded-full bg-acid text-white"><Check className="size-3" /></span>}
                   </button>
                 ))}
               </div>

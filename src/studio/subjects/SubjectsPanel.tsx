@@ -59,7 +59,7 @@ export function SubjectsPanel() {
   const chip = (value: SubjectKind | null, label: string, n: number) => (
     <button
       key={value ?? 'all'} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}
-      className={cn('inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors duration-(--duration-fast)', kind === value ? 'border-ink bg-ink text-acid' : 'border-line bg-card hover:bg-subtle', focusRing)}
+      className={cn('inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors duration-(--duration-fast)', kind === value ? 'border-acid bg-acid text-white' : 'border-line bg-card hover:bg-subtle', focusRing)}
     >{value && (() => { const I = SUBJECT_KIND_ICON[value]; return <I className="size-3.5" /> })()}{label}<span className="font-normal opacity-70 tabular-nums">{n}</span></button>
   )
 

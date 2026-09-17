@@ -274,7 +274,7 @@ export function AssetPicker({ open, onOpenChange, room, existing, onPick, descri
                       className={cn('relative block aspect-square w-full cursor-pointer overflow-hidden rounded-[10px] border-2 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-45', on ? 'border-ink' : 'border-transparent')}
                     >
                       <MediaImage asset={a} alt="" hideBadge className="size-full" />
-                      {(on || already) && <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-ink text-acid"><Check className="size-3" /></span>}
+                      {(on || already) && <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-acid text-white"><Check className="size-3" /></span>}
                       {blocked && <span className="absolute inset-x-0 bottom-0 bg-ink/80 px-1 py-0.5 text-left text-[10px] leading-tight text-card">{blocked}</span>}
                     </button>
                   </li>

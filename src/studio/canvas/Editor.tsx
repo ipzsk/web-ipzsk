@@ -461,7 +461,7 @@ function Inner() {
 
         {fileDrag && (
           <div className="pointer-events-none absolute inset-3 z-40 grid place-items-center rounded-panel border-2 border-dashed border-acid-deep bg-acid/10 motion-safe:animate-fade-in">
-            <span className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-acid"><ImagePlus className="size-[18px]" />松开，在这里创建图片 / 视频节点</span>
+            <span className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"><ImagePlus className="size-[18px]" />松开，在这里创建图片 / 视频节点</span>
           </div>
         )}
 

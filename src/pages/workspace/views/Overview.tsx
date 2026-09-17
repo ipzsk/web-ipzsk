@@ -67,7 +67,7 @@ function IdeaArt() {
       <div className="absolute left-[18%] top-[30px] h-[160px] w-[130px] -rotate-[16deg] rounded-control border border-[#52622b33] bg-card p-5 text-[29px] font-bold shadow-[0_16px_30px_#3f491914] sm:top-[66px] sm:h-[176px] sm:w-[148px]">
         灵感<span className="absolute bottom-4 left-4 text-[8px] font-medium tracking-[2px]">IDEA / 01</span>
       </div>
-      <div className="absolute left-[44%] top-5 h-[185px] w-[160px] rotate-9 rounded-control border border-[#52622b33] bg-acid p-5 shadow-[0_16px_30px_#3f491914] sm:left-[40%] sm:top-[51px] sm:h-[205px] sm:w-[184px]">
+      <div className="absolute left-[44%] top-5 h-[185px] w-[160px] rotate-9 rounded-control border border-acid/20 bg-acid-soft p-5 shadow-[0_16px_30px_#3f491914] sm:left-[40%] sm:top-[51px] sm:h-[205px] sm:w-[184px]">
         <span className="text-[7px] tracking-[1.5px]">YOUR NEXT STORY</span>
         <b className="mt-4 block text-[24px] leading-[1.35] tracking-[-1px] sm:text-[28px]">让好想法<br />有迹可循。</b>
         <Sparkles className="absolute bottom-3 right-3 size-10" strokeWidth={1.5} />

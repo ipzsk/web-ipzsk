@@ -449,7 +449,7 @@ function Chip({ on, small, onClick, children }: { on: boolean; small?: boolean; 
       className={cn(
         'inline-flex shrink-0 items-center gap-1.5 rounded-full border font-semibold transition-[background-color,border-color,transform] duration-(--duration-fast) active:scale-[.98] motion-reduce:active:scale-100',
         small ? 'h-7 px-2.5 text-xs' : 'h-8 px-3 text-[13px]',
-        on ? 'border-ink bg-ink text-acid' : 'border-line bg-card text-ink hover:border-muted hover:bg-subtle',
+        on ? 'border-acid bg-acid text-white' : 'border-line bg-card text-ink hover:border-muted hover:bg-subtle',
         focusRing,
       )}
     >
@@ -571,7 +571,7 @@ function CaseCell({ c, asset, onOpen }: { c: CaseItem; asset: MediaAsset; onOpen
           <button
             type="button"
             onClick={() => fillComposer(c)}
-            className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-control bg-acid px-3 text-[13px] font-semibold text-ink transition-[filter,transform] duration-(--duration-fast) hover:brightness-95 active:scale-[.98] motion-reduce:active:scale-100', focusRing, 'focus-visible:outline-card')}
+            className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-control bg-acid px-3 text-[13px] font-semibold text-white transition-[filter,transform] duration-(--duration-fast) hover:brightness-95 active:scale-[.98] motion-reduce:active:scale-100', focusRing, 'focus-visible:outline-card')}
           >
             <WandSparkles aria-hidden />做同款
           </button>

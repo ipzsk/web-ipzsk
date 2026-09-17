@@ -86,7 +86,7 @@ function Preview() {
             <Presentation aria-hidden className="size-5 text-warning" />
             <div><strong className="block">产品介绍.pptx</strong><small className="text-muted">可编辑演示文稿 · 功能示意</small></div>
           </div>
-          <div className="mt-2 flex items-center justify-between rounded-control border border-line px-3 py-2 text-muted">继续描述你想完成的事… <ArrowUp aria-hidden className="size-4 rounded bg-ink p-0.5 text-acid" /></div>
+          <div className="mt-2 flex items-center justify-between rounded-control border border-line px-3 py-2 text-muted">继续描述你想完成的事… <ArrowUp aria-hidden className="size-4 rounded bg-ink p-0.5 text-white" /></div>
         </div>
       </div>
     </div>

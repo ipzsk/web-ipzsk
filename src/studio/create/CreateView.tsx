@@ -159,7 +159,7 @@ function Stream({ threadId, acceptsUnfiled, waitingForThreads }: { threadId: str
 
       {pill && (
         <button type="button" onClick={() => { setPill(false); toBottom(true) }}
-          className={cn('fixed bottom-44 left-1/2 z-30 inline-flex h-9 -translate-x-1/2 cursor-pointer items-center gap-1.5 rounded-full bg-ink px-4 text-sm font-semibold text-acid shadow-xl md:left-[calc(50%+104px)] max-md:bottom-40', focusRing)}>
+          className={cn('fixed bottom-44 left-1/2 z-30 inline-flex h-9 -translate-x-1/2 cursor-pointer items-center gap-1.5 rounded-full bg-ink px-4 text-sm font-semibold text-white shadow-xl md:left-[calc(50%+104px)] max-md:bottom-40', focusRing)}>
           有新结果<ArrowDown className="size-4" />
         </button>
       )}

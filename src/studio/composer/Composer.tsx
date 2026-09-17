@@ -343,7 +343,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
             </Button>
           )
           return !reason && sendable.length > 1
-            ? <Tooltip content={<div className="grid gap-0.5">{sendable.map((it, i) => <span key={it.item_id}>{String.fromCharCode(0x2460 + i)} {it.model} · {pointsById.get(it.item_id) ?? '…'} 点</span>)}<span className="text-acid">共 {sendable.length} 项 · ⌘/Ctrl+Enter</span></div>}>{btn}</Tooltip>
+            ? <Tooltip content={<div className="grid gap-0.5">{sendable.map((it, i) => <span key={it.item_id}>{String.fromCharCode(0x2460 + i)} {it.model} · {pointsById.get(it.item_id) ?? '…'} 点</span>)}<span className="font-semibold text-white">共 {sendable.length} 项 · ⌘/Ctrl+Enter</span></div>}>{btn}</Tooltip>
             : btn
         })()
 
@@ -359,7 +359,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
           >
             <span className={cn('min-w-0 flex-1 truncate', !hasPrompt && 'text-muted')}>{current.prompt || '描述你想要的画面…'}</span>
             {queue.length > 0 && <span className="rounded-full bg-subtle px-2 text-xs leading-6">队列 {queue.length}</span>}
-            <span className="grid size-9 place-items-center rounded-full bg-ink text-acid"><ArrowUp className="size-[18px]" /></span>
+            <span className="grid size-9 place-items-center rounded-full bg-acid text-white"><ArrowUp className="size-[18px]" /></span>
           </button>
         )}
         <div className={cn(!expanded && 'max-md:hidden', expanded && 'max-md:max-h-[85dvh] max-md:overflow-y-auto max-md:rounded-t-panel max-md:bg-paper max-md:p-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))]')}>

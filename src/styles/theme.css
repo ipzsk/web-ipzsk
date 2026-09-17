@@ -5,14 +5,15 @@
   --color-paper: #f9f8f6;
   --color-card: #ffffff;
   --color-subtle: #eeece8;
-  --color-line: #e2e1dd;
-  --color-ink: #161916;
-  /* WCAG AA: #686b62 = 4.85:1 on paper, 5.38 on card, 4.51 on subtle. */
-  --color-muted: #686b62;
-  /* Accent from designer commit 479bf1e (IPZSK blue). #1558d6 = 5.9:1 on paper; #1d71fb only as fill (white text on it). */
+  --color-line: #dddcd9;
+  --color-ink: #1d1f20;
+  /* WCAG AA: #5f6874 ≈ 5.5:1 on paper, 5.8 on card, 5.0 on subtle. */
+  --color-muted: #5f6874;
+  /* Accent from designer commit 479bf1e (IPZSK blue). #1558d6 = 5.9:1 on paper; #1a6bf0 ≈ Punk #1D71FB darkened just enough for white text at 4.8:1. */
   --color-label: #1558d6;
-  --color-acid: #1d71fb;
+  --color-acid: #1a6bf0;
   --color-acid-deep: #1558d6;
+  --color-acid-soft: #eaf2ff;
   --color-danger: #a63c2f;
   /* #855a0d = 5.06:1 on its own 12% tint (4.5 on the 20% hover tint). */
   --color-warning: #855a0d;
@@ -29,7 +30,7 @@
 
 @layer base {
   html, body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); }
-  :focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--color-acid-deep); outline-offset: 2px; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
   }

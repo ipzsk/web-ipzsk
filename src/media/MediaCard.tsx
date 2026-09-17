@@ -103,7 +103,7 @@ export function MediaCard({ asset, title, overlay, state, priority, onOpen, sele
           onClick={(e) => { e.stopPropagation(); onSelect({ shiftKey: e.shiftKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey }) }}
           className={cn(
             'absolute left-2 top-2 grid size-6 place-items-center rounded-full border-2 transition-[opacity,background-color,transform] duration-fast active:scale-[.9] motion-reduce:active:scale-100',
-            selected ? 'border-ink bg-ink text-acid opacity-100' : 'border-card bg-ink/30 text-transparent opacity-0 hover:bg-ink/50 group-hover:opacity-100 focus-visible:opacity-100',
+            selected ? 'border-ink bg-ink text-white opacity-100' : 'border-card bg-ink/30 text-transparent opacity-0 hover:bg-ink/50 group-hover:opacity-100 focus-visible:opacity-100',
             selectionMode && 'opacity-100',
             '[@media(hover:none)]:opacity-100',
           )}

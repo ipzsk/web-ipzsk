@@ -74,7 +74,7 @@ export function RechargeDialog({ open, onOpenChange, onUnauthorized }: { open: b
         <div className="grid gap-4">
           <div className="rounded-card bg-ink p-5 text-card">
             <p className="text-xs text-card/70">剩余可用点数</p>
-            <p className="mt-1 text-[28px] font-black tabular-nums text-acid" aria-live="polite">
+            <p className="mt-1 text-[28px] font-black tabular-nums text-white" aria-live="polite">
               {wallet.isPending ? '正在读取…' : wallet.isError ? '暂时无法读取' : signedOut ? '登录后查看' : formatPoints(wallet.data!.available_points)}
             </p>
             <p className="mt-1 text-xs text-card/70">

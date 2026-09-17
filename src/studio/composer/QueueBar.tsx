@@ -54,7 +54,7 @@ function Row({ item, index, current, models, points, submitting, editing, onRemo
           {Object.entries(isAvatarParams(item.params) ? avatarDisplayParams(item.params) : item.params).map(([k, v]) => {
             const c = changed.get(k)
             return c
-              ? <span key={k} title="该型号不支持原取值，已改为默认值" className="rounded-[4px] bg-acid px-1 font-bold text-ink">{formatParam(k, c.from)}→{formatParam(k, c.to)}</span>
+              ? <span key={k} title="该型号不支持原取值，已改为默认值" className="rounded-[4px] bg-acid-soft px-1 font-bold text-label">{formatParam(k, c.from)}→{formatParam(k, c.to)}</span>
               : item.state === 'failed' && item.error?.field === k
                 ? <span key={k} className="contents">· <span data-field-error={k} title={item.error.message} className="rounded-[4px] px-1 font-bold text-danger ring-1 ring-danger">{formatParam(k, v)}</span></span>
                 : <span key={k} className="contents">· <B on={d.params.has(k)}>{formatParam(k, v)}</B></span>

@@ -142,11 +142,11 @@ export function CasesPage() {
         <FilterInput label="搜索" type="search" value={text} onChange={e => setText(e.target.value)} placeholder="标题、提示词、标签、id" className="w-64" />
         <span className="pb-2 text-sm text-muted tabular-nums">{total != null && `共 ${total} 个`}</span>
         {writable && selected.size > 0 && (
-          <div role="toolbar" aria-label="批量操作" className="ml-auto flex items-center gap-2 rounded-control bg-ink px-3 py-1.5 text-sm text-acid">
+          <div role="toolbar" aria-label="批量操作" className="ml-auto flex items-center gap-2 rounded-control bg-ink px-3 py-1.5 text-sm text-white">
             已选 {selected.size}
             <Button size="sm" icon={<Eye />} loading={setStatus.isPending} onClick={() => setStatus.mutate({ ids: [...selected], status: 'published' })}>发布</Button>
             <Button size="sm" icon={<EyeOff />} onClick={() => setStatus.mutate({ ids: [...selected], status: 'hidden' })}>隐藏</Button>
-            <Button size="sm" variant="ghost" className="text-acid hover:bg-card/10" onClick={() => setSelected(new Set())}>取消选择</Button>
+            <Button size="sm" variant="ghost" className="text-white hover:bg-card/10" onClick={() => setSelected(new Set())}>取消选择</Button>
           </div>
         )}
       </div>
