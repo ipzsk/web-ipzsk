@@ -244,8 +244,11 @@ function Editor({ opts, close }: { opts: SubjectEditorOptions; close: () => void
 
 // ── asset picker ──────────────────────────────────────────────────────────
 
-export function AssetPicker({ open, onOpenChange, room, existing, onPick }: {
+export function AssetPicker({ open, onOpenChange, room, existing, onPick, description, disabledReason }: {
   open: boolean; onOpenChange: (o: boolean) => void; room: number; existing: MediaAsset[]; onPick: (a: MediaAsset[]) => void
+  description?: string
+  /** Per-asset reason it can't be picked (e.g. WebP for HeyGen); shown on the tile. */
+  disabledReason?: (a: MediaAsset) => string | null
 }) {
   const q = useMyImages(open)
   const [picked, setPicked] = useState<MediaAsset[]>([])
@@ -253,7 +256,7 @@ export function AssetPicker({ open, onOpenChange, room, existing, onPick }: {
   const toggle = (a: MediaAsset) => setPicked(p => p.some(x => x.id === a.id) ? p.filter(x => x.id !== a.id) : p.length >= room ? p : [...p, a])
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title="从素材选择" description={`还能添加 ${room} 张图片`} className="max-h-[85dvh] max-w-2xl overflow-y-auto">
+      <DialogContent title="从素材选择" description={description ?? `还能添加 ${room} 张图片`} className="max-h-[85dvh] max-w-2xl overflow-y-auto">
         {q.isPending ? <div className="grid grid-cols-4 gap-2 max-sm:grid-cols-3">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="aspect-square" />)}</div>
           : q.isError ? <ErrorState reason="素材加载失败" action={{ label: '重试', onClick: () => void q.refetch() }} />
           : !q.data.length ? <EmptyState icon={ImagePlus} text="素材库里还没有图片" />
@@ -262,15 +265,17 @@ export function AssetPicker({ open, onOpenChange, room, existing, onPick }: {
               {q.data.map(a => {
                 const already = existing.some(x => x.id === a.id)
                 const on = picked.some(x => x.id === a.id)
-                const reason = already ? '已在参考图中' : !on && picked.length >= room ? `最多还能加 ${room} 张` : null
+                const blocked = disabledReason?.(a) ?? null
+                const reason = already ? '已在参考图中' : blocked ?? (!on && picked.length >= room ? `最多还能加 ${room} 张` : null)
                 return (
                   <li key={a.id}>
                     <button
-                      type="button" aria-pressed={on} disabled={!!reason} title={reason ?? undefined} onClick={() => toggle(a)}
+                      type="button" aria-pressed={on} disabled={!!reason} title={reason ?? undefined} aria-description={reason ?? undefined} onClick={() => toggle(a)}
                       className={cn('relative block aspect-square w-full cursor-pointer overflow-hidden rounded-[10px] border-2 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-45', on ? 'border-ink' : 'border-transparent')}
                     >
                       <MediaImage asset={a} alt="" hideBadge className="size-full" />
                       {(on || already) && <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-ink text-acid"><Check className="size-3" /></span>}
+                      {blocked && <span className="absolute inset-x-0 bottom-0 bg-ink/80 px-1 py-0.5 text-left text-[10px] leading-tight text-card">{blocked}</span>}
                     </button>
                   </li>
                 )

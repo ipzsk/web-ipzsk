@@ -2,7 +2,7 @@ import type { JSONContent } from '@tiptap/core'
 import { get, set } from 'idb-keyval'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { request } from '@/shared/api'
-import { queryClient } from '@/shared/query'
+import { queryClient, useCurrentUser } from '@/shared/query'
 import type { GenerationParams, GenerationRecord as GenRecord, Page, Thread } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
 import { mockSignUrls } from '@/media/fresh'
@@ -211,6 +211,7 @@ export const useThreadRecords = (threadId: string | null) => useInfiniteQuery({
 /** One request for all active records (§2.5 任务恢复), every 3s while any, refetch on focus. */
 export const useActiveGenerations = () => useQuery({
   queryKey: recordKeys.active,
+  enabled: isMock || !!useCurrentUser().data, // signed out: nothing to poll (would 401 every time)
   queryFn: async () => (await recordsApi.list({ status: 'active' })).items,
   refetchInterval: q => q.state.data?.length ? 3000 : false,
   refetchOnWindowFocus: true,

@@ -10,14 +10,18 @@ import { Placeholder } from '@tiptap/extensions'
 import { PluginKey } from '@tiptap/pm/state'
 import type { SuggestionOptions, SuggestionProps } from '@tiptap/suggestion'
 import { create } from 'zustand'
-import { ImagePlus, TriangleAlert, UserPlus } from 'lucide-react'
-import { Skeleton, Tooltip, cn } from '@/ui'
+import { ArrowRightLeft, ImagePlus, TriangleAlert, UserPlus } from 'lucide-react'
+import { Skeleton, Tooltip, cn, toast } from '@/ui'
 import { MediaImage, MissingMedia, type MediaAsset } from '@/media'
 import { SUBJECT_KIND_LABEL, isMissingAsset, presentAssets, presentCover, type Subject } from '../api/subjects'
 import { useComposer } from '../store'
 import { openSubjectEditor } from '../subjects/SubjectEditor'
 import { addFromChip, chipsOf, docFromText, fillSubjectVar, pruneChips, refLabel, type ChipAttrs } from './logic'
 import { useSubjects } from './hooks'
+import { selectAvatarSubject } from '../avatar/AvatarResult'
+
+/** 形象库数字人主体（kind avatar + external_ref）：插成标签没用（没有参考图），改为切到数字人并选中。 */
+const isLibraryAvatar = (s: Subject) => s.kind === 'avatar' && !!s.external_ref
 
 /** Editor-wide flags the chip node views read (they live outside Composer's props). */
 export const useEditorFlags = create<{ refsOver: string | null; expanded: boolean }>(() => ({ refsOver: null, expanded: false }))
@@ -36,6 +40,12 @@ export function focusComposer() {
  * Adds the subject's references to the slots (deduped, tracked by chip uid). With `token`, replaces that placeholder instead of inserting at the cursor.
  */
 export function insertSubjectMention(subject: Subject, token?: string) {
+  if (isLibraryAvatar(subject)) { void selectAvatarSubject(subject); return }
+  // 数字人模式没有提示词编辑器（脚本是纯文本）：切回图片模式再插入，免得标签插进看不见的草稿。
+  if (useComposer.getState().mode === 'avatar') {
+    useComposer.getState().setKind('image')
+    toast({ title: '已切换到图片模式', description: '数字人脚本不支持 @ 主体' })
+  }
   const uid = crypto.randomUUID()
   const attrs: ChipAttrs = { id: subject.id, label: subject.name, kind: 'subject', uid }
   useComposer.setState(s => ({ slots: addFromChip(s.slots, uid, presentAssets(subject)) }))
@@ -135,7 +145,7 @@ const MentionPanel = forwardRef<PanelHandle, SuggestionProps<unknown, Item>>(fun
   const subjectRows = items.filter(i => i.type === 'subject')
   const refRows = items.filter(i => i.type === 'reference')
   return (
-    <div role="listbox" aria-label="提及" aria-activedescendant={`mention-opt-${index}`} className="z-50 flex max-h-80 w-72 flex-col rounded-card border border-line bg-card shadow-xl motion-safe:animate-fade-in">
+    <div role="listbox" aria-label="提及" aria-activedescendant={`mention-opt-${index}`} className="z-50 flex max-h-80 w-80 max-w-[calc(100vw-32px)] flex-col rounded-card border border-line bg-card shadow-xl motion-safe:animate-fade-in">
       <div className="min-h-0 flex-1 overflow-y-auto p-1">
         <p className="px-2 pb-1 pt-1.5 text-xs text-muted">主体</p>
         {isPending ? <div className="grid gap-1 p-1"><Skeleton className="h-9" /><Skeleton className="h-9" /></div>
@@ -143,10 +153,15 @@ const MentionPanel = forwardRef<PanelHandle, SuggestionProps<unknown, Item>>(fun
           : !subjectRows.length ? <p className="px-2 py-2 text-xs text-muted">{query ? `已加载的主体里没有「${query}」` : '还没有主体'}</p>
           : subjectRows.map(it => {
             const s = (it as Extract<Item, { type: 'subject' }>).subject
+            const preview = !presentCover(s) && s.external_ref?.preview_image_url
             return row(it, items.indexOf(it), <>
-              {presentCover(s) ? <MediaImage asset={presentCover(s)!} alt="" hideBadge className="size-8 shrink-0 overflow-hidden rounded-full" /> : <span className="size-8 rounded-full bg-subtle" />}
+              {presentCover(s) ? <MediaImage asset={presentCover(s)!} alt="" hideBadge className="size-8 shrink-0 overflow-hidden rounded-full" />
+                : preview ? <MediaImage urls={{ orig: preview }} alt="" hideBadge className="size-8 shrink-0 overflow-hidden rounded-full" />
+                : <span className="size-8 rounded-full bg-subtle" />}
               <span className="min-w-0 flex-1 truncate font-semibold">{s.name}</span>
-              <span className="text-xs text-muted">{SUBJECT_KIND_LABEL[s.kind]} · {s.assets.length}张</span>
+              {isLibraryAvatar(s)
+                ? <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-line px-2 py-0.5 text-[11px] font-semibold"><ArrowRightLeft className="size-3" />切换到数字人并选中该形象</span>
+                : <span className="text-xs text-muted">{SUBJECT_KIND_LABEL[s.kind]} · {s.assets.length}张</span>}
             </>)
           })}
         {hasNextPage && !isPending && (
@@ -183,6 +198,11 @@ function suggestion(char: string, key: string): Omit<SuggestionOptions<Item, Ite
         const name = editor.state.doc.textBetween(range.from + 1, range.to).trim().slice(0, 30)
         editor.chain().focus().deleteRange(range).run()
         openSubjectEditor({ name, onSaved: s => insertSubjectMention(s) })
+        return
+      }
+      if (props.type === 'subject' && isLibraryAvatar(props.subject)) {
+        editor.chain().focus().deleteRange(range).run()
+        void selectAvatarSubject(props.subject)
         return
       }
       const uid = crypto.randomUUID()

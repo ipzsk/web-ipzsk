@@ -13,7 +13,7 @@ import { TemplatesPanel } from '../templates/TemplatesPanel'
 const MY_TEMPLATES = 'my-templates'
 
 const focusCard = (id: string, tries = 10) => {
-  const el = document.querySelector<HTMLElement>(`[data-case-id="${CSS.escape(id)}"] [role="button"]`)
+  const el = document.querySelector<HTMLElement>(`[data-case-id="${CSS.escape(id)}"] [role="group"]`)
   if (el) el.focus({ preventScroll: true })
   else if (tries > 0) requestAnimationFrame(() => focusCard(id, tries - 1))
 }

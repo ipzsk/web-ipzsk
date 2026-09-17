@@ -15,6 +15,8 @@ import { recordKeys, recordsApi, useActiveGenerations, useThreadRecords, useThre
 import { useComposer } from '../store'
 import { deleteWithUndo, fillQueue, useHidden } from './actions'
 import { RequestBubble, ResultBubble } from './Bubbles'
+import { LegacyBanner, LegacyStream, useLegacy } from './LegacyImport'
+import { LEGACY_THREAD_ID, LEGACY_THREAD_TITLE } from './legacy'
 import { groupItems, mergeItems, newResultsAction, streamSignature, todayTitle, type ItemView, type PendingState } from './lib'
 
 const SUGGESTIONS = ['一只橘猫戴着宇航员头盔，漂浮在空间站里，电影感光影', '极简风格的青柠气泡水产品图，白色背景，柔和阴影', '雨夜霓虹街头的少女背影，胶片质感']
@@ -28,11 +30,14 @@ export function CreateView() {
   const today = threads.data?.find(t => t.title === todayTitle())
   const list = (threads.data ?? []).filter(t => !hidden.has(`thread:${t.id}`))
   const threadId = urlThread ?? null
+  const legacyOpen = threadId === LEGACY_THREAD_ID
+  const legacy = useLegacy()
+  const legacyListed = legacy.marker?.state === 'imported'
   const go = (id: string | null, replace = false) => navigate({ pathname: id ? `/studio/create/${id}` : '/studio/create', search }, { replace })
 
   // Default thread: today's, once it exists (created on the first send, see api/records.ts).
   useEffect(() => { if (!urlThread && today) go(today.id, true) }, [urlThread, today?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { useComposer.setState({ threadId }) }, [threadId])
+  useEffect(() => { useComposer.setState({ threadId: legacyOpen ? null : threadId }) }, [threadId, legacyOpen]) // the local legacy thread is never sent as thread_id
 
   const [renaming, setRenaming] = useState<Thread | null>(null)
   const newThread = async () => {
@@ -78,6 +83,10 @@ export function CreateView() {
             </DropdownMenu>
           </div>
         ))}
+        {legacyListed && (
+          <Link to={{ pathname: `/studio/create/${LEGACY_THREAD_ID}`, search }} aria-current={legacyOpen ? 'page' : undefined}
+            className={cn('flex h-9 items-center truncate rounded-control px-3 text-sm', legacyOpen ? 'bg-ink text-acid' : 'text-muted hover:bg-subtle hover:text-ink', focusRing)}>{LEGACY_THREAD_TITLE}</Link>
+        )}
         {threads.isSuccess && !list.length && <p className="px-3 py-2 text-xs text-muted">发送第一条后会自动创建今天的会话</p>}
       </aside>
 
@@ -86,11 +95,12 @@ export function CreateView() {
         <div className="mb-4 flex items-center gap-2 md:hidden">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="sm" className="min-w-0 flex-1 justify-between"><span className="truncate">{current?.title ?? todayTitle()}</span><ChevronDown className="size-4" /></Button>
+              <Button variant="secondary" size="sm" className="min-w-0 flex-1 justify-between"><span className="truncate">{legacyOpen ? LEGACY_THREAD_TITLE : current?.title ?? todayTitle()}</span><ChevronDown className="size-4" /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
               {list.map(t => <DropdownMenuItem key={t.id} onSelect={() => go(t.id)} className={cn(t.id === threadId && 'font-semibold')}>{t.title || '未命名会话'}</DropdownMenuItem>)}
-              {list.length > 0 && <DropdownMenuSeparator />}
+              {legacyListed && <DropdownMenuItem onSelect={() => go(LEGACY_THREAD_ID)} className={cn(legacyOpen && 'font-semibold')}>{LEGACY_THREAD_TITLE}</DropdownMenuItem>}
+              {(list.length > 0 || legacyListed) && <DropdownMenuSeparator />}
               <DropdownMenuItem onSelect={() => void newThread()}><MessageSquarePlus className="size-4" />新建会话</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -101,7 +111,10 @@ export function CreateView() {
             </DropdownMenu>
           )}
         </div>
-        <Stream key={threadId ?? 'none'} threadId={threadId} acceptsUnfiled={!threadId || threadId === today?.id} waitingForThreads={threads.isPending} />
+        <LegacyBanner onImport={() => go(LEGACY_THREAD_ID)} />
+        {legacyOpen
+          ? <LegacyStream onDismiss={() => go(today?.id ?? null)} />
+          : <Stream key={threadId ?? 'none'} threadId={threadId} acceptsUnfiled={!threadId || threadId === today?.id} waitingForThreads={threads.isPending} />}
       </div>
 
       <RenameDialog thread={renaming} onClose={() => setRenaming(null)} />
@@ -158,10 +171,10 @@ function Stream({ threadId, acceptsUnfiled, waitingForThreads }: { threadId: str
     for (const r of records.data?.pages.flatMap(p => p.items) ?? []) byId.set(r.id, r)
     // The single active poll is fresher than the thread page.
     for (const r of active.data ?? []) if (r.thread_id === threadId && threadId) byId.set(r.id, r)
-    const recs = [...byId.values()].filter(r => !hidden.has(r.id) && !(r.batch_id && hidden.has(`batch:${r.batch_id}`)))
     const mine = pendings.filter(p => p.item && (p.item.thread_id ? p.item.thread_id === threadId : acceptsUnfiled))
-    const items: ItemView[] = mergeItems(recs, mine)
-    return groupItems(items.filter(i => !(i.batch_id && hidden.has(`batch:${i.batch_id}`))))
+    // Hide after merging: a hidden record's in-session submit (same item_id) must not come back as a 「排队中」 placeholder.
+    const items: ItemView[] = mergeItems([...byId.values()], mine)
+    return groupItems(items.filter(i => !(i.record_id && hidden.has(i.record_id)) && !(i.batch_id && hidden.has(`batch:${i.batch_id}`))))
   }, [records.data, active.data, pendings, hidden, threadId, acceptsUnfiled])
 
   // Preview

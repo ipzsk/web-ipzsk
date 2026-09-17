@@ -24,13 +24,14 @@ type Opts = {
 const KEY = 'ipzsk.mock.assets.v1'
 const RATIOS: [number, number][] = [[3, 4], [1, 1], [2, 3], [16, 9], [9, 16], [4, 5], [4, 3]]
 const MB = 1024 * 1024
-const pic = (seed: string, w: number, h: number) => `https://picsum.photos/seed/${seed}/${w}/${h}`
+const picUrl = (seed: string, w: number, h: number) => `https://picsum.photos/seed/${seed}/${w}/${h}`
 
 function mkAsset(id: string, i: number, source: Asset['source'], created: number, random: () => number, kind: 'image' | 'video' = 'image'): Asset {
   const [rw, rh] = RATIOS[Math.floor(random() * RATIOS.length)]!
   const w = 1200, h = Math.round((1200 * rh) / rw)
   const seed = `ipzsk-${id}`
   const processing = i % 17 === 5
+  const pic = (s: string, pw: number, ph: number) => picUrl(s, pw, ph) + (i % 9 === 2 && kind === 'image' ? '.webp' : '') // some WebP uploads (HeyGen rejects them)
   const urls: MediaAsset['urls'] = kind === 'video'
     ? { orig: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4', poster: pic(seed, 960, Math.round((960 * rh) / rw)), w480: pic(seed, 480, Math.round((480 * rh) / rw)) }
     : processing

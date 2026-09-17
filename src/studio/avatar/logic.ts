@@ -38,6 +38,16 @@ export function validatePhotoFile(f: { type: string; size: number }): string | n
   if (f.size > 20 * MB) return '照片不能超过 20MB'
   return null
 }
+/**
+ * 素材库里已有的图片能不能当照片 / 背景图。素材没有 content_type 字段，网关对象键是 `…/orig.<ext>`，所以按原图地址的扩展名判断；
+ * 看不出扩展名的（生成结果等）放行，网关提交时仍会校验。
+ */
+export function photoAssetReason(a: Pick<MediaAsset, 'kind' | 'status' | 'urls'>): string | null {
+  if (a.kind !== 'image' || a.status !== 'ready') return '只能选择已就绪的图片'
+  let path = a.urls.orig
+  try { path = new URL(a.urls.orig, 'https://x').pathname } catch { /* keep raw */ }
+  return /\.webp$/i.test(path) ? 'HeyGen 不支持 WebP，请上传 PNG/JPEG' : null
+}
 export function validateAudioFile(f: { type: string; size: number; name?: string }): string | null {
   if (f.type === 'audio/mp4' || f.type === 'audio/x-m4a' || /\.m4a$/i.test(f.name ?? '')) return '暂不支持 M4A，请转成 MP3 或 WAV 后再上传'
   if (!(AUDIO_TYPES as readonly string[]).includes(f.type)) return '录音只支持 MP3 或 WAV'
@@ -220,6 +230,17 @@ export function checkAvatarParams(p: GenerationParams, prompt = ''): Err | null 
   if (has('background_color') && has('background_asset_id')) return err('background_conflict', 'background_color|background_asset_id')
   if (has('background_color') && !HEX.test(String(p.background_color))) return err('invalid_background_color', 'background_color')
   return null
+}
+
+/**
+ * 数字人项的线上字段（模板 / 队列同一套）：本地队列项字段在 params 里；生成记录的 params 没有 script（脚本存在 prompt），按 voice_source 补回。
+ * 不含 aspect_ratio / resolution。
+ */
+export function avatarWireFields(p: GenerationParams, prompt: string): AvatarFields {
+  const out: AvatarFields = {}
+  for (const k of AVATAR_WIRE_FIELDS) if (p[k] !== undefined && p[k] !== '') out[k] = p[k] as string | boolean
+  if (out.script === undefined && out.audio_asset_id === undefined && p.voice_source !== 'audio' && prompt.trim()) out.script = prompt
+  return out
 }
 
 const SENT = new Set<string>([...AVATAR_WIRE_FIELDS, 'aspect_ratio', 'resolution'])

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ImageUp, RotateCw, Search, UserRound, X } from 'lucide-react'
+import { Check, ImageUp, Images, RotateCw, Search, UserRound, X } from 'lucide-react'
 import { Badge, Button, Dialog, DialogContent, EmptyState, ErrorState, Input, SegmentedControl, Skeleton, cn, focusRing, toast } from '@/ui'
 import { MediaImage, MediaVideo, useUpload, type MediaAsset } from '@/media'
 import { uploadApi } from '../composer/uploadApi'
 import { listErrorMessage, useAvatars } from './api'
 import type { AvatarItem } from './contract'
 import { pickAvatar, pickPhoto } from './draft'
-import { validatePhotoFile } from './logic'
+import { photoAssetReason, validatePhotoFile } from './logic'
+import { AssetPicker } from '../subjects/SubjectEditor'
 
 type Gender = 'all' | 'female' | 'male'
 type Kind = 'all' | 'avatar' | 'talking_photo'
@@ -119,9 +120,12 @@ export function usePhotoUpload(onDone: (a: MediaAsset) => void, storageKey: stri
 function PhotoTab({ onDone }: { onDone: () => void }) {
   const ph = usePhotoUpload(a => { pickPhoto(a); onDone() }, 'ipzsk:avatar-photo-upload')
   const [over, setOver] = useState(false)
+  const [library, setLibrary] = useState(false)
   return (
     <div className="grid gap-3">
       {ph.picker}
+      <AssetPicker open={library} onOpenChange={setLibrary} room={1} existing={[]} description="选一张 PNG / JPEG 人像照片" disabledReason={photoAssetReason}
+        onPick={([a]) => { if (a) { pickPhoto(a); onDone() } }} />
       <button
         type="button" onClick={ph.open}
         onDragOver={e => { e.preventDefault(); setOver(true) }} onDragLeave={() => setOver(false)}
@@ -132,6 +136,7 @@ function PhotoTab({ onDone }: { onDone: () => void }) {
         <span className="text-sm font-semibold">上传一张正脸人像照片</span>
         <span className="text-xs text-muted">仅 PNG / JPEG，≤20MB；HeyGen 不支持 WebP。照片需要清晰人脸、光线充足。</span>
       </button>
+      <Button variant="secondary" icon={<Images className="size-4" />} onClick={() => setLibrary(true)} className="justify-self-start">从素材选择</Button>
       {ph.busy && (
         <div role="status" className="flex items-center gap-2 rounded-control bg-subtle px-3 py-2 text-sm">
           <span className="min-w-0 flex-1 truncate">{ph.busy.name}</span>

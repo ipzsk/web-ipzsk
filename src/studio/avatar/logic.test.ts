@@ -3,7 +3,7 @@ import type { MediaAsset } from '@/media'
 import { ApiError } from '@/shared/api'
 import {
   avatarItemFromWire, avatarItemToWire, avatarQueueItem, avatarSubmitBody, avatarSummary, checkAvatarParams, decideAvatar, emptyAvatarDraft, estimateBillSeconds, guideAvatarError,
-  isAvatarParams, speechSeconds, tierIIIReason, validateAudioFile, validatePhotoFile, type AvatarDraft,
+  isAvatarParams, photoAssetReason, speechSeconds, tierIIIReason, validateAudioFile, validatePhotoFile, type AvatarDraft,
 } from './logic'
 import { MOCK_AVATARS, MOCK_AVATAR_MODELS, MOCK_VOICES } from './mock'
 
@@ -192,5 +192,15 @@ describe('error guidance', () => {
     const raw = new ApiError('x', { status: 400, code: 'constraint_violation', body: { error: { code: 'constraint_violation', message: 'script 与 audio_url 只能给一个', field: 'script|audio_url' } } })
     expect(guideAvatarError({ code: 'constraint_violation', message: 'x', field: 'script|audio_url' }, raw)).toMatchObject({ control: 'script', message: 'script 与 audio_url 只能给一个' })
     expect(guideAvatarError({ code: 'constraint_violation', message: 'x', field: 'voice_id' }).control).toBe('voice')
+  })
+})
+
+describe('photoAssetReason（素材库选照片）', () => {
+  const img = (orig: string, o: Partial<MediaAsset> = {}): MediaAsset => ({ id: 'x', kind: 'image', status: 'ready', width: 1, height: 1, duration_ms: null, urls: { orig }, ...o })
+  it('WebP 按原图扩展名拦下，PNG/JPEG 和无扩展名放行', () => {
+    expect(photoAssetReason(img('https://r2.example/u/1/a/orig.webp?X-Amz-Date=1'))).toBe('HeyGen 不支持 WebP，请上传 PNG/JPEG')
+    expect(photoAssetReason(img('https://r2.example/u/1/a/orig.png?sig=webp'))).toBeNull()
+    expect(photoAssetReason(img('https://picsum.photos/seed/a/100/100'))).toBeNull()
+    expect(photoAssetReason(img('a.png', { status: 'pending' }))).toMatch('就绪')
   })
 })

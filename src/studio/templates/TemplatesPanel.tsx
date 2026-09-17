@@ -1,32 +1,32 @@
 import { useState, type FormEvent } from 'react'
 import { BookmarkPlus, Copy, ImagePlus, Layers, ListPlus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
-import { MediaImage, findCachedUrls } from '@/media'
+import { MediaImage, MissingMedia } from '@/media'
 import {
   Button, Dialog, DialogContent, DialogFooter, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
   EmptyState, ErrorState, Input, Skeleton, cn, focusRing,
 } from '@/ui'
-import { templateCovers, type UserTemplate } from '../api/templates'
+import type { UserTemplate } from '../api/templates'
+import { isMissingAsset } from '../api/subjects'
 import { AssetPicker } from '../subjects/SubjectEditor'
 import { deleteTemplateWithUndo, duplicateTemplate, patchTemplate, useTemplates } from './actions'
-import { TEMPLATE_NAME_MAX, slotsOf } from './logic'
+import { TEMPLATE_NAME_MAX, slotsOf, templateAvatarSlots } from './logic'
 import { startApply } from './TemplateDialogs'
 
 function Cover({ t }: { t: UserTemplate }) {
-  const cached = t.cover_id ? templateCovers.read()[t.cover_id] : undefined
-  const urls = cached?.urls ?? (t.cover_id ? findCachedUrls(t.cover_id) : null)
-  if (urls) return <MediaImage urls={urls} assetId={t.cover_id!} width={cached?.width ?? 1} height={cached?.height ?? 1} alt="" hideBadge className="size-full" />
+  if (isMissingAsset(t.cover)) return <MissingMedia label="封面已删除" className="size-full" />
+  if (t.cover) return <MediaImage asset={t.cover} alt="" hideBadge className="size-full" />
   return <div className="grid size-full place-items-center bg-subtle text-muted"><Layers className="size-8" aria-hidden /></div>
 }
 
 function TemplateCard({ t, onRename, onCover }: { t: UserTemplate; onRename: () => void; onCover: () => void }) {
   const temp = t.id.startsWith('temp-')
-  const slots = t.items.reduce((n, i) => n + slotsOf(i).length, 0)
+  const slots = t.items.reduce((n, i) => n + slotsOf(i).length, 0) + templateAvatarSlots(t.items).length
   return (
     <li className={cn('group relative flex flex-col overflow-hidden rounded-card border border-line bg-card transition-[transform,box-shadow] duration-(--duration-fast) hover:-translate-y-px hover:shadow-lg', temp && 'opacity-70')}>
       <div className="aspect-[4/3] overflow-hidden"><Cover t={t} /></div>
       <div className="grid gap-1 px-3 pt-2.5">
         <p className="truncate text-sm font-semibold" title={t.name}>{t.name}</p>
-        <p className="text-xs text-muted">{t.items.length} 项{t.variables.length ? ` · ${t.variables.length} 个变量` : ''}{slots ? ` · 需放入 ${slots} 张参考图` : ''}</p>
+        <p className="text-xs text-muted">{t.items.length} 项{t.variables.length ? ` · ${t.variables.length} 个变量` : ''}{slots ? ` · 需放入 ${slots} 个素材` : ''}</p>
       </div>
       <div className="mt-auto flex items-center gap-1 px-2 py-2">
         <Button size="sm" variant="primary" icon={<ListPlus className="size-4" />} disabled={temp} disabledReason="正在保存…" onClick={() => void startApply(t)}>应用</Button>
@@ -76,6 +76,11 @@ export function TemplatesPanel() {
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 max-sm:grid-cols-2 max-sm:gap-3">
           {q.data.map(t => <TemplateCard key={t.id} t={t} onRename={() => { setTitle(t.name); setRenaming(t) }} onCover={() => setCovering(t)} />)}
         </ul>
+      )}
+      {q.hasNextPage && (
+        <div className="mt-4 flex justify-center">
+          <Button variant="secondary" size="sm" loading={q.isFetchingNextPage} loadingText="加载中" onClick={() => void q.fetchNextPage()}>加载更多模板</Button>
+        </div>
       )}
 
       <Dialog open={!!renaming} onOpenChange={o => { if (!o) setRenaming(null) }}>

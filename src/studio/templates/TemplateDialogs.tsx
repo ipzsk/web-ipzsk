@@ -1,11 +1,18 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Check, ImageOff } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Check, ImageOff, Images, LoaderCircle, Mic, Upload, X } from 'lucide-react'
 import type { TemplateVariable } from '@/shared/contracts'
 import { MediaImage } from '@/media'
-import { Button, Checkbox, Dialog, DialogContent, DialogFooter, Input, SegmentedControl, cn, toast } from '@/ui'
+import { Button, Checkbox, Dialog, DialogContent, DialogFooter, IconButton, Input, SegmentedControl, cn, toast } from '@/ui'
+import type { MediaAsset } from '@/media'
+import { usePhotoUpload } from '../avatar/AvatarPicker'
+import { uploadAudio } from '../avatar/api'
+import { photoAssetReason, validateAudioFile } from '../avatar/logic'
+import { AssetPicker } from '../subjects/SubjectEditor'
 import { templateErrorMessage } from '../api/templates'
 import { applyTemplate, createTemplateOptimistic, openApplyTemplate, useTemplateDialogs, type SaveRequest } from './actions'
-import { TEMPLATE_NAME_MAX, buildTemplate, mergeVariables, resolveValues, slotsOf, validateTemplate, variableNames, type RefMode } from './logic'
+import {
+  TEMPLATE_NAME_MAX, avatarAssetCount, buildTemplate, mergeVariables, resolveValues, slotsOf, templateAvatarSlots, validateTemplate, variableNames, type AvatarSlotNeed, type RefMode,
+} from './logic'
 import type { UserTemplate } from '../api/templates'
 
 /** Mounted once in the studio Layout. */
@@ -30,6 +37,7 @@ function SaveTemplateDialog({ req, onClose }: { req: SaveRequest | null; onClose
   const sources = useMemo(() => req?.sources ?? [], [req])
   const names = useMemo(() => variableNames(sources.map(s => s.prompt)), [sources])
   const refCount = sources.reduce((n, s) => n + s.reference_asset_ids.length, 0)
+  const avatarCount = avatarAssetCount(sources)
 
   useEffect(() => {
     if (!req) return
@@ -100,12 +108,14 @@ function SaveTemplateDialog({ req, onClose }: { req: SaveRequest | null; onClose
             )}
           </fieldset>
 
-          {refCount > 0 && (
+          {refCount + avatarCount > 0 && (
             <fieldset className="grid gap-2">
-              <legend className="text-[13px] font-semibold">参考图（共 {refCount} 张）</legend>
+              <legend className="text-[13px] font-semibold">{avatarCount ? `参考图与数字人素材（共 ${refCount + avatarCount} 个）` : `参考图（共 ${refCount} 张）`}</legend>
               <SegmentedControl label="参考图保存方式" value={refMode} onValueChange={setRefMode}
                 options={[{ value: 'slot', label: '应用时放入' }, { value: 'asset', label: '保留我的素材' }]} />
-              <p className="text-xs text-muted">{refMode === 'slot' ? '保存为「图1、图2…」占位，应用模板时提示放入新的参考图。' : '保存素材引用；素材被删除后应用时会提示重新放入。'}</p>
+              <p className="text-xs text-muted">{refMode === 'slot'
+                ? `保存为占位（参考图「图1、图2…」${avatarCount ? '，数字人的照片 / 录音 / 背景图同理' : ''}），应用模板时提示放入新的素材。`
+                : '保存素材引用；素材被删除后应用时会提示重新放入。'}</p>
             </fieldset>
           )}
 
@@ -125,16 +135,24 @@ function ApplyTemplateDialog({ template, onClose }: { template: UserTemplate | n
   const [values, setValues] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  useEffect(() => { if (template) { setValues(Object.fromEntries(template.variables.map(v => [v.name, v.default ?? '']))); setError(null); setBusy(false) } }, [template])
+  const [filled, setFilled] = useState<Record<string, MediaAsset>>({})
+  const [consent, setConsent] = useState(false)
+  useEffect(() => {
+    if (!template) return
+    setValues(Object.fromEntries(template.variables.map(v => [v.name, v.default ?? '']))); setError(null); setBusy(false); setFilled({}); setConsent(false)
+  }, [template])
   const slotItems = template?.items.map((it, i) => ({ i, slots: slotsOf(it) })).filter(x => x.slots.length) ?? []
+  const avatarSlots = useMemo(() => templateAvatarSlots(template?.items ?? []), [template])
+  const photoFilled = avatarSlots.some(n => n.field === 'photo_asset_id' && filled[n.key])
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!template || busy) return
     const r = resolveValues(template.variables, values)
     if (r.error) { setError(r.error); return }
+    if (photoFilled && !consent) { setError('请勾选「我确认拥有该肖像的使用授权」'); return }
     setBusy(true)
-    const err = await applyTemplate(template, r.values)
+    const err = await applyTemplate(template, r.values, filled)
     setBusy(false)
     if (err) setError(err); else onClose()
   }
@@ -154,6 +172,17 @@ function ApplyTemplateDialog({ template, onClose }: { template: UserTemplate | n
               <p className="text-muted">这些项加入队列后标红，编辑并放入参考图后才能发送。</p>
             </div>
           )}
+          {avatarSlots.length > 0 && (
+            <fieldset className="grid gap-2">
+              <legend className="text-[13px] font-semibold">放入数字人素材</legend>
+              <ul className="grid gap-2">
+                {avatarSlots.map(n => <SlotRow key={n.key} need={n} asset={filled[n.key] ?? null}
+                  onChange={a => setFilled(f => { const next = { ...f }; if (a) next[n.key] = a; else delete next[n.key]; return next })} />)}
+              </ul>
+              {photoFilled && <Checkbox label="我确认拥有该肖像的使用授权" checked={consent} onCheckedChange={v => setConsent(v === true)} />}
+              <p className="text-xs text-muted">没放入的项会加入队列并标红，编辑补上后才能发送。</p>
+            </fieldset>
+          )}
           {error && <p role="alert" className="text-sm text-danger">{error}</p>}
           <DialogFooter className="mt-0">
             <Button type="button" onClick={onClose}>取消</Button>
@@ -165,9 +194,47 @@ function ApplyTemplateDialog({ template, onClose }: { template: UserTemplate | n
   )
 }
 
-/** Card / menu entry: templates without variables go straight into the queue. */
+/** One avatar placeholder: photo / background = PNG/JPEG upload or pick from assets (WebP disabled); audio = MP3/WAV upload. */
+function SlotRow({ need, asset, onChange }: { need: AvatarSlotNeed; asset: MediaAsset | null; onChange: (a: MediaAsset | null) => void }) {
+  const image = need.field !== 'audio_asset_id'
+  const photo = usePhotoUpload(onChange, `ipzsk:template-slot-${need.key}`)
+  const [picking, setPicking] = useState(false)
+  const [audioJob, setAudioJob] = useState<{ progress: number; error?: string } | null>(null)
+  const audioInput = useRef<HTMLInputElement>(null)
+  const pickAudio = async (file: File) => {
+    const reason = validateAudioFile(file)
+    if (reason) { toast({ title: '无法使用这段录音', description: reason, tone: 'error' }); return }
+    setAudioJob({ progress: 0 })
+    try { onChange(await uploadAudio(file, p => setAudioJob({ progress: p }), new AbortController().signal)); setAudioJob(null) }
+    catch (e) { setAudioJob({ progress: 0, error: e instanceof Error ? e.message : '上传失败' }) }
+  }
+  const busy = image ? !!photo.busy && photo.busy.status !== 'failed' : !!audioJob && !audioJob.error
+  const failed = image ? (photo.busy?.status === 'failed' ? photo.busy.error : null) : audioJob?.error
+  return (
+    <li className={cn('flex flex-wrap items-center gap-2 rounded-card border p-2', asset ? 'border-line' : 'border-warning/50 bg-warning/5')}>
+      {photo.picker}
+      <input ref={audioInput} type="file" accept="audio/mpeg,audio/wav,audio/x-wav,.mp3,.wav" hidden onChange={e => { const f = e.target.files?.[0]; if (f) void pickAudio(f); e.target.value = '' }} />
+      <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-[8px] bg-subtle text-muted">
+        {busy ? <LoaderCircle className="size-4 motion-safe:animate-spin" />
+          : asset && image ? <MediaImage asset={asset} alt="" hideBadge className="size-full" />
+          : image ? <Images className="size-4" /> : <Mic className="size-4" />}
+      </span>
+      <span className="min-w-28 flex-1 text-sm">
+        <span className="font-semibold">{need.label}</span>
+        <span className="block truncate text-xs text-muted">{failed ?? (asset ? '已放入' : image ? '待放入 · PNG / JPEG' : '待放入 · MP3 / WAV')}</span>
+      </span>
+      {asset ? <IconButton size="icon-sm" label={`移除${need.label}`} onClick={() => onChange(null)}><X className="size-4" /></IconButton> : <span className="flex gap-1.5 max-sm:w-full max-sm:justify-end">
+        <Button size="sm" type="button" icon={<Upload className="size-4" />} disabled={busy} onClick={() => image ? photo.open() : audioInput.current?.click()}>上传</Button>
+        {image && <Button size="sm" type="button" icon={<Images className="size-4" />} onClick={() => setPicking(true)}>从素材选择</Button>}
+      </span>}
+      {image && <AssetPicker open={picking} onOpenChange={setPicking} room={1} existing={[]} description={`为「${need.label}」选一张 PNG / JPEG`} disabledReason={photoAssetReason} onPick={([a]) => { if (a) onChange(a) }} />}
+    </li>
+  )
+}
+
+/** Card / menu entry: templates without variables or placeholders go straight into the queue. */
 export async function startApply(t: UserTemplate) {
-  if (t.variables.length || t.items.some(i => slotsOf(i).length)) { openApplyTemplate(t); return }
+  if (t.variables.length || t.items.some(i => slotsOf(i).length) || templateAvatarSlots(t.items).length) { openApplyTemplate(t); return }
   const err = await applyTemplate(t, {})
   if (err) toast({ title: '无法应用模板', description: err, tone: 'error' })
 }
