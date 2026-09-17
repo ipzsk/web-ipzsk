@@ -6,6 +6,7 @@ import { useSelection } from './useSelection'
 import { useUpload, validateFile, type UploadApi } from './useUpload'
 import { DropTarget, MediaDndProvider, checkAccept } from './dnd'
 import { nearestIndex } from './MasonryGrid'
+import { MediaImage } from './MediaImage'
 import type { MediaAsset } from './types'
 
 afterEach(cleanup)
@@ -166,5 +167,18 @@ describe('DropTarget', () => {
     expect(getByText('目标').getAttribute('data-drop-state')).toBe('valid')
     fireEvent.drop(getByText('目标'), { dataTransfer })
     expect(onFiles).toHaveBeenCalledWith([file])
+  })
+})
+
+describe('MediaImage 处理中 badge', () => {
+  it('small original without variants is ready; queued/running/pending keep the badge', () => {
+    const small = asset('small') // urls: orig only, no thumb_state (e.g. a case narrower than 480px)
+    expect(render(<MediaImage asset={small} alt="" />).queryByText('处理中')).toBeNull()
+    cleanup()
+    for (const a of [{ ...small, thumb_state: 'running' as const }, { ...small, thumb_state: 'queued' as const }, { ...small, status: 'pending' as const }]) {
+      expect(render(<MediaImage asset={a} alt="" />).getByText('处理中')).toBeTruthy()
+      cleanup()
+    }
+    expect(render(<MediaImage asset={{ ...small, thumb_state: 'skipped' }} alt="" />).queryByText('处理中')).toBeNull()
   })
 })

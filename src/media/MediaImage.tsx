@@ -86,9 +86,8 @@ export function MediaImage({ asset, urls: urlsProp, assetId, width, height, size
     }
   }
 
-  const processing = !hideBadge && (asset?.status === 'pending' || (asset?.thumb_state
-    ? asset.thumb_state === 'queued' || asset.thumb_state === 'running'
-    : !urls.w480 && !urls.w960 && !!urls.orig && !urls.orig.startsWith('blob:')))
+  // Missing w480/w960 is not a signal: the gateway skips variants wider than the original. Only explicit state counts.
+  const processing = !hideBadge && (asset?.status === 'pending' || asset?.thumb_state === 'queued' || asset?.thumb_state === 'running')
 
   return (
     <div
