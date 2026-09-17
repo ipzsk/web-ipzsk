@@ -604,6 +604,11 @@ export interface QueueConflict {
   error: ApiError
   queue: Queue
 }
+export interface QueueIssue {
+  code: string
+  field: string | null
+  message: string
+}
 export interface QueueItem {
   item_id: Uuid
   kind: MediaKind
@@ -614,7 +619,16 @@ export interface QueueItem {
   mentions?: Mention[] // max 20 items
   prompt_doc?: Record<string, unknown> | null
   reference_asset_ids?: Uuid[] // max 15 items
+  avatar_id?: string | null
+  photo_asset_id?: Uuid | null
+  script?: string | null
+  voice_id?: string | null
+  audio_asset_id?: Uuid | null
+  captions?: boolean
+  background_color?: string | null
+  background_asset_id?: Uuid | null
   missing?: true
+  issues?: QueueIssue[]
 }
 export interface QueuePut {
   items: QueueItem[] // max 12 items
@@ -683,6 +697,9 @@ export interface SubjectPatch {
   external_ref?: AvatarRef | null
   cover_id?: Uuid | null
 }
+export type TemplateAssetSlot = Uuid | {
+  slot: number // integer 0..14
+}
 export interface TemplateItem {
   item_id: Uuid
   kind: MediaKind
@@ -693,6 +710,14 @@ export interface TemplateItem {
   mentions?: Mention[] // max 20 items
   prompt_doc?: Record<string, unknown> | null
   references?: TemplateReference[] // max 15 items
+  avatar_id?: string | null
+  photo_asset_id?: TemplateAssetSlot | null
+  script?: string | null
+  voice_id?: string | null
+  audio_asset_id?: TemplateAssetSlot | null
+  captions?: boolean
+  background_color?: string | null
+  background_asset_id?: TemplateAssetSlot | null
 }
 export type TemplateReference = {
   slot: number // integer 0..
