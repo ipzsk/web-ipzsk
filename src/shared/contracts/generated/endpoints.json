@@ -1,7 +1,7 @@
 {
   "_source": {
     "repo": "ipzsk-api-gateway",
-    "commit": "b89cc03"
+    "commit": "2a46944"
   },
   "auth_kinds": {
     "bearer": {
@@ -113,6 +113,7 @@
         "invalid_category",
         "invalid_cursor",
         "invalid_limit",
+        "invalid_media_kind",
         "invalid_query",
         "invalid_status",
         "media_storage_unavailable"
@@ -130,7 +131,7 @@
     {
       "auth": "cookie",
       "body": "AdminCaseCreate",
-      "body_shape": "{ title: string prompt: string category: string category_zh?: string | null tags?: string[] model?: string | null params?: Record<string, unknown> template?: CaseTemplate | null author?: string | null author_url?: string | null source_repo?: string | null source_url?: string | null license_note?: string | null id?: string | null cover_asset_id: Uuid }",
+      "body_shape": "{ title: string prompt: string category: string category_zh?: string | null tags?: string[] model?: string | null params?: Record<string, unknown> template?: CaseTemplate | null author?: string | null author_url?: string | null source_repo?: string | null source_url?: string | null license_note?: string | null media_kind?: CaseMediaKind id?: string | null cover_asset_id: Uuid }",
       "errors": [
         "admin_session_expired",
         "asset_not_found",
@@ -145,6 +146,7 @@
         "invalid_category",
         "invalid_idempotency_key",
         "invalid_json",
+        "invalid_media_kind",
         "invalid_params",
         "invalid_prompt",
         "invalid_tags",
@@ -202,7 +204,7 @@
     {
       "auth": "cookie",
       "body": "AdminCasePatch",
-      "body_shape": "{ title?: string prompt?: string category?: string category_zh?: string | null tags?: string[] model?: string | null params?: Record<string, unknown> template?: CaseTemplate | null author?: string | null author_url?: string | null source_repo?: string | null source_url?: string | null license_note?: string | null status?: CaseStatus expected_updated_at?: IsoTime | null }",
+      "body_shape": "{ title?: string prompt?: string category?: string category_zh?: string | null tags?: string[] model?: string | null params?: Record<string, unknown> template?: CaseTemplate | null author?: string | null author_url?: string | null source_repo?: string | null source_url?: string | null license_note?: string | null media_kind?: CaseMediaKind status?: CaseStatus expected_updated_at?: IsoTime | null }",
       "conflict": "CaseConflict",
       "errors": [
         "admin_session_expired",
@@ -213,6 +215,7 @@
         "forbidden_role",
         "invalid_expected_updated_at",
         "invalid_json",
+        "invalid_media_kind",
         "invalid_params",
         "invalid_status",
         "invalid_tags",
@@ -2346,10 +2349,12 @@
     {
       "auth": "public",
       "errors": [
+        "invalid_kind",
         "media_storage_unavailable"
       ],
       "method": "GET",
       "path": "/api/public/case-categories",
+      "query": "CaseCategoriesQuery",
       "response": "CaseCategories"
     },
     {
@@ -2357,6 +2362,7 @@
       "errors": [
         "invalid_category",
         "invalid_cursor",
+        "invalid_kind",
         "invalid_limit",
         "invalid_query",
         "media_storage_unavailable"
@@ -4236,6 +4242,12 @@
     },
     {
       "code": "invalid_limit",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_media_kind",
       "status": [
         400
       ]

@@ -276,7 +276,7 @@ function Earnings({ plugins }: { plugins: Plugin[] }) {
         <div className="w-40 max-sm:w-full"><Input label="至" type="date" required value={draft.to} onChange={e => setDraft(d => ({ ...d, to: e.target.value }))} /></div>
         <label className="grid gap-1.5 text-[13px] font-semibold max-sm:w-full">插件
           <select value={draft.plugin_id} onChange={e => setDraft(d => ({ ...d, plugin_id: e.target.value }))}
-            className={cn('h-10 min-w-40 cursor-pointer rounded-control border border-line bg-card px-3 text-sm font-normal hover:border-muted', focusRing)}>
+            className={cn('h-10 min-w-40 cursor-pointer rounded-control border border-line bg-card px-3 text-sm font-normal hover:border-muted focus:border-acid focus:ring-3 focus:ring-acid/10', focusRing, 'focus-visible:outline-offset-0')}>
             <option value="">全部</option>
             {plugins.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>

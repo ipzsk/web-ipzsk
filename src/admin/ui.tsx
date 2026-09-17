@@ -75,10 +75,10 @@ export const adminErrorText = (e: unknown) =>
   e instanceof ApiError ? ADMIN_ERRORS[e.code] ?? e.message : '操作未成功，请稍后重试。'
 
 export function StatusBadge({ status }: { status: CaseStatus }) {
-  return <Badge tone={status === 'published' ? 'success' : status === 'hidden' ? 'warning' : 'outline'}>{STATUS_LABEL[status]}</Badge>
+  return <Badge tone={status === 'published' ? 'acid' : status === 'hidden' ? 'neutral' : 'outline'}>{STATUS_LABEL[status]}</Badge>
 }
 
-const selectClass = cn('h-9 rounded-control border border-line bg-card px-2.5 text-sm text-ink hover:border-muted', focusRing, 'focus-visible:outline-offset-0')
+const selectClass = cn('h-9 rounded-control border border-line bg-card px-2.5 text-sm text-ink hover:border-muted focus:border-acid focus:ring-3 focus:ring-acid/10', focusRing, 'focus-visible:outline-offset-0')
 
 export function Select({ label, className, children, ...props }: ComponentProps<'select'> & { label: string }) {
   return (

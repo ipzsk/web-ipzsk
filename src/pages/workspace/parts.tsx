@@ -6,7 +6,7 @@ import { openDialog, selectProject, show } from './actions'
 
 export const fieldClass = cn(
   'w-full min-w-0 rounded-control border border-line bg-card px-3 py-2.5 text-sm text-ink placeholder:text-muted',
-  'transition-colors duration-(--duration-fast) hover:border-muted focus:border-ink disabled:cursor-not-allowed disabled:opacity-45',
+  'transition-colors duration-(--duration-fast) hover:border-muted focus:border-acid focus:ring-3 focus:ring-acid/10 disabled:cursor-not-allowed disabled:opacity-45',
   focusRing, 'focus-visible:outline-offset-0',
 )
 export const labelClass = 'grid gap-2 text-[13px] font-semibold'

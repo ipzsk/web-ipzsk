@@ -47,7 +47,7 @@ function Hero() {
     <section className={cn(shell, 'grid grid-cols-[1fr_1.05fr] items-center gap-12 py-20 max-lg:grid-cols-1 max-md:py-12')}>
       <div>
         <p className={cn(eyebrow, 'flex items-center gap-2')}><span aria-hidden className="size-1.5 rounded-full bg-acid-deep" />YOUR KNOWLEDGE. READY TO WORK.</p>
-        <h1 className="mt-6 text-[64px] font-black leading-[1.08] tracking-[-2px] max-md:text-[42px]">让 AI 住进<br />你的<span className="bg-[linear-gradient(transparent_62%,var(--color-acid)_62%)]">知识库。</span></h1>
+        <h1 className="mt-6 text-[64px] font-black leading-[1.08] tracking-[-2px] max-md:text-[42px]">让 AI 住进<br />你的<span className="text-label">知识库。</span></h1>
         <p className="mt-6 text-base leading-7 text-muted">资料整理、做 PPT、写内容、画封面。<br />在 Obsidian 里说一句，让 ChatGPT 模型和 Codex 帮你完成。</p>
         <div className="mt-8 flex flex-wrap gap-3">
           <a href="#download" className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}>下载完整工作台<ArrowDown aria-hidden className="size-[18px]" /></a>
@@ -62,7 +62,7 @@ function Hero() {
 
 function Preview() {
   return (
-    <div aria-label="工作台功能示意" role="img" className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_30px_60px_-30px_rgba(22,25,22,.35)] motion-safe:lg:rotate-[1deg]">
+    <div aria-label="工作台功能示意" role="img" className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_30px_60px_-30px_rgba(29,31,32,.35)] motion-safe:lg:rotate-[1deg]">
       <div className="flex items-center gap-1.5 border-b border-line bg-subtle/60 px-4 py-2.5">
         {[0, 1, 2].map(i => <i key={i} className="size-2.5 rounded-full bg-line" />)}
         <span className="flex-1 text-center text-[11px] text-muted">我的 IPZSK 知识库</span>
@@ -79,7 +79,7 @@ function Preview() {
         </aside>
         <div className="grid content-start gap-3 p-5">
           <div className="flex items-center justify-between font-semibold">AI 助手 <span className="rounded-full border border-line px-2 py-0.5 text-[10px] text-muted">Codex</span></div>
-          <div className="rounded-control bg-acid/40 px-3 py-2.5">根据产品方案，做一份 8 页的介绍 PPT。</div>
+          <div className="rounded-control bg-acid-soft px-3 py-2.5">根据产品方案，做一份 8 页的介绍 PPT。</div>
           <p className="text-muted">我会先整理目标用户和核心卖点，再生成可编辑的演示文稿。</p>
           {['读取产品方案', '整理内容与页面结构', '生成演示文稿'].map(t => <div key={t} className="flex items-center gap-2"><Check aria-hidden className="size-3 text-acid-deep" />{t}</div>)}
           <div className="flex items-center gap-3 rounded-control border border-line p-3">

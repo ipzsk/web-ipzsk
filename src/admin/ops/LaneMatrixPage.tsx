@@ -243,7 +243,7 @@ function Cell({ row, lane, chans, server, active, onOpen }: { row: Row; lane: La
   const label = primary ? `${row.model} · ${lane.name}：首选 ${primary.name}，共 ${ids.length} 个渠道` : `${row.model} · ${lane.name}：待采购`
   return (
     <button type="button" role="cell" aria-label={label} onClick={onOpen}
-      className={cn('relative flex min-w-0 flex-col justify-center gap-0.5 border-l border-line px-3 text-left hover:bg-subtle', focusRing, 'focus-visible:outline-offset-[-2px]', active && 'bg-subtle')}>
+      className={cn('relative flex min-w-0 flex-col justify-center gap-0.5 border-l border-line px-3 text-left hover:bg-subtle', focusRing, 'focus-visible:outline-offset-[-2px]', active && 'bg-acid-soft hover:bg-acid-soft')}>
       {changed && <span aria-hidden className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-acid-deep" title="有未保存改动" />}
       {primary ? <>
         <span className="flex min-w-0 items-center gap-1.5">

@@ -290,7 +290,7 @@ export function AuthFlow({ ready, onSignedIn, notice, setNotice }: {
   const serviceStatus = ready !== true && <p role="status" className="text-center text-xs text-muted">{serviceReason}</p>
 
   return (
-    <div className="rounded-panel border border-line bg-card p-8 shadow-[0_1px_0_rgba(22,25,22,.04)] max-sm:rounded-card max-sm:p-5">
+    <div className="rounded-panel border border-line bg-card p-8 shadow-[0_1px_0_rgba(29,31,32,.04)] max-sm:rounded-card max-sm:p-5">
       <header className="mb-6">
         {step && <p className="mb-2 text-xs font-semibold tracking-wide text-label">{step}</p>}
         <h1 ref={heading} tabIndex={-1} className="text-[28px] font-black tracking-[-.5px] outline-none">{headingText}</h1>
@@ -298,7 +298,7 @@ export function AuthFlow({ ready, onSignedIn, notice, setNotice }: {
       </header>
       {notice && (
         <p ref={noticeRef} tabIndex={-1} role={notice.error ? 'alert' : 'status'}
-          className={cn('mb-5 rounded-control px-3 py-2.5 text-sm leading-6 outline-none', notice.error ? 'bg-danger/8 text-danger' : 'bg-acid/35 text-ink')}
+          className={cn('mb-5 rounded-control px-3 py-2.5 text-sm leading-6 outline-none', notice.error ? 'bg-danger/8 text-danger' : 'bg-acid-soft text-[#2867bd]')}
         >{notice.text}</p>
       )}
 

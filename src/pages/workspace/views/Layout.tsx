@@ -55,7 +55,7 @@ export function Layout({ data }: { data: WorkspaceState }) {
                   onExpired={() => toast({ title: '封面链接已过期，请到图片与素材刷新。', tone: 'error' })}
                 />
               ) : (
-                <div className="flex min-h-[280px] flex-col justify-between bg-acid-soft bg-[radial-gradient(#18241440_.65px,transparent_.65px)] bg-size-[12px_12px] px-6 py-7">
+                <div className="flex min-h-[280px] flex-col justify-between bg-acid-soft bg-[radial-gradient(#1a6bf040_.65px,transparent_.65px)] bg-size-[12px_12px] px-6 py-7">
                   <span className="text-[8px] tracking-[2px]">YOUR NEXT STORY</span>
                   <strong className="text-[43px] leading-[1.3] tracking-[-2px]">把想法<br />变成作品。</strong>
                   <span className="inline-flex items-center gap-2 text-[8px] tracking-[2px]">IPZSK CONTENT STUDIO<Sparkles aria-hidden className="size-3" /></span>

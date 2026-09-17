@@ -67,7 +67,7 @@ export function LogsPage() {
               <tbody>
                 {rows.map(l => (
                   <tr key={l.id} tabIndex={0} onClick={() => setOpen(l)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(l) } }}
-                    className={cn('cursor-pointer hover:bg-subtle', focusRing, 'focus-visible:outline-offset-[-2px]', open?.id === l.id && 'bg-subtle')}>
+                    className={cn('cursor-pointer hover:bg-subtle', focusRing, 'focus-visible:outline-offset-[-2px]', open?.id === l.id && 'bg-acid-soft hover:bg-acid-soft')}>
                     <td className={cn(td, 'text-xs text-muted tabular-nums')}>{fmtUnix(l.created_at)}</td>
                     <td className={td}><Badge tone={typeTone[l.type]}>{LOG_TYPE[l.type]}</Badge></td>
                     <td className={td}>{l.username}{l.token_name && <span className="text-xs text-muted"> / {l.token_name}</span>}</td>

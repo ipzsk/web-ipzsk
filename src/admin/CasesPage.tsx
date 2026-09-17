@@ -240,7 +240,7 @@ function CaseRow(p: RowProps) {
   const s = useRowSortable(c.id)
   const td = 'border-b border-line py-2 align-middle'
   return (
-    <tr ref={s.setNodeRef} style={s.style} data-case-id={c.id} className={cn('bg-paper transition-colors hover:bg-card', s.isDragging && 'bg-card opacity-80 shadow-lg', selected && 'bg-card')}>
+    <tr ref={s.setNodeRef} style={s.style} data-case-id={c.id} className={cn('bg-paper transition-colors hover:bg-card', s.isDragging && 'bg-card opacity-80 shadow-lg', selected && 'bg-acid-soft hover:bg-acid-soft')}>
       {writable && (
         <td className={cn(td, 'pl-2')}>
           <div className="flex items-center gap-1">
@@ -266,7 +266,7 @@ function CaseTile(p: RowProps) {
   const { c, writable, reorderBlocked, selected, onToggle, priority } = p
   const s = useRowSortable(c.id)
   return (
-    <li ref={s.setNodeRef} style={s.style} data-case-id={c.id} className={cn('overflow-hidden rounded-card border bg-card transition-shadow hover:shadow-md', selected ? 'border-2 border-ink' : 'border-line', s.isDragging && 'opacity-80 shadow-xl')}>
+    <li ref={s.setNodeRef} style={s.style} data-case-id={c.id} className={cn('overflow-hidden rounded-card border bg-card transition-shadow hover:shadow-md', selected ? 'border-acid shadow-[0_0_0_2px_rgb(29_113_251/.12),0_9px_24px_rgb(29_113_251/.12)]' : 'border-line', s.isDragging && 'opacity-80 shadow-xl')}>
       <div className="relative">
         <MediaImage asset={c.cover ?? undefined} alt="" priority={priority} className="aspect-[4/3]!" hideBadge />
         <span className="absolute left-2 top-2"><StatusBadge status={c.status} /></span>

@@ -367,7 +367,7 @@ function TemplateEditor({ items, writable, ratios, resolutions, onChange }: { it
   const total = items.reduce((n, it) => n + it.count, 0)
   const addBlocked = items.length >= MAX_OUTPUTS || total >= MAX_OUTPUTS ? `最多 ${MAX_OUTPUTS} 张输出` : undefined
   const hasAnchor = items.some(it => it.anchor)
-  const cell = 'h-9 w-full rounded-control border border-line bg-card px-2 text-sm'
+  const cell = 'h-9 w-full rounded-control border border-line bg-card px-2 text-sm hover:border-muted outline-none focus:border-acid focus:ring-3 focus:ring-acid/10'
   return (
     <div className="grid gap-2">
       <div className="overflow-x-auto">
@@ -385,7 +385,7 @@ function TemplateEditor({ items, writable, ratios, resolutions, onChange }: { it
                 <td className="py-1.5 pr-2"><ParamCell label={`第 ${i + 1} 项清晰度`} values={resolutions} value={it.params?.resolution ?? ''} onChange={v => patch(i, { params: { ...it.params, resolution: v || undefined } })} className={cell} /></td>
                 <td className="py-1.5 pr-2">
                   <label className="inline-flex h-9 items-center gap-1.5">
-                    <input type="radio" name="template-anchor" checked={!!it.anchor || (!hasAnchor && i === 0)} onChange={() => onChange(items.map((x, n) => ({ ...x, anchor: n === i })))} className="size-4 accent-ink" />
+                    <input type="radio" name="template-anchor" checked={!!it.anchor || (!hasAnchor && i === 0)} onChange={() => onChange(items.map((x, n) => ({ ...x, anchor: n === i })))} className="size-4 accent-acid" />
                     <span className="sr-only">第 {i + 1} 项设为锚图</span>{!hasAnchor && i === 0 && <span className="text-[11px] text-muted">默认</span>}
                   </label>
                 </td>

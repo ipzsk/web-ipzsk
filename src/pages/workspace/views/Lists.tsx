@@ -96,7 +96,7 @@ export function Calendar({ data }: { data: WorkspaceState }) {
                   <button
                     key={p.id} type="button"
                     onClick={() => { selectProject(p.id, false); show('editor') }}
-                    className={cn('mt-1 block w-full cursor-pointer rounded-[5px] bg-acid/40 p-0.5 text-left text-[10px] [overflow-wrap:anywhere] hover:bg-acid sm:p-1.5 sm:text-[11px]', 'focus-visible:outline-2 focus-visible:outline-ink')}
+                    className={cn('mt-1 block w-full cursor-pointer rounded-[5px] bg-acid-soft p-0.5 text-left text-[10px] text-label [overflow-wrap:anywhere] hover:bg-acid hover:text-white sm:p-1.5 sm:text-[11px]', 'focus-visible:outline-2 focus-visible:outline-acid-deep')}
                   >{p.title}</button>
                 ))}
               </div>

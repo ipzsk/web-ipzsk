@@ -125,7 +125,7 @@ function Sidebar({ data }: { data: WorkspaceState }) {
               key={v} type="button" aria-current={view === v ? 'page' : undefined} onClick={() => show(v)}
               className={cn(
                 'flex min-h-11 cursor-pointer items-center gap-3 rounded-control px-3 text-left text-[13px] font-semibold transition-colors duration-(--duration-fast) hover:bg-subtle motion-safe:active:scale-[.98]',
-                'aria-[current=page]:bg-acid aria-[current=page]:hover:bg-acid', focusRing,
+                'aria-[current=page]:bg-acid-soft aria-[current=page]:text-label aria-[current=page]:hover:bg-acid-soft', focusRing,
               )}
             >
               <Icon className="size-4 shrink-0" />

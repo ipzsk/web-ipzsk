@@ -19,7 +19,7 @@ export function Overview({ data }: { data: WorkspaceState }) {
         <div>
           <Eyebrow>{today}</Eyebrow>
           <h1 className="text-[44px] font-bold leading-[1.24] tracking-[-2px] lg:text-[clamp(40px,4.6vw,67px)] lg:tracking-[-3px]">
-            把想法，<br /><span className="bg-[linear-gradient(transparent_69%,var(--color-acid)_69%)]">推进到发布。</span>
+            把想法，<br /><span className="text-label">推进到发布。</span>
           </h1>
           <p className="mt-4 text-[13px] leading-7 text-muted">收藏一个灵感，写下一段文字。<br />在自己的节奏里，把内容一步步做好。</p>
           <div className="mt-7 flex flex-wrap gap-3">
@@ -60,14 +60,14 @@ export function Overview({ data }: { data: WorkspaceState }) {
 
 function IdeaArt() {
   return (
-    <div aria-hidden className="relative h-[230px] overflow-hidden rounded-panel bg-[#e9edda] bg-[radial-gradient(#71834340_.7px,transparent_.7px)] bg-size-[13px_13px] sm:h-[305px]">
+    <div aria-hidden className="relative h-[230px] overflow-hidden rounded-panel bg-subtle bg-[radial-gradient(#1a6bf033_.7px,transparent_.7px)] bg-size-[13px_13px] sm:h-[305px]">
       <div className="absolute left-5 top-4 text-[8px] tracking-[2px] text-label">FROM IDEA TO IMPACT</div>
-      <div className="absolute left-[-20px] top-[62px] h-[190px] w-[350px] -rotate-[32deg] rounded-full border border-[#87936042]" />
-      <div className="absolute left-[-20px] top-[62px] h-[190px] w-[350px] rotate-40 rounded-full border border-[#87936042]" />
-      <div className="absolute left-[18%] top-[30px] h-[160px] w-[130px] -rotate-[16deg] rounded-control border border-[#52622b33] bg-card p-5 text-[29px] font-bold shadow-[0_16px_30px_#3f491914] sm:top-[66px] sm:h-[176px] sm:w-[148px]">
+      <div className="absolute left-[-20px] top-[62px] h-[190px] w-[350px] -rotate-[32deg] rounded-full border border-acid/20" />
+      <div className="absolute left-[-20px] top-[62px] h-[190px] w-[350px] rotate-40 rounded-full border border-acid/20" />
+      <div className="absolute left-[18%] top-[30px] h-[160px] w-[130px] -rotate-[16deg] rounded-control border border-line bg-card p-5 text-[29px] font-bold shadow-[0_16px_30px_#1d1f2014] sm:top-[66px] sm:h-[176px] sm:w-[148px]">
         灵感<span className="absolute bottom-4 left-4 text-[8px] font-medium tracking-[2px]">IDEA / 01</span>
       </div>
-      <div className="absolute left-[44%] top-5 h-[185px] w-[160px] rotate-9 rounded-control border border-acid/20 bg-acid-soft p-5 shadow-[0_16px_30px_#3f491914] sm:left-[40%] sm:top-[51px] sm:h-[205px] sm:w-[184px]">
+      <div className="absolute left-[44%] top-5 h-[185px] w-[160px] rotate-9 rounded-control border border-acid/20 bg-acid-soft p-5 shadow-[0_16px_30px_#1d1f2014] sm:left-[40%] sm:top-[51px] sm:h-[205px] sm:w-[184px]">
         <span className="text-[7px] tracking-[1.5px]">YOUR NEXT STORY</span>
         <b className="mt-4 block text-[24px] leading-[1.35] tracking-[-1px] sm:text-[28px]">让好想法<br />有迹可循。</b>
         <Sparkles className="absolute bottom-3 right-3 size-10" strokeWidth={1.5} />

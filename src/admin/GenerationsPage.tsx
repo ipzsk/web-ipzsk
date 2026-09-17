@@ -87,7 +87,7 @@ export function GenerationsPage() {
                       key={r.id} role="row" data-index={vi.index} tabIndex={0} aria-rowindex={vi.index + 2}
                       onClick={() => setParam('id', r.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setParam('id', r.id) } else onRowKey(e, vi.index) }}
                       style={{ position: 'absolute', top: 0, left: 0, right: 0, height: ROW, transform: `translateY(${vi.start}px)` }}
-                      className={cn(COLS, 'cursor-pointer border-b border-line text-sm hover:bg-subtle', focusRing, 'focus-visible:outline-offset-[-2px]', sp.get('id') === r.id && 'bg-subtle')}
+                      className={cn(COLS, 'cursor-pointer border-b border-line text-sm hover:bg-subtle', focusRing, 'focus-visible:outline-offset-[-2px]', sp.get('id') === r.id && 'bg-acid-soft hover:bg-acid-soft')}
                     >
                       <span role="cell" className="text-xs text-muted tabular-nums">{fmtTime(r.created_at)}</span>
                       <span role="cell" className="truncate">{r.prompt}</span>

@@ -40,7 +40,7 @@ export function Images({ data }: { data: WorkspaceState }) {
           {images.map(i => {
             const selected = p?.cover?.task_id === i.task_id && p?.cover?.image_index === i.image_index
             return (
-              <article key={i.task_id + ':' + i.image_index} className={cn('overflow-hidden rounded-card border bg-card', selected ? 'border-2 border-ink' : 'border-line')}>
+              <article key={i.task_id + ':' + i.image_index} className={cn('overflow-hidden rounded-card border bg-card', selected ? 'border-acid shadow-[0_0_0_2px_rgb(29_113_251/.12),0_9px_24px_rgb(29_113_251/.12)]' : 'border-line')}>
                 <MediaImage urls={{ orig: i.url }} sizes="orig" fit="contain" hideBadge alt="当前账号生成的图片" className="h-40 w-full sm:h-[220px]" />
                 <div className="grid gap-3 p-3 sm:p-4">
                   <small className="text-[11px] text-muted">{new Date(i.created_at).toLocaleDateString('zh-CN')}</small>

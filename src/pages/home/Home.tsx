@@ -67,14 +67,14 @@ function DownloadMenu() {
     <div ref={root} id="download" className="group/dl scroll-mt-32 md:relative">
       <button
         ref={trigger} type="button" aria-haspopup="true" aria-expanded={open} aria-controls="download-menu" onClick={() => setOpen(o => !o)}
-        className={cn('inline-flex h-[54px] min-w-[148px] cursor-pointer items-center justify-center gap-2 rounded-full border border-ink bg-ink px-6 text-[14px] font-extrabold text-white shadow-[0_14px_28px_rgba(21,24,21,.16)] transition-[transform,box-shadow] duration-(--duration-fast) hover:shadow-[0_18px_32px_rgba(21,24,21,.23)] motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[.98]', focusRing)}
+        className={cn('inline-flex h-[54px] min-w-[148px] cursor-pointer items-center justify-center gap-2 rounded-full border border-ink bg-ink px-6 text-[14px] font-extrabold text-white shadow-[0_14px_28px_rgba(29,31,32,.16)] transition-[transform,box-shadow] duration-(--duration-fast) hover:shadow-[0_18px_32px_rgba(29,31,32,.23)] motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[.98]', focusRing)}
       >
         <Download aria-hidden className="size-[18px]" />立即下载<ChevronDown aria-hidden className={cn('size-4 transition-transform duration-(--duration-fast)', open && 'rotate-180')} />
       </button>
       <div
         id="download-menu" role="menu" aria-label="选择下载版本"
         className={cn(
-          'absolute left-1/2 top-[calc(100%+12px)] z-10 w-[min(352px,calc(100vw-28px))] -translate-x-1/2 rounded-[19px] border border-line bg-card p-3.5 text-left shadow-[0_24px_55px_rgba(21,24,21,.16)]',
+          'absolute left-1/2 top-[calc(100%+12px)] z-10 w-[min(352px,calc(100vw-28px))] -translate-x-1/2 rounded-[19px] border border-line bg-card p-3.5 text-left shadow-[0_24px_55px_rgba(29,31,32,.16)]',
           'transition-[opacity,translate] duration-(--duration-base) ease-(--ease-standard)',
           open ? 'visible opacity-100' : 'invisible opacity-0 motion-safe:-translate-y-[7px]',
           'md:group-hover/dl:visible md:group-hover/dl:translate-y-0 md:group-hover/dl:opacity-100',
@@ -89,7 +89,7 @@ function DownloadMenu() {
             <a
               key={p.id} role="menuitem" data-platform={p.id} href={o?.href ?? RELEASE_PAGE} aria-busy={!o || undefined}
               title={o?.direct ? `${p.label} · ${o.meta}` : '前往 GitHub 发布页选择安装包'}
-              className={cn('flex min-h-16 items-center justify-between gap-4 rounded-control border-t border-line p-2.5 transition-colors duration-(--duration-fast) hover:bg-subtle', !o && 'cursor-progress', device === p.id && 'bg-acid/25', focusRing, 'focus-visible:outline-offset-[-2px]')}
+              className={cn('flex min-h-16 items-center justify-between gap-4 rounded-control border-t border-line p-2.5 transition-colors duration-(--duration-fast) hover:bg-acid-soft', !o && 'cursor-progress', device === p.id && 'bg-acid-soft', focusRing, 'focus-visible:outline-offset-[-2px]')}
             >
               <span className="grid gap-1">
                 <strong className="text-[15px] tracking-[-.025em]">{p.label}</strong>
@@ -155,7 +155,7 @@ export function Home() {
               <a
                 key={f.title} href={f.href}
                 className={cn(
-                  'group flex min-h-[250px] flex-col rounded-panel border border-line p-6 shadow-[0_10px_38px_rgba(33,37,29,.055)] transition-[transform,box-shadow] duration-(--duration-base) ease-(--ease-standard) hover:shadow-[0_22px_50px_rgba(33,37,29,.10)] motion-safe:hover:-translate-y-1 motion-safe:active:scale-[.99] md:min-h-[300px]',
+                  'group flex min-h-[250px] flex-col rounded-panel border border-line p-6 shadow-[0_10px_38px_rgba(29,31,32,.055)] transition-[transform,box-shadow] duration-(--duration-base) ease-(--ease-standard) hover:shadow-[0_22px_50px_rgba(29,31,32,.10)] motion-safe:hover:-translate-y-1 motion-safe:active:scale-[.99] md:min-h-[300px]',
                   i === 0 || i === 3 ? 'md:col-span-7' : 'md:col-span-5',
                   f.dark ? 'bg-ink text-card' : 'bg-card', focusRing,
                 )}
