@@ -7,6 +7,7 @@ import type { Mention } from '../api/queue'
 import { AVATAR_ERRORS } from '../avatar/contract'
 import type { GenerationRecord, GenerationStatus } from '../api/records'
 import type { PendingGeneration, SubmitOutcome } from '../api/generation'
+import { formatParam, paramLabel } from '../composer/logic'
 
 /** One cell of a bubble: a server record, or a submission the server hasn't listed yet. */
 export interface ItemView {
@@ -179,4 +180,8 @@ export const formatWait = (ms: number) => {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 }
 
-export const paramText = (v: GenerationParams[string]) => typeof v === 'boolean' ? (v ? '是' : '否') : String(v)
+/** One 「· 值」 in a request summary. Values that mean nothing on their own (switches, seed) carry their label. */
+export const paramText = (v: GenerationParams[string], field = '') =>
+  typeof v === 'boolean' || v === 'true' || v === 'false' || field === 'seed'
+    ? `${paramLabel(field)}${formatParam(field, v)}`
+    : formatParam(field, v)

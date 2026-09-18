@@ -62,7 +62,8 @@ describe('optimistic delete + undo', () => {
 })
 
 const text = (t: string): JSONContent => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })
-const [gpt, , turbo] = MOCK_MODELS
+const gpt = MOCK_MODELS.find(m => m.id === 'gpt-image-2')
+const turbo = MOCK_MODELS.find(m => m.id === 'z-image-turbo')
 let n = 0
 const ctx = (over: Partial<FillContext> = {}): FillContext => ({
   models: MOCK_MODELS, kind: 'image', memory: { image: { model: 'gpt-image-2', params: { aspect_ratio: '1:1' } }, video: { params: {} } },
@@ -80,7 +81,7 @@ describe('composer-fill handlers', () => {
   it('case: fills prompt/model/params, falls back to default model with one notice', () => {
     const p = planFill(parseFill({ source: 'case', case_id: '1', kind: 'image', model: 'gone-model', prompt: '猫', params: { aspect_ratio: '16:9', resolution: '8K' }, reference_urls: [] })!, ctx())
     expect(p.model).toBe(gpt!.id)
-    expect(p.params).toEqual({ aspect_ratio: '16:9', resolution: '2K', n: 1 })
+    expect(p.params).toEqual({ aspect_ratio: '16:9', resolution: '2k', n: 1 })
     expect(chipsOf(p.doc!)).toEqual([])
     expect(p.notices).toEqual(['型号「gone-model」暂不可用，已换成 GPT Image 2'])
     expect(p.toast).toBe(false) // inspiration already toasts

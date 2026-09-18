@@ -31,10 +31,10 @@ e2eDescribe('composer (mock, signed in)', () => {
     await page.getByRole('checkbox', { name: '多选 Z-Image Turbo' }).click()
     await page.getByRole('button', { name: '加入队列 (2)' }).click()
     await queue().getByText('待发送队列 · 2 项').waitFor()
-    // GPT Image 2 defaults to 2K; Z-Image Turbo only has 1K → normalized and highlighted.
+    // GPT Image 2 defaults to 2k; Z-Image Turbo only has 1K/2K → normalized (case-sensitive) and highlighted.
     const changed = queue().locator('[title="该型号不支持原取值，已改为默认值"]')
     await changed.first().waitFor()
-    expect(await changed.allTextContents()).toEqual(['2K→1K'])
+    expect(await changed.allTextContents()).toEqual(['2k→1K'])
     const q = (await composer(page)).queue
     expect(q.map(i => i.model)).toEqual(['gpt-image-2', 'z-image-turbo'])
   })
@@ -59,6 +59,33 @@ e2eDescribe('composer (mock, signed in)', () => {
     await result.getByRole('img', { name: /GPT Image 2 结果 1|gpt-image-2 结果 1/ }).waitFor({ timeout: 30_000 })
     await result.getByRole('img', { name: /z-image-turbo 结果 1/ }).waitFor({ timeout: 30_000 })
     await result.getByText(/2 项 · 完成 2/).waitFor()
+  })
+
+  it('每个目录参数都有控件；改画质会重新报价', async () => {
+    const { page } = t
+    await editor().click()
+    await page.keyboard.type('一杯青柠气泡水')
+    await page.getByRole('button', { name: /^型号：/ }).click()
+    await page.getByRole('button', { name: /^GPT Image 2.5 Flare/ }).click()
+    // 画质是价格参数，进主行；张数也在主行，没有别的参数时就没有「更多参数」。
+    const points = () => page.getByRole('button', { name: /^发送/ }).textContent()
+    // 记住的 2k 对 Flare 仍然有效，所以沿用（8 × 1.5）。
+    await expect.poll(points, { timeout: 10_000 }).toMatch(/约 12/)
+    await page.getByRole('button', { name: '画质：medium' }).click()
+    await page.getByRole('menuitemcheckbox', { name: 'max' }).click()
+    await expect.poll(points, { timeout: 10_000 }).toMatch(/约 38.4/)
+    expect(await page.getByRole('button', { name: '更多参数' }).count()).toBe(0)
+
+    // Seedance：种子（整数输入 + 随机）与声音（开关）都在「更多参数」里，不会被悄悄丢掉。
+    await page.getByRole('radio', { name: '视频' }).click()
+    await page.getByRole('button', { name: '更多参数' }).click()
+    await page.getByRole('button', { name: '随机种子' }).click()
+    await page.getByRole('radio', { name: '开', exact: true }).click()
+    await page.keyboard.press('Escape')
+    const params = (await composer(page)).params
+    expect(Number.isInteger(params.seed)).toBe(true)
+    expect(params.sound).toBe('true')
+    expect(params.duration).toBe('5')
   })
 
   it('Enter inserts a newline; Cmd/Ctrl+Enter submits', async () => {

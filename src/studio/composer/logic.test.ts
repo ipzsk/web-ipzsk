@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { hashKey } from '@tanstack/react-query'
 import type { JSONContent } from '@tiptap/core'
 import type { MediaAsset } from '@/media'
+import type { ModelSpec, ParamSpec } from '@/shared/contracts'
 import { MOCK_MODELS } from '../api/catalog'
 import type { QueueEntry, RefSlot } from '../api/queue'
 import { classify, type SubmitOutcome } from '../api/generation'
@@ -10,33 +11,72 @@ import {
   addFromChip, addManual, diffItem, expandModels, itemFromDraft, normalizeParams, planSend, pruneChips,
   quoteEntry, referenceState, sentReferenceIds, serializePrompt, type Draft,
   modelPriceLabel, summaryParams, unitLabel,
+  boolValues, controlOf, defaultOf, defaultParams, formatParam, paramLabel,
 } from './logic'
 import { quoteQueryKey } from './hooks'
 import { createSender } from './send'
 
-const [gpt, flare, turbo, seedance] = MOCK_MODELS as [typeof MOCK_MODELS[0], typeof MOCK_MODELS[0], typeof MOCK_MODELS[0], typeof MOCK_MODELS[0]]
+const byId = (id: string) => MOCK_MODELS.find(m => m.id === id)!
+const [gpt, flare, gemini, turbo, seedance] = ['gpt-image-2', 'gpt-image-2.5-flare', 'gemini-3.1-flash-image-preview', 'z-image-turbo', 'seedance-2.0-mini'].map(byId) as [ModelSpec, ModelSpec, ModelSpec, ModelSpec, ModelSpec]
 const asset = (id: string): MediaAsset => ({ id, kind: 'image', status: 'ready', width: 1, height: 1, duration_ms: null, urls: { orig: id } })
 const text = (t: string): JSONContent => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })
-const draft = (over: Partial<Draft> = {}): Draft => ({ kind: 'image', model: gpt, params: { aspect_ratio: '16:9', resolution: '2K', n: 2 }, doc: text('橘猫'), slots: [], ...over })
+const draft = (over: Partial<Draft> = {}): Draft => ({ kind: 'image', model: gpt, params: { aspect_ratio: '16:9', resolution: '2k', n: 2 }, doc: text('橘猫'), slots: [], ...over })
 
 describe('params', () => {
   it('multi-model expansion normalises per model and records changes', () => {
     const [a, b] = expandModels(draft(), [gpt, turbo])
     expect(a!.model).toBe('gpt-image-2')
     expect(a!.changes).toEqual([])
-    expect(b!.params).toEqual({ aspect_ratio: '16:9', resolution: '1K', n: 2 })
-    expect(b!.changes).toEqual([{ name: 'resolution', from: '2K', to: '1K' }])
+    expect(b!.params).toEqual({ aspect_ratio: '16:9', resolution: '1K', enhance_prompt: 'false', n: 2 })
+    expect(b!.changes).toEqual([{ name: 'resolution', from: '2k', to: '1K' }])
     expect(a!.item_id).not.toBe(b!.item_id)
     expect(a!.prompt).toBe(b!.prompt)
   })
   it('out-of-range resets to model default; values are case-sensitive; undeclared params dropped', () => {
-    expect(normalizeParams(flare, { resolution: '2k', aspect_ratio: '5:4' })).toEqual({
-      params: { aspect_ratio: '5:4', resolution: '1K', n: 1 }, changes: [{ name: 'resolution', from: '2k', to: '1K' }],
+    expect(normalizeParams(flare, { resolution: '2K', aspect_ratio: '5:4' })).toEqual({
+      params: { aspect_ratio: '5:4', resolution: '1k', quality: 'medium', n: 1 }, changes: [{ name: 'resolution', from: '2K', to: '1k' }],
     })
-    const v = normalizeParams(seedance, { aspect_ratio: '3:2', n: 3, duration: 7 })
-    expect(v.params).toEqual({ aspect_ratio: '16:9', resolution: '720p', duration: 5 })
+    const v = normalizeParams(seedance, { aspect_ratio: '3:1', n: 3, duration: 7 })
+    expect(v.params).toEqual({ aspect_ratio: '16:9', resolution: '720p', duration: '5', sound: 'false' })
     expect(v.changes.map(c => c.name)).toEqual(['aspect_ratio', 'duration'])
     expect(normalizeParams(gpt, { n: 9 }).params.n).toBe(1)
+  })
+
+  const spec = (over: Partial<ParamSpec>): ParamSpec => ({ field: 'x', type: 'string', default: null, ...over })
+  it('每个 ParamSpec 都映射到一个控件，未知类型退化成文本框', () => {
+    const of = (m: ModelSpec, f: string) => controlOf(m.params.find(p => p.field === f)!)
+    expect(of(flare, 'aspect_ratio')).toBe('enum')
+    expect(of(flare, 'quality')).toBe('enum')
+    expect(of(gemini, 'resolution')).toBe('enum')
+    expect(of(seedance, 'duration')).toBe('enum') // 字符串数组 "4".."15" 仍是枚举
+    expect(of(seedance, 'seed')).toBe('number')   // integer 且没有 values
+    expect(of(seedance, 'sound')).toBe('boolean')
+    expect(of(turbo, 'enhance_prompt')).toBe('boolean') // values ["true","false"] 其实是布尔
+    expect(controlOf(spec({ type: 'string' }))).toBe('text')
+    expect(controlOf(spec({ type: 'rating' as ParamSpec['type'] }))).toBe('text') // 未知类型不崩、不丢
+  })
+  it('布尔按目录声明的形态回写；无默认值时为关', () => {
+    expect(boolValues(spec({ type: 'boolean' }))).toEqual([true, false])
+    expect(boolValues(spec({ type: 'boolean', values: ['true', 'false'] }))).toEqual(['true', 'false'])
+    expect(defaultOf(spec({ type: 'boolean' }))).toBe(false)
+    expect(defaultOf(spec({ type: 'boolean', values: ['true', 'false'] }))).toBe('false')
+    expect(defaultOf(spec({ field: 'seed', type: 'integer' }))).toBeUndefined()
+  })
+  it('目录 default 决定初值；没有 default 的参数不下发空值', () => {
+    expect(defaultParams(flare)).toEqual({ aspect_ratio: 'auto', resolution: '1k', quality: 'medium', n: 1 })
+    expect(defaultParams(seedance)).toEqual({ aspect_ratio: '16:9', resolution: '720p', duration: '5', sound: 'false' })
+    expect('seed' in defaultParams(seedance)).toBe(false)
+    // 记住的值仍然有效时优先于 default
+    expect(normalizeParams(flare, { quality: 'max' }).params.quality).toBe('max')
+    // 空字符串既不算有效值，也不算「用户改过」
+    expect(normalizeParams(seedance, { seed: '' as unknown as number })).toEqual({ params: defaultParams(seedance), changes: [] })
+  })
+  it('中文标签；未知字段回落到原始 key', () => {
+    expect(['aspect_ratio', 'resolution', 'quality', 'n', 'duration', 'seed', 'sound', 'generate_audio', 'enhance_prompt'].map(paramLabel))
+      .toEqual(['比例', '分辨率', '画质', '张数', '时长', '种子', '声音', '声音', '提示词增强'])
+    expect(paramLabel('cfg_scale')).toBe('cfg_scale')
+    expect([formatParam('sound', true), formatParam('enhance_prompt', 'false'), formatParam('seed', undefined), formatParam('duration', '15')])
+      .toEqual(['开', '关', '随机', '15秒'])
   })
 })
 
@@ -85,7 +125,7 @@ it('mention serialization', () => {
 
 it('queue diff highlights only what differs', () => {
   const cur = itemFromDraft(draft())
-  const d = diffItem({ ...itemFromDraft(draft({ params: { aspect_ratio: '1:1', resolution: '2K', n: 2 } })) }, cur)
+  const d = diffItem({ ...itemFromDraft(draft({ params: { aspect_ratio: '1:1', resolution: '2k', n: 2 } })) }, cur)
   expect([...d.params]).toEqual(['aspect_ratio'])
   expect(d.prompt || d.model || d.references).toBe(false)
   expect(diffItem(itemFromDraft(draft({ doc: text('狗') })), cur).prompt).toBe(true)

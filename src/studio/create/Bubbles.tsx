@@ -65,7 +65,7 @@ function ParamLine({ item, diff, label }: { item: ItemView; diff: Set<string>; l
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
       {label && <span className="font-semibold text-ink">{label}</span>}
       <span className={hl('model')}>{isAvatarParams(item.params) ? avatarItemSummary(item) : modelName(item.model)}</span>
-      {summaryParams(isAvatarParams(item.params) ? avatarDisplayParams(item.params) : item.params).map(([k, v]) => <span key={k} className={hl(k)}>· {paramText(v)}</span>)}
+      {summaryParams(isAvatarParams(item.params) ? avatarDisplayParams(item.params) : item.params).map(([k, v]) => <span key={k} className={hl(k)}>· {paramText(v, k)}</span>)}
       {item.anchor_record_id && <Badge tone="outline" className="h-5 px-1.5 text-[11px]">引用锚图</Badge>}
     </div>
   )

@@ -10,7 +10,9 @@ export const QUEUE_MAX = 12
 
 export type { Mention }
 export type ParamValue = GenerationParams[string]
-export interface ParamChange { name: string; from: ParamValue; to: ParamValue }
+/** `undefined` = param left unset (the catalog declares no default, e.g. seed → 随机). */
+export type ParamInput = ParamValue | undefined
+export interface ParamChange { name: string; from: ParamValue; to: ParamInput }
 /** A reference slot. `by` = uids of @ chips that introduced it; `manual` = user added it directly (§2.2). */
 export interface RefSlot { asset: MediaAsset; by: string[]; manual: boolean; /** URL without an asset id (case / canvas): displayed, never sent. */ url_only?: true }
 

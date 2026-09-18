@@ -12,7 +12,7 @@ import { DropTarget, useUpload, type MediaAsset } from '@/media'
 import { enhancePrompt, fetchModels } from '../api/catalog'
 import { SUBJECT_KIND_LABEL, type Subject } from '../api/subjects'
 import { openSubjectEditor } from '../subjects/SubjectEditor'
-import type { QueueEntry } from '../api/queue'
+import type { ParamInput, QueueEntry } from '../api/queue'
 import { clearDraft, loadDraft, useComposer } from '../store'
 import { useAccount, useModels, useQueueSync, useQuote, useSubjects } from './hooks'
 import {
@@ -251,7 +251,9 @@ export function Composer({ hidden }: { hidden: boolean }) {
     remember(m, n.params)
     flash(n.changes.map(c => c.name))
   }
-  const setParam = (name: string, v: GenerationParams[string]) => remember(model, { ...params, [name]: v })
+  // `undefined` = clear the param (the catalog gives it no default, e.g. seed → 随机): drop the key rather than send an empty value.
+  const setParam = (name: string, v: ParamInput) =>
+    remember(model, v === undefined ? Object.fromEntries(Object.entries(params).filter(([k]) => k !== name)) : { ...params, [name]: v })
 
   // ── quote ──
   const sendable = planSend(queue.filter(i => !submitting.has(i.item_id)), current)

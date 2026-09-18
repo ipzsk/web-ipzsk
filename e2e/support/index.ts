@@ -136,7 +136,8 @@ export const composer = (page: Page) => page.evaluate(() => {
   const s = (window as unknown as { __ipzskComposer: { getState: () => Record<string, any> } }).__ipzskComposer.getState()
   const text = (n: any): string => n ? (n.text ?? '') + (n.type === 'mention' ? `@${n.attrs.label}` : '') + (n.content ?? []).map(text).join(n.type === 'doc' ? '\n' : '') : ''
   return {
-    kind: s.kind as string, text: text(s.doc), doc: s.doc, editingId: s.editingId as string | null,
+    kind: s.kind as string, mode: (s.mode ?? null) as string | null, text: text(s.doc), doc: s.doc, editingId: s.editingId as string | null,
+    params: (s.memory[s.mode === 'avatar' ? 'avatar' : s.kind]?.params ?? {}) as Record<string, unknown>,
     slots: (s.slots as any[]).map(x => ({ id: x.asset.id as string, url_only: !!x.url_only })),
     queue: (s.queue as any[]).map(q => ({ item_id: q.item_id as string, model: q.model as string, anchor_of: q.anchor_of as string | null, params: q.params, changes: q.changes })),
   }

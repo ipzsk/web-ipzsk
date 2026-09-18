@@ -4,20 +4,45 @@ import type { GenerationParams, MediaKind, ModelSpec, ParamSpec } from '@/shared
 import { pointsNumber } from '@/shared/points'
 import type { MediaAsset } from '@/media'
 import type { QuoteEntry } from '../api/catalog'
-import type { Mention, ParamChange, ParamValue, QueueEntry, RefSlot } from '../api/queue'
+import type { Mention, ParamChange, ParamInput, ParamValue, QueueEntry, RefSlot } from '../api/queue'
 import { QUEUE_MAX } from '../api/queue'
 
 // ── params ────────────────────────────────────────────────────────────────
 
-/** Chip / select labels. The catalog only declares `field`; the wording is ours. */
-export const PARAM_LABELS: Record<string, string> = { aspect_ratio: '比例', resolution: '清晰度', n: '张数', duration: '时长' }
+/** Chip / select labels. The catalog only declares `field`; the wording is ours. Unknown fields fall back to the raw key. */
+export const PARAM_LABELS: Record<string, string> = {
+  aspect_ratio: '比例', resolution: '分辨率', quality: '画质', n: '张数', duration: '时长',
+  seed: '种子', sound: '声音', generate_audio: '声音', enhance_prompt: '提示词增强',
+}
 export const paramLabel = (field: string) => PARAM_LABELS[field] ?? field
 
 /** `unsupported` maps field → reason; those params are hidden. */
 export const visibleParams = (model: ModelSpec) => model.params.filter(p => !(p.field in (model.unsupported ?? {})))
 
-export function defaultOf(spec: ParamSpec): ParamValue {
-  return spec.default ?? spec.values?.[0] ?? (spec.type === 'boolean' ? false : '')
+/** Some catalogs advertise a boolean as an enum of the strings "true"/"false" — still a switch to us. */
+const BOOL_STRINGS = ['true', 'false']
+export const isBooleanParam = (spec: ParamSpec) =>
+  spec.type === 'boolean' || (spec.values?.length === 2 && spec.values.every(v => BOOL_STRINGS.includes(String(v))))
+
+/** Which control renders the param. `text` is the fallback for anything we don't recognise — never drop it silently. */
+export type ParamControl = 'boolean' | 'enum' | 'number' | 'text'
+export function controlOf(spec: ParamSpec): ParamControl {
+  if (isBooleanParam(spec)) return 'boolean'
+  if (spec.values?.length) return 'enum'
+  return spec.type === 'integer' ? 'number' : 'text'
+}
+
+/** The two values a boolean param is sent as — real booleans, or the catalog's own "true"/"false" strings. */
+export const boolValues = (spec: ParamSpec): [on: ParamValue, off: ParamValue] =>
+  [spec.values?.find(v => String(v) === 'true') ?? true, spec.values?.find(v => String(v) === 'false') ?? false]
+export const isOn = (v: ParamInput) => v === true || v === 'true'
+
+/** The value to start from, or undefined for an optional free field (seed) the catalog gives no default for. */
+export function defaultOf(spec: ParamSpec): ParamInput {
+  if (spec.default != null) return spec.default
+  if (isBooleanParam(spec)) return boolValues(spec)[1] // no declared default → off
+  if (spec.values?.length) return spec.values[0]
+  return undefined
 }
 
 export function optionsOf(spec: ParamSpec): ParamValue[] {
@@ -26,7 +51,8 @@ export function optionsOf(spec: ParamSpec): ParamValue[] {
   return []
 }
 
-function valid(spec: ParamSpec, v: ParamValue): boolean {
+function valid(spec: ParamSpec, v: ParamInput): v is ParamValue {
+  if (v === '' || v == null) return false
   if (spec.values) return spec.values.includes(v as string | number) // verbatim: '1K' ≠ '1k'
   if (spec.type === 'integer') return Number.isInteger(v)
   if (spec.type === 'boolean') return typeof v === 'boolean'
@@ -39,9 +65,10 @@ export function normalizeParams(model: ModelSpec, params: GenerationParams): { p
   const changes: ParamChange[] = []
   for (const spec of visibleParams(model)) {
     const v = params[spec.field]
-    if (v !== undefined && valid(spec, v)) { out[spec.field] = v; continue }
-    out[spec.field] = defaultOf(spec)
-    if (v !== undefined) changes.push({ name: spec.field, from: v, to: out[spec.field]! })
+    if (valid(spec, v)) { out[spec.field] = v; continue }
+    const d = defaultOf(spec)
+    if (d !== undefined) out[spec.field] = d // a param with no default stays unset rather than being sent as ''
+    if (v !== undefined && v !== '' && v !== d) changes.push({ name: spec.field, from: v, to: d })
   }
   return { params: out, changes }
 }
@@ -51,8 +78,7 @@ const UNIT_LABELS: Record<string, string> = { per_call: '按次', image: '按次
 export const unitLabel = (unit: string | null | undefined) => (unit && UNIT_LABELS[unit]) ?? ''
 
 /** A model's default params (empty defaults dropped) — what the model picker quotes. */
-export const defaultParams = (model: ModelSpec): GenerationParams =>
-  Object.fromEntries(summaryParams(Object.fromEntries(visibleParams(model).map(p => [p.field, defaultOf(p)]))))
+export const defaultParams = (model: ModelSpec): GenerationParams => normalizeParams(model, {}).params
 
 /** 「约 5.7 点/张」 from a default-params quote; falls back to the unit label when there is no price or no per-unit base. */
 export function modelPriceLabel(model: ModelSpec, points: number | null | undefined): string {
@@ -71,10 +97,12 @@ export function modelPriceLabel(model: ModelSpec, points: number | null | undefi
 /** Param entries worth showing in a summary row (「型号 · 1k · 21:9」): empty values would leave stray 「·」 separators. */
 export const summaryParams = (params: GenerationParams) => Object.entries(params).filter(([, v]) => v !== '' && v != null)
 
-export function formatParam(name: string, v: ParamValue): string {
+export function formatParam(name: string, v: ParamInput): string {
+  if (v === undefined || v === '' || v === null) return name === 'seed' ? '随机' : '默认'
   if (name === 'n') return `${v}张`
   if (name === 'duration') return `${v}秒`
-  if (typeof v === 'boolean') return v ? '开' : '关'
+  if (v === true || v === 'true') return '开'
+  if (v === false || v === 'false') return '关'
   return String(v)
 }
 
