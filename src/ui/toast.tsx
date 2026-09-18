@@ -18,7 +18,7 @@ let seq = 0
 const useToasts = create<{ items: ToastItem[] }>(() => ({ items: [] }))
 const MAX = 3
 
-/** §4.5: bottom-right, max 3, 4s, pauses on hover (Radix), optional action. */
+/** §4.5: top-center under the header, max 3, 4s, pauses on hover (Radix), optional action. */
 export function toast(input: ToastInput) {
   const id = ++seq
   useToasts.setState(s => ({ items: [...s.items, { ...input, id, open: true }].slice(-MAX) }))
@@ -54,7 +54,8 @@ export function Toaster() {
           </T.Close>
         </T.Root>
       ))}
-      <T.Viewport className="fixed left-1/2 top-4 z-[60] flex w-[calc(100vw-32px)] max-w-sm -translate-x-1/2 flex-col gap-2 outline-none" />
+      {/* Clears the sticky SiteHeader (h-16 / h-[104px] under 720px — keep both in sync with SiteHeader). */}
+      <T.Viewport className="fixed left-1/2 top-[76px] max-[720px]:top-[116px] z-[60] flex w-[calc(100vw-32px)] max-w-sm -translate-x-1/2 flex-col gap-2 outline-none" />
     </T.Provider>
   )
 }
