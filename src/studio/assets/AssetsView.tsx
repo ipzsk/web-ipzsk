@@ -128,7 +128,7 @@ function AssetsPage() {
   const toggleFav = useToggleFavorite()
 
   const caseFavs = useFavorites()
-  const caseIds = useMemo(() => [...caseFavs].reverse(), [caseFavs])
+  const caseIds = useMemo(() => [...caseFavs], [caseFavs]) // the account list is already newest-first
   const cases = useQuery({
     queryKey: ['assets', 'fav-cases', caseIds],
     queryFn: async () => (await Promise.all(caseIds.map(getCase))).filter((c): c is CaseItem => !!c),
