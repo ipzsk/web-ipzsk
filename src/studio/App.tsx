@@ -62,6 +62,7 @@ function NavItem({ to, label, icon: Icon, variant }: (typeof views)[number] & { 
 function Layout() {
   const { pathname, search, hash } = useLocation()
   const viewKey = viewKeyOf(pathname)
+  const composerVisible = viewKey !== 'canvas' && viewKey !== '_states'
   const online = useOnline()
   const sessionExpired = useUnauthorizedBroadcast()
   useScrollMemory(viewKey)
@@ -74,15 +75,16 @@ function Layout() {
     else useComposer.getState().setKind(k)
     if (pathname !== '/studio') navigate(`/studio?kind=${k}`)
   }
-  // The composer is the single source of truth for ?kind= on the feed: every switch (header, composer toggle,
-  // empty-state links) lands here and replaces the URL in place, keeping q/cat/case. Entry is read by readKindOnce.
+  // The composer is the single source of truth for ?kind= wherever it is visible (灵感, 创作): each switch
+  // replaces the URL in place, keeping q/cat/case. Entry is read once by readKindOnce.
+  // 素材 is excluded on purpose — /studio/assets already owns ?kind= as its own 全部/图片/视频 filter.
   useEffect(() => {
-    if (pathname !== '/studio') return
+    if (!composerVisible || viewKey === 'assets') return
     const params = new URLSearchParams(search)
     if ((params.get('kind') ?? 'image') === studioKind) return
     params.set('kind', studioKind)
     navigate({ search: `?${params}`, hash }, { replace: true })
-  }, [pathname, search, hash, studioKind, navigate])
+  }, [composerVisible, viewKey, search, hash, studioKind, navigate])
   return (
     <MediaDndProvider>
     <div className="min-h-dvh">
@@ -101,7 +103,7 @@ function Layout() {
           <div key={viewKey} className="motion-safe:animate-fade-in"><Outlet /></div>
         </main>
       </div>
-      <Composer hidden={viewKey === 'canvas' || viewKey === '_states'} />
+      <Composer hidden={!composerVisible} />
       <nav aria-label="工作台" className="fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
         {views.map(v => <NavItem key={v.id} {...v} variant="tab" />)}
       </nav>
