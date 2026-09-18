@@ -402,14 +402,18 @@ export function Composer({ hidden }: { hidden: boolean }) {
               </div>
               </>}
               {!avatar && vars.length > 0 && <div className="flex flex-wrap gap-1.5 px-1 pt-1">{vars.map(v => <SubjectVarPicker key={v} token={v} subjects={subjects.data ?? []} />)}</div>}
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {/* 单行不换行：参数多了（seedance 有比例/时长/分辨率/更多参数）时左侧横向滚动，
+                  发送按钮始终留在同一行右端——换行会把它们甩到下一行，看起来像错位。 */}
+              <div className="mt-2 flex items-center gap-1.5">
+                <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto pb-0.5 whitespace-nowrap [scrollbar-width:none] [&>*]:shrink-0 [&::-webkit-scrollbar]:hidden">
                 <SegmentedControl<MediaKind | 'avatar'> label="类型" value={avatarMode ? 'avatar' : kind} onValueChange={setKind} options={[{ value: 'image', label: '图片', icon: Image }, { value: 'video', label: '视频', icon: Clapperboard }, { value: 'avatar', label: '数字人', icon: UserRound }]} />
                 {!avatarMode && <ModelPicker
                   models={kindModels} model={model} signedIn={account.signedIn} status={!account.signedIn && models.isError ? 'signedOut' : models.status} onRetry={() => void models.refetch()}
                   onPick={pickModel} onAddMany={addMany} roomFor={n => !hasPrompt ? '先输入提示词' : queueRoom(queue.length, n)}
                 />}
                 {model && <ParamChips model={model} params={params} highlight={highlight} onChange={setParam} />}
-                <div className="ml-auto flex items-center gap-1.5">
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
                 <Button variant="secondary" icon={<ListPlus className="size-[18px]" />} disabled={!!addReason} disabledReason={addReason ?? undefined} onClick={addToQueue}>
                   {editingId ? '更新' : '加入队列'}
                 </Button>

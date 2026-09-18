@@ -49,15 +49,17 @@ export function AuditPage() {
         : (
           // Wide table scrolls inside its own box on phones instead of widening the page.
           <div className="-mx-1 overflow-x-auto px-1">
-          <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
-            <thead><tr><th className={th}>时间</th><th className={th}>操作者</th><th className={th}>动作</th><th className={th}>对象</th><th className={th}>详情</th></tr></thead>
+          <table className="w-full min-w-[900px] border-separate border-spacing-0 text-sm">
+            {/* 固定列宽：操作者那列没有宽度时会被 id / 详情挤成一个字宽，中文竖着排。 */}
+            <colgroup><col className="w-[150px]" /><col className="w-[190px]" /><col className="w-[150px]" /><col className="w-[260px]" /><col /></colgroup>
+            <thead><tr><th className={`${th} whitespace-nowrap`}>时间</th><th className={`${th} whitespace-nowrap`}>操作者</th><th className={`${th} whitespace-nowrap`}>动作</th><th className={`${th} whitespace-nowrap`}>对象</th><th className={`${th} whitespace-nowrap`}>详情</th></tr></thead>
             <tbody>
               {rows.map(e => (
                 <tr key={e.id} className="hover:bg-card">
                   <td className={`${td} whitespace-nowrap text-xs text-muted tabular-nums`}>{fmtTime(e.created_at)}</td>
-                  <td className={td}>{e.actor?.email ?? <span className="text-muted">旧中台管理员 #{e.legacy_administrator_id}</span>}</td>
-                  <td className={td}><code className="text-xs">{e.action}</code></td>
-                  <td className={td}><code className="text-xs">{e.target_id ?? '—'}</code></td>
+                  <td className={`${td} break-all`} title={e.actor?.email ?? undefined}>{e.actor?.email ?? <span className="text-muted">旧中台管理员 #{e.legacy_administrator_id}</span>}</td>
+                  <td className={`${td} whitespace-nowrap`}><code className="text-xs">{e.action}</code></td>
+                  <td className={`${td} break-all`}><code className="text-xs">{e.target_id ?? '—'}</code></td>
                   <td className={`${td} font-mono text-xs text-muted`}>{e.details ? JSON.stringify(e.details) : '—'}</td>
                 </tr>
               ))}

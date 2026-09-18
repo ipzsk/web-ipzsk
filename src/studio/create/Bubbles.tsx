@@ -138,12 +138,12 @@ function Status({ item, now }: { item: ItemView; now: number }) {
       return (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="flex items-center gap-1.5 text-danger"><TriangleAlert className="size-4" />{item.failure}</span>
-          <span className="text-xs text-muted">{item.status === 'submit_failed' || Number(item.charged_points ?? 0) === 0 ? '未扣点' : `已扣 ${formatPoints(item.charged_points)}`}</span>
+          <span className="text-xs text-muted">{item.status === 'submit_failed' || Number(item.charged_points ?? 0) === 0 ? '未消耗积分' : `消耗积分 ${formatPoints(item.charged_points)}`}</span>
           <Button size="sm" icon={<RefreshCw className="size-4" />} onClick={() => regenerate(item)}>重试</Button>
         </div>
       )
     case 'cancelled':
-      return <p className="text-sm text-muted">已取消{item.failure ? ` · ${item.failure}` : ''} · 未扣点</p>
+      return <p className="text-sm text-muted">已取消{item.failure ? ` · ${item.failure}` : ''} · 未消耗积分</p>
     default:
       return null
   }

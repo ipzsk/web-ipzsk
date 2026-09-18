@@ -136,13 +136,13 @@ export function differingParams(items: ItemView[]): Set<string> {
 const TERMINAL = new Set(['succeeded', 'failed', 'cancelled'])
 export const isActive = (s: ItemView['status']) => s === 'queued' || s === 'running' || s === 'submitting'
 
-/** 「已扣 N 点」 once every finished item is settled; 「结算中」 while any finished item still has null; null when nothing finished. */
+/** 「消耗积分 N 点」 once every finished item is settled; 「结算中」 while any finished item still has null; null when nothing finished. */
 export function chargeLabel(items: Pick<ItemView, 'status' | 'charged_points'>[]): string | null {
   const done = items.filter(i => TERMINAL.has(i.status))
   if (!done.length) return null
   if (done.some(i => i.status === 'succeeded' && i.charged_points == null)) return '结算中'
   const sum = done.reduce((a, i) => a + Number(i.charged_points ?? 0), 0)
-  return `已扣 ${formatPoints(sum)}`
+  return `消耗积分 ${formatPoints(sum)}`
 }
 
 /** Anchors that reached a terminal state → composer calls. `watched` (record_id → item_id) is consumed, so repeat calls are no-ops. */

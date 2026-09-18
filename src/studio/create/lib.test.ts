@@ -75,7 +75,7 @@ describe('charges', () => {
   it('结算中 until every success is settled; failures count as 0', () => {
     expect(chargeLabel([{ status: 'running', charged_points: null }])).toBeNull()
     expect(chargeLabel([{ status: 'succeeded', charged_points: null }, { status: 'succeeded', charged_points: '6' }])).toBe('结算中')
-    expect(chargeLabel([{ status: 'succeeded', charged_points: '6' }, { status: 'failed', charged_points: '0' }, { status: 'succeeded', charged_points: '1.5' }])).toBe('已扣 7.5 点')
+    expect(chargeLabel([{ status: 'succeeded', charged_points: '6' }, { status: 'failed', charged_points: '0' }, { status: 'succeeded', charged_points: '1.5' }])).toBe('消耗积分 7.5 点')
   })
 })
 

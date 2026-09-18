@@ -124,8 +124,8 @@ function Shell() {
         <div className="mb-2 grid gap-1.5 rounded-card bg-subtle px-3 py-2.5 max-md:hidden">
           <span className="truncate text-xs text-ink/80">{me.user.email}</span>
           <span className="flex flex-wrap gap-1" aria-label="当前角色">{me.roles.map(r => <Badge key={r} tone={r === 'admin' ? 'ink' : r === 'operator' ? 'acid' : 'outline'}>{ROLE_LABEL[r]}</Badge>)}</span>
-          <span className={cn('text-[11px]', left.low ? 'text-danger' : 'text-ink/80')}>{left.label}</span>
-          {left.low && <><span className="text-[11px] leading-4 text-muted">到期后管理操作会被拒绝，建议先重新登录。</span><ReloginButton size="sm" /></>}
+          {/* 平时不提会话时长（没人关心还剩几小时）；只在快到期时提醒，因为到期后管理操作会被拒。 */}
+          {left.low && <><span className="text-[11px] text-danger">{left.label}</span><span className="text-[11px] leading-4 text-muted">到期后管理操作会被拒绝，建议先重新登录。</span><ReloginButton size="sm" /></>}
         </div>
         {nav.map(({ group, items }) => [
           group && <p key={group} className="mt-3 px-3 pb-1 text-[11px] font-semibold text-muted max-md:hidden">{group}</p>,

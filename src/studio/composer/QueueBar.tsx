@@ -71,7 +71,7 @@ function Row({ item, index, current, models, points, submitting, editing, onRemo
           : item.state === 'failed' ? <p role="alert" className="mt-0.5 flex items-center gap-1 text-xs text-danger"><AlertCircle className="size-3" />{(item.error?.message ?? '提交失败').replace(/。$/, '')}{item.error?.field && !(item.error.field in item.params) ? `（${item.error.field}）` : ''} · 编辑后重新发送</p>
           : item.state === 'retryable' ? <p className="mt-0.5 flex items-center gap-1 text-xs text-warning"><AlertCircle className="size-3" />{item.error?.message ?? '网络异常'} · <button type="button" className="inline-flex items-center gap-0.5 font-semibold underline-offset-2 hover:underline" onClick={() => void retryItem(item.item_id)}><RotateCw className="size-3" />重试</button></p>
           : item.state === 'waiting' ? <p className="mt-0.5 flex items-center gap-1 text-xs text-muted"><LoaderCircle className="size-3 motion-safe:animate-spin" />等待锚图生成完成</p>
-          : item.state === 'cancelled' ? <p className="mt-0.5 text-xs text-danger">已取消 · {item.error?.message ?? '锚图失败'}，未扣点</p>
+          : item.state === 'cancelled' ? <p className="mt-0.5 text-xs text-danger">已取消 · {item.error?.message ?? '锚图失败'}，未消耗积分</p>
           : null}
       </div>
       <div className="flex shrink-0 items-center opacity-70 group-hover:opacity-100 group-focus-within:opacity-100">
