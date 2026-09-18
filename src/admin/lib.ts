@@ -16,6 +16,20 @@ export function can(roles: readonly string[], cap: Capability): boolean {
   return roles.includes('admin') || roles.includes('operator')
 }
 
+/**
+ * The gateway only accepts /api/admin/* while the login session is younger than 12h, and it only
+ * resets on a fresh sign-in — so `low` is the cue to offer re-auth before an edit is lost.
+ */
+export function sessionLeft(expiresAt: string, now = Date.now()) {
+  const ms = Math.max(0, Date.parse(expiresAt) - now) || 0
+  const hours = Math.floor(ms / 3600_000)
+  return {
+    ms,
+    low: ms < 3600_000,
+    label: ms === 0 ? '管理会话已过期' : hours >= 1 ? `会话剩余约 ${hours} 小时` : `会话剩余约 ${Math.max(1, Math.round(ms / 60_000))} 分钟`,
+  }
+}
+
 /** Why a role chip can't be revoked (admin is acting). null = allowed. */
 export function revokeBlockReason(p: { role: Role; targetId: string; meId: string; adminCount: number }): string | null {
   if (p.role !== 'admin') return null

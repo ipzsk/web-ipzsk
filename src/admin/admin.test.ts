@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '@/shared/api'
-import { can, cancelBlockReason, moveCase, positionBetween, publishIssues, revokeBlockReason, templateIssues, type AdminCase } from './lib'
+import { can, cancelBlockReason, moveCase, positionBetween, publishIssues, revokeBlockReason, sessionLeft, templateIssues, type AdminCase } from './lib'
 import { createMockApi } from './api'
 
 const noDelay = async () => {}
@@ -25,6 +25,16 @@ describe('role gating', () => {
     expect(revokeBlockReason({ role: 'admin', targetId: 'x', meId: 'me', adminCount: 1 })).toMatch('最后')
     expect(revokeBlockReason({ role: 'admin', targetId: 'x', meId: 'me', adminCount: 2 })).toBeNull()
     expect(revokeBlockReason({ role: 'viewer', targetId: 'me', meId: 'me', adminCount: 1 })).toBeNull()
+  })
+  it('labels the 12h admin session and flags the last hour', () => {
+    const now = Date.parse('2026-09-18T12:00:00Z')
+    const at = (ms: number) => sessionLeft(new Date(now + ms).toISOString(), now)
+    expect(at(11 * 3600_000).label).toBe('会话剩余约 11 小时')
+    expect(at(11 * 3600_000).low).toBe(false)
+    expect(at(3600_000).low).toBe(false)
+    expect(at(25 * 60_000)).toMatchObject({ label: '会话剩余约 25 分钟', low: true })
+    expect(at(-5_000)).toMatchObject({ label: '管理会话已过期', low: true })
+    expect(sessionLeft('not a date', now).label).toBe('管理会话已过期')
   })
 })
 

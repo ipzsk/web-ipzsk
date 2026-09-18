@@ -1,13 +1,13 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { NavLink, Navigate, Route, Routes } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { ExternalLink, Gauge, Grid3x3, Images, ListChecks, LogIn, Logs, ScrollText, Server, ShieldOff, Users, type LucideIcon } from 'lucide-react'
 import { Badge, Button, OfflineBanner, Skeleton, cn, focusRing } from '@/ui'
-import { ApiError, UNAUTHORIZED_EVENT, loginUrl } from '@/shared/api'
+import { ApiError, UNAUTHORIZED_EVENT, isMock, loginUrl, request } from '@/shared/api'
 import { queryClient, useOnline } from '@/shared/query'
 import { SiteHeader } from '@/studio/SiteHeader'
 import { adminApi, type AdminMe } from './api'
-import { ROLE_LABEL, can, type Capability } from './lib'
+import { ROLE_LABEL, can, sessionLeft, type Capability } from './lib'
 import { CasesPage } from './CasesPage'
 import { CaseEditor } from './CaseEditor'
 import { UsersPage } from './UsersPage'
@@ -52,14 +52,15 @@ export function App() {
   }, [])
 
   const e = me.error instanceof ApiError ? me.error : null
-  const loginRequired = e?.status === 401 && e.code !== 'admin_session_expired'
+  // customer_login_required can arrive as 403 too (contract): it always means "sign in", never "you lack a role".
+  const loginRequired = e?.code === 'customer_login_required' || (e?.status === 401 && e.code !== 'admin_session_expired')
   useEffect(() => { if (loginRequired) location.replace(loginUrl('/admin')) }, [loginRequired])
 
   let body: ReactNode
   if (me.isPending) body = <GateSkeleton />
-  else if (e?.code === 'admin_session_expired') body = <GateMessage icon={LogIn} title="管理会话已过期" text="管理中台的登录有效期是 12 小时，重新登录后回到这里。" action={<Button variant="primary" onClick={() => location.assign(loginUrl('/admin'))}>重新登录</Button>} />
+  else if (e?.code === 'admin_session_expired') body = <GateMessage icon={LogIn} title="管理会话已过期" text="管理中台的操作要求最近 12 小时内登录过。你的网站登录仍然有效，所以要先退出、再登录一次：退出后会回到登录页，登录完成自动回到这里。" action={<ReloginButton />} />
   else if (loginRequired) body = <GateMessage icon={LogIn} title="正在跳转登录…" text="管理中台需要先登录。" action={<Button variant="primary" onClick={() => location.assign(loginUrl('/admin'))}>去登录</Button>} />
-  else if (e?.status === 403) body = <GateMessage icon={ShieldOff} title="没有访问权限" text="管理中台只对管理员、运营和只读成员开放。如需权限，请联系管理员为你的账户授予角色。" action={<Button onClick={() => location.assign('/studio')}>返回创作工作台</Button>} />
+  else if (e?.status === 403) body = <GateMessage icon={ShieldOff} title="没有访问权限" text="你的账户没有管理中台的角色。管理中台只对管理员、运营和只读成员开放，重新登录也不会改变这一点，请联系管理员为你的账户授予角色。" action={<Button onClick={() => location.assign('/studio')}>返回创作工作台</Button>} />
   else if (me.isError) body = <GateMessage icon={ShieldOff} title="加载失败" text="暂时无法确认你的权限，请检查网络后重试。" action={<Button variant="primary" onClick={() => void me.refetch()}>重试</Button>} />
   else body = <MeContext.Provider value={me.data}><Shell /></MeContext.Provider>
 
@@ -76,6 +77,21 @@ function Chrome({ children }: { children: ReactNode }) {
       </div>
       {children}
     </div>
+  )
+}
+
+/**
+ * The 12h admin window only resets on a fresh sign-in, and the site session (7d, auto-renewing) keeps
+ * /account showing the signed-in profile — so re-auth has to sign out first, same endpoint as 个人中心.
+ */
+function ReloginButton({ size }: { size?: 'sm' }) {
+  const [busy, setBusy] = useState(false)
+  return (
+    <Button variant="primary" size={size} loading={busy} loadingText="正在退出" onClick={async () => {
+      setBusy(true)
+      if (!isMock) { try { await request('/api/auth/sign-out', { body: {} }) } catch { /* already signed out → still go to login */ } }
+      location.replace(loginUrl('/admin'))
+    }}>退出并重新登录</Button>
   )
 }
 
@@ -101,14 +117,15 @@ function GateMessage({ icon: Icon, title, text, action }: { icon: LucideIcon; ti
 
 function Shell() {
   const me = useAdminMe()
-  const left = Math.max(0, Date.parse(me.session.expires_at) - Date.now())
+  const left = sessionLeft(me.session.expires_at)
   return (
     <div className="grid grid-cols-[220px_1fr] max-md:grid-cols-1">
       <aside aria-label="管理中台" className="sticky top-16 flex h-[calc(100dvh-64px)] flex-col gap-1 border-r border-line p-3 max-md:static max-md:h-auto max-md:flex-row max-md:flex-wrap max-md:gap-x-0.5 max-md:px-3 max-md:py-2 max-md:border-b max-md:border-r-0">
         <div className="mb-2 grid gap-1.5 rounded-card bg-subtle px-3 py-2.5 max-md:hidden">
           <span className="truncate text-xs text-ink/80">{me.user.email}</span>
           <span className="flex flex-wrap gap-1" aria-label="当前角色">{me.roles.map(r => <Badge key={r} tone={r === 'admin' ? 'ink' : r === 'operator' ? 'acid' : 'outline'}>{ROLE_LABEL[r]}</Badge>)}</span>
-          <span className="text-[11px] text-ink/80">会话剩余约 {Math.floor(left / 3600_000)} 小时</span>
+          <span className={cn('text-[11px]', left.low ? 'text-danger' : 'text-ink/80')}>{left.label}</span>
+          {left.low && <><span className="text-[11px] leading-4 text-muted">到期后管理操作会被拒绝，建议先重新登录。</span><ReloginButton size="sm" /></>}
         </div>
         {nav.map(({ group, items }) => [
           group && <p key={group} className="mt-3 px-3 pb-1 text-[11px] font-semibold text-muted max-md:hidden">{group}</p>,
