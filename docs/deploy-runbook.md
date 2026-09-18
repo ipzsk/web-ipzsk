@@ -600,7 +600,7 @@ node scripts/smoke/prod-smoke.cjs
 - vercel.json：`/account.html` 的 headers 条目；`/next/*` 的 rewrite 和 headers（到时候预览已经没有意义）
 
 **另外满足条件后再删**：
-- Vercel 函数 `api/image-prompt.js`、`api/image-result.js`、`api/tasks.js`、`api/images/generations.js`、`api/prompts/translate.js`、`api/v1/chat/`、`api/videos/generations.js`、`api/videos/tasks.js` 以及 `test/chat-completions.test.js`、`test/video-api.test.js`：它们只服务于旧 `/image`、`/video`（`image-studio/assets/*.js`）。条件：Vercel Functions 日志 14 天调用为 0。**保留** `api/desktop-release.js` 和 `tests/desktop-release.test.cjs`（新首页和下载页在用）。
+- Vercel 函数 `api/image-prompt.js`、`api/image-result.js`、`api/tasks.js`、`api/images/generations.js`、`api/prompts/translate.js`、`api/v1/chat/`、`api/videos/generations.js`、`api/videos/tasks.js` 以及 `test/chat-completions.test.js`、`test/video-api.test.js`：它们只服务于旧 `/image`、`/video`（`image-studio/assets/*.js`）。条件：Vercel Functions 日志 14 天调用为 0。`api/desktop-release.js` 和 `tests/desktop-release.test.cjs` 已删除：下载改走网关 `GET /api/public/desktop-release`（见 docs/desktop-downloads.md）。
 - `image-studio/` 整个目录：条件是 (1) §5.2 导入完成（35 张站内原图已经进 R2）；(2) 生产案例库走 API（默认）稳定 14 天。同时删掉静态清单回退：`scripts/build-cases-manifest.mjs`（读 `image-studio/assets/catalog.json`）、`src/studio/inspiration/data/cases.manifest.json` 以及 `inspiration/api.ts` 里的 manifest 分支。注意 `THIRD_PARTY_NOTICES` 和 dsh-imagegen NOTICE（§14）。
 - `.vercelignore` 里 `image-studio/*` 那几行随目录一起删。
 

@@ -1,11 +1,14 @@
-export const RELEASES_PAGE = 'https://github.com/JayceHuang/ipzsk-dsh-desktop/releases/latest'
-export const PLATFORMS = ['mac', 'mac-intel', 'windows'] as const
-export type Platform = (typeof PLATFORMS)[number]
+// 版本与安装包地址与首页同源：网关 GET /api/public/desktop-release（安装包在私有 R2，URL 是限时签名）。
+import { RELEASE_PAGE, fetchRelease, type Platform, type ReleasePayload } from '../home/release'
 
-export interface DesktopRelease { version: string; assets: Partial<Record<Platform, { name: string; url: string; bytes: number }>>; releasePage?: string }
+export const RELEASES_PAGE = RELEASE_PAGE
+export const PLATFORMS = ['mac', 'mac-intel', 'windows'] as const
+export type { Platform }
+
+export type DesktopRelease = ReleasePayload
 export interface DownloadButton { href: string | null; label: string; meta: string; external?: boolean }
 
-/** Port of workstation.js/home-downloads.js `release()`: per-platform button state from /api/desktop-release. */
+/** Port of workstation.js/home-downloads.js `release()`: per-platform button state. */
 export function downloadButtons(state: { status: 'loading' } | { status: 'error' } | { status: 'ok'; data: DesktopRelease }) {
   const buttons = {} as Record<Platform, DownloadButton>
   for (const p of PLATFORMS) {
@@ -14,7 +17,7 @@ export function downloadButtons(state: { status: 'loading' } | { status: 'error'
     else {
       const asset = state.data.assets?.[p]
       buttons[p] = asset
-        ? { href: asset.url, label: '下载最新正式版', meta: `v${state.data.version} · ${(asset.bytes / 1024 / 1024).toFixed(0)} MB` }
+        ? { href: asset.url, label: '下载最新正式版', meta: `v${state.data.version}${asset.bytes ? ` · ${(asset.bytes / 1024 / 1024).toFixed(0)} MB` : ''}` }
         : { href: null, label: '此平台暂未发布', meta: '最新正式版尚无此平台安装包' }
     }
   }
@@ -23,14 +26,7 @@ export function downloadButtons(state: { status: 'loading' } | { status: 'error'
   return { buttons, status }
 }
 
-export async function fetchDesktopRelease(): Promise<DesktopRelease> {
-  // contracts-ignore: Vercel function api/desktop-release.js, not a gateway route
-  const response = await fetch('/api/desktop-release')
-  if (!response.ok) throw new Error('unavailable')
-  const data = await response.json()
-  if (typeof data?.version !== 'string' || typeof data.assets !== 'object') throw new Error('invalid')
-  return data
-}
+export const fetchDesktopRelease = (): Promise<DesktopRelease> => fetchRelease()
 
 export type ToolCategory = 'knowledge' | 'creation' | 'remote' | 'business'
 export const FILTERS: { value: 'all' | ToolCategory; label: string }[] = [

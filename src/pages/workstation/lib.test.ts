@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { RELEASES_PAGE, TOOLS, downloadButtons } from './lib'
 
 describe('downloadButtons', () => {
-  const data = { version: '1.4.2', assets: { mac: { name: 'a.dmg', url: 'https://github.com/x/a.dmg', bytes: 187_000_000 }, windows: { name: 'b.exe', url: 'https://github.com/x/b.exe', bytes: 152_000_000 } } }
+  // R2 签名地址，形状与首页共用的 ReleasePayload 一致。
+  const data = { version: '1.4.2', assets: { mac: { name: 'a.dmg', url: 'https://r2.test/desktop/1.4.2/a.dmg?X-Amz-Signature=1', bytes: 187_000_000 }, windows: { name: 'b.exe', url: 'https://r2.test/desktop/1.4.2/b.exe?X-Amz-Signature=2', bytes: 152_000_000 } } }
   it('selects the asset per platform, missing platform disabled', () => {
     const { buttons, status } = downloadButtons({ status: 'ok', data })
-    expect(buttons.mac).toEqual({ href: 'https://github.com/x/a.dmg', label: '下载最新正式版', meta: 'v1.4.2 · 178 MB' })
+    expect(buttons.mac).toEqual({ href: data.assets.mac.url, label: '下载最新正式版', meta: 'v1.4.2 · 178 MB' })
     expect(buttons.windows.meta).toBe('v1.4.2 · 145 MB')
     expect(buttons['mac-intel']).toEqual({ href: null, label: '此平台暂未发布', meta: '最新正式版尚无此平台安装包' })
     expect(status).toBe('当前正式版 v1.4.2 · 生图等插件请在客户端插件市场安装和更新。')

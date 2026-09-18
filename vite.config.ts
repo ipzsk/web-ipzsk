@@ -64,7 +64,5 @@ export default defineConfig(({ command }) => ({
   },
   // Anchored: a plain '/api' key would also swallow the legacy /api.js module.
   server: { port: 5174, proxy: {
-    // Vercel function api/desktop-release.js (not a gateway route): use production's copy so /workstation and the home download menu work in dev.
-    '^/api/desktop-release': { target: SITE_ORIGIN, changeOrigin: true },
     '^/api/': api, '^/v1/': api } },
 }))

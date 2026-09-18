@@ -128,7 +128,7 @@ function Downloads() {
         {CARDS.map(c => {
           const b = buttons[c.platform]
           const cls = cn(buttonVariants({ variant: c.primary ? 'primary' : 'secondary', size: 'md' }), 'mt-6 w-fit')
-          const reason = release.isPending ? '正在读取 GitHub 最新正式版' : '最新正式版尚无此平台安装包'
+          const reason = release.isPending ? '正在读取最新正式版' : '最新正式版尚无此平台安装包'
           return (
             <article key={c.platform} className="flex flex-col rounded-panel border border-line bg-card p-7 max-md:p-5">
               <span className={eyebrow}>{c.tag}</span>

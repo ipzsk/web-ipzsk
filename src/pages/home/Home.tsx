@@ -43,7 +43,7 @@ export function useRelease() {
     const ac = new AbortController()
     fetchRelease(ac.signal)
       .then(p => setState({ status: 'ready', version: p.version, options: releaseOptions(p) }))
-      .catch((e: Error & { releasePage?: string }) => { if (e.name !== 'AbortError') setState({ status: 'error', options: releaseOptions(null, e.releasePage) }) })
+      .catch((e: Error) => { if (e.name !== 'AbortError') setState({ status: 'error', options: releaseOptions(null) }) })
     return () => ac.abort()
   }, [])
   return state
@@ -86,11 +86,14 @@ function DownloadMenu() {
         </div>
         {PLATFORMS.map((p, i) => {
           const o = options?.[i]
+          // o.href === null ⇒ 读到了版本但这一版没有此平台安装包：禁用，而不是给一个打不开的 GitHub 链接。
+          const unavailable = Boolean(o) && o!.href === null
           return (
             <a
-              key={p.id} role="menuitem" data-platform={p.id} href={o?.href ?? RELEASE_PAGE} aria-busy={!o || undefined}
-              title={o?.direct ? `${p.label} · ${o.meta}` : '前往 GitHub 发布页选择安装包'}
-              className={cn('flex min-h-16 items-center justify-between gap-4 rounded-control border-t border-line p-2.5 transition-colors duration-(--duration-fast) hover:bg-acid-soft', !o && 'cursor-progress', device === p.id && 'bg-acid-soft', focusRing, 'focus-visible:outline-offset-[-2px]')}
+              key={p.id} role="menuitem" data-platform={p.id} tabIndex={0} aria-busy={!o || undefined}
+              href={o ? (o.href ?? undefined) : RELEASE_PAGE} aria-disabled={unavailable || undefined}
+              title={o?.direct ? `${p.label} · ${o.meta}` : unavailable ? '这一版没有此平台安装包' : '前往 GitHub 发布页选择安装包'}
+              className={cn('flex min-h-16 items-center justify-between gap-4 rounded-control border-t border-line p-2.5 transition-colors duration-(--duration-fast)', !unavailable && 'hover:bg-acid-soft', !o && 'cursor-progress', unavailable && 'cursor-not-allowed opacity-55', device === p.id && !unavailable && 'bg-acid-soft', focusRing, 'focus-visible:outline-offset-[-2px]')}
             >
               <span className="grid gap-1">
                 <strong className="text-[15px] tracking-[-.025em]">{p.label}</strong>
@@ -98,7 +101,8 @@ function DownloadMenu() {
               </span>
               <b className="inline-flex shrink-0 items-center gap-1 text-[12px] font-black text-label">
                 {!o ? <><LoaderCircle aria-hidden className="size-3.5 motion-safe:animate-spin-slow" />读取版本…</>
-                  : o.direct ? <>{o.action}<Download aria-hidden className="size-3.5" /></> : <>{o.action}<ArrowUpRight aria-hidden className="size-3.5" /></>}
+                  : o.direct ? <>{o.action}<Download aria-hidden className="size-3.5" /></>
+                  : unavailable ? o.action : <>{o.action}<ArrowUpRight aria-hidden className="size-3.5" /></>}
               </b>
             </a>
           )
