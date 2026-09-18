@@ -64,7 +64,8 @@ function DownloadMenu() {
   useEffect(() => { if (location.hash === '#download') setOpen(true) }, [])
   const options = release.status === 'loading' ? null : release.options
   return (
-    <div ref={root} id="download" className="group/dl scroll-mt-32 md:relative">
+    // md:pb-3/-mb-3: the 12px gap belongs to the group box, otherwise the pointer crossing it drops :hover and the menu closes.
+    <div ref={root} id="download" className="group/dl scroll-mt-32 md:relative md:-mb-3 md:pb-3">
       <button
         ref={trigger} type="button" aria-haspopup="true" aria-expanded={open} aria-controls="download-menu" onClick={() => setOpen(o => !o)}
         className={cn('inline-flex h-[54px] min-w-[148px] cursor-pointer items-center justify-center gap-2 rounded-full border border-ink bg-ink px-6 text-[14px] font-extrabold text-white shadow-[0_14px_28px_rgba(29,31,32,.16)] transition-[transform,box-shadow] duration-(--duration-fast) hover:shadow-[0_18px_32px_rgba(29,31,32,.23)] motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[.98]', focusRing)}
@@ -74,7 +75,7 @@ function DownloadMenu() {
       <div
         id="download-menu" role="menu" aria-label="选择下载版本"
         className={cn(
-          'absolute left-1/2 top-[calc(100%+12px)] z-10 w-[min(352px,calc(100vw-28px))] -translate-x-1/2 rounded-[19px] border border-line bg-card p-3.5 text-left shadow-[0_24px_55px_rgba(29,31,32,.16)]',
+          'absolute left-1/2 top-full z-10 w-[min(352px,calc(100vw-28px))] -translate-x-1/2 rounded-[19px] border border-line bg-card p-3.5 text-left shadow-[0_24px_55px_rgba(29,31,32,.16)]',
           'transition-[opacity,translate] duration-(--duration-base) ease-(--ease-standard)',
           open ? 'visible opacity-100' : 'invisible opacity-0 motion-safe:-translate-y-[7px]',
           'md:group-hover/dl:visible md:group-hover/dl:translate-y-0 md:group-hover/dl:opacity-100',
