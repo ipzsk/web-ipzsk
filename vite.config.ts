@@ -47,8 +47,7 @@ const studioFallback: Plugin = {
 export default defineConfig(({ command }) => ({
   plugins: [react(), tailwindcss(), studioFallback],
   publicDir: false,
-  // Built files live at /dist/* on Vercel (project root is the output dir), so asset URLs need that prefix.
-  base: command === 'build' ? '/dist/' : '/',
+  base: '/',
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: {
     outDir: 'dist',

@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "buildCommand": "npm run build",
-  "outputDirectory": ".",
+  "outputDirectory": "dist",
   "redirects": [
     {
       "source": "/video",
@@ -143,43 +143,43 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/dist/pages/home.html"
+      "destination": "/pages/home.html"
     },
     {
       "source": "/workstation",
-      "destination": "/dist/pages/workstation.html"
+      "destination": "/pages/workstation.html"
     },
     {
       "source": "/account",
-      "destination": "/dist/pages/account.html"
+      "destination": "/pages/account.html"
     },
     {
       "source": "/developer",
-      "destination": "/dist/pages/developer.html"
+      "destination": "/pages/developer.html"
     },
     {
       "source": "/workspace",
-      "destination": "/dist/pages/workspace.html"
+      "destination": "/pages/workspace.html"
     },
     {
       "source": "/studio",
-      "destination": "/dist/studio.html"
+      "destination": "/studio.html"
     },
     {
       "source": "/studio/(.*)",
-      "destination": "/dist/studio.html"
+      "destination": "/studio.html"
     },
     {
       "source": "/admin",
-      "destination": "/dist/admin.html"
+      "destination": "/admin.html"
     },
     {
       "source": "/admin/(.*)",
-      "destination": "/dist/admin.html"
+      "destination": "/admin.html"
     },
     {
       "source": "/next/:page(home|account|developer|workstation|workspace)",
-      "destination": "/dist/pages/:page.html"
+      "destination": "/pages/:page.html"
     }
   ],
   "headers": [
@@ -289,7 +289,7 @@
       ]
     },
     {
-      "source": "/dist/studio.html",
+      "source": "/studio.html",
       "headers": [
         {
           "key": "Cache-Control",
@@ -335,7 +335,7 @@
       ]
     },
     {
-      "source": "/dist/admin.html",
+      "source": "/admin.html",
       "headers": [
         {
           "key": "Cache-Control",
@@ -402,7 +402,7 @@
       ]
     },
     {
-      "source": "/dist/pages/(.*)",
+      "source": "/pages/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -423,11 +423,11 @@
       ]
     },
     {
-      "source": "/dist/assets/(.*)",
+      "source": "/assets/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
+          "value": "public, max-age=3600"
         }
       ]
     },
