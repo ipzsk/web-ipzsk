@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
-import { Clapperboard, Copy, Ellipsis, ExternalLink, Heart, SearchX, UserRound, WandSparkles } from 'lucide-react'
+import { Clapperboard, Copy, Ellipsis, ExternalLink, Heart, Info, SearchX, UserRound, WandSparkles } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, EmptyState, OptionsCombobox, cn, focusRing, type ComboGroup } from '@/ui'
 import { MasonryGrid, MediaCard, type MasonryGridHandle } from '@/media'
 import { toggleFavorite, useCases, useCategories, useFavorites } from './api'
@@ -209,7 +209,11 @@ function CaseLibrary() {
   )
 }
 
-/** `short`: wide/flat cards (≲200px tall) keep only title + 做同款 in the hover overlay, so nothing crowds or truncates. */
+/**
+ * 点卡片本体 = 把提示词填进输入框（不再开详情）：网页版就是拿来体验的，少一步算一步；
+ * 详情走「⋯」菜单（触屏长按也开这个菜单）。
+ * `short`: wide/flat cards (≲200px tall) keep only title + 做同款 in the hover overlay, so nothing crowds or truncates.
+ */
 function CaseCard({ c, priority, fav, onOpen, short }: { c: CaseItem; priority: boolean; fav: boolean; onOpen: (c: CaseItem) => void; short: boolean }) {
   const [menu, setMenu] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -242,7 +246,7 @@ function CaseCard({ c, priority, fav, onOpen, short }: { c: CaseItem; priority: 
         asset={caseAsset(c)}
         title={c.title}
         priority={priority}
-        onOpen={() => onOpen(c)}
+        onOpen={() => fillComposer(c)}
         overlay={
           <div className="grid gap-1.5">
             {c.author && !short && <p className="truncate text-xs text-card/80">{c.author}</p>}
@@ -280,6 +284,7 @@ function CaseCard({ c, priority, fav, onOpen, short }: { c: CaseItem; priority: 
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => fillComposer(c)}><WandSparkles aria-hidden />做同款</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onOpen(c)}><Info aria-hidden />查看详情</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => toggleFavorite(c.id)}><Heart aria-hidden className={cn(fav && 'fill-current')} />{fav ? '取消收藏' : '收藏'}</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void copyPrompt(c)}><Copy aria-hidden />复制提示词</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => window.open(c.image.urls.orig, '_blank', 'noopener,noreferrer')}><ExternalLink aria-hidden />新标签打开原图</DropdownMenuItem>

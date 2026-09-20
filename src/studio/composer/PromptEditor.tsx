@@ -278,7 +278,9 @@ export function PromptEditor({ onSubmit, onFiles, placeholder }: { onSubmit: () 
       attributes: {
         'aria-label': '提示词', role: 'textbox', 'aria-multiline': 'true',
         class: cn(
-          'max-h-[calc(8*1.5rem+.5rem)] min-h-12 overflow-y-auto px-2 py-1 text-sm leading-6 outline-none',
+          // cursor-text：不写的话是 preflight 的 cursor:auto，浏览器逐字判定——压在字上是文本光标，
+          // 落在字间空隙、行尾、内边距上就变回箭头，鼠标一动指针就来回跳。
+          'max-h-[calc(8*1.5rem+.5rem)] min-h-12 cursor-text overflow-y-auto px-2 py-1 text-sm leading-6 outline-none',
           '[&_p.is-editor-empty:first-child]:before:pointer-events-none [&_p.is-editor-empty:first-child]:before:float-left [&_p.is-editor-empty:first-child]:before:h-0',
           '[&_p.is-editor-empty:first-child]:before:text-muted [&_p.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]',
         ),

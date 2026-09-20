@@ -2,7 +2,7 @@
 import type { JSONContent } from '@tiptap/core'
 import type { GenerationParams, MediaKind, MissingAsset, RecordAsset } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
-import { formatPoints } from '@/shared/points'
+import { formatCharge } from '@/shared/points'
 import type { Mention } from '../api/queue'
 import { AVATAR_ERRORS } from '../avatar/contract'
 import type { GenerationRecord, GenerationStatus } from '../api/records'
@@ -40,7 +40,7 @@ export interface PendingState { status: 'idle' | 'pending' | 'success' | 'error'
 export const FAILURE_MESSAGES: Record<string, string> = {
   ...Object.fromEntries(Object.entries(AVATAR_ERRORS).map(([k, v]) => [k, v.message])), // 数字人（avatar/contract.ts）
   // Gateway error codes (endpoints.json) that can end a media task / submit. Unknown codes fall back to 「生成失败（code）」.
-  insufficient_balance: '点数不足',
+  insufficient_balance: '余额不足',
   too_many_active: '同时进行的任务太多，请稍后再试',
   unknown_model: '型号不可用',
   model_not_media: '型号不可用',
@@ -136,13 +136,13 @@ export function differingParams(items: ItemView[]): Set<string> {
 const TERMINAL = new Set(['succeeded', 'failed', 'cancelled'])
 export const isActive = (s: ItemView['status']) => s === 'queued' || s === 'running' || s === 'submitting'
 
-/** 「消耗积分 N 点」 once every finished item is settled; 「结算中」 while any finished item still has null; null when nothing finished. */
+/** 「消耗 ¥N」 once every finished item is settled; 「结算中」 while any finished item still has null; null when nothing finished. */
 export function chargeLabel(items: Pick<ItemView, 'status' | 'charged_points'>[]): string | null {
   const done = items.filter(i => TERMINAL.has(i.status))
   if (!done.length) return null
   if (done.some(i => i.status === 'succeeded' && i.charged_points == null)) return '结算中'
   const sum = done.reduce((a, i) => a + Number(i.charged_points ?? 0), 0)
-  return `消耗积分 ${formatPoints(sum)}`
+  return `消耗 ${formatCharge(sum)}`
 }
 
 /** Anchors that reached a terminal state → composer calls. `watched` (record_id → item_id) is consumed, so repeat calls are no-ops. */

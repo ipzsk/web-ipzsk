@@ -26,6 +26,9 @@ export interface ComposerState {
   doc: JSONContent | null
   docVersion: number
   slots: RefSlot[]
+  /** {{填空}} → 用户填的值。值存在这里而不是直接写进 doc，格子才能反复改；发送前由 applyVars 替换。 */
+  vars: Record<string, string>
+  setVar: (token: string, value: string) => void
   /** Queue item currently loaded into the composer via 「编辑」. */
   editingId: string | null
   queue: QueueEntry[]
@@ -46,6 +49,8 @@ export const useComposer = create<ComposerState>(set => ({
   doc: null,
   docVersion: 0,
   slots: [],
+  vars: {},
+  setVar: (token, value) => set(s => ({ vars: { ...s.vars, [token]: value } })),
   editingId: null,
   queue: [],
   threadId: null,
@@ -57,10 +62,10 @@ export function loadDraft(d: { kind: MediaKind; model?: string; params: Generati
   const avatar = isAvatarParams(d.params)
   if (avatar) hydrateAvatarDraft(d.model ?? '', d.params, '', d.editingId) // queue items keep the script in params
   s.remember(avatar ? 'avatar' : d.kind, { model: d.model, params: d.params })
-  useComposer.setState({ kind: d.kind, mode: avatar ? 'avatar' : null, doc: d.doc, docVersion: s.docVersion + 1, slots: d.slots, editingId: d.editingId ?? null })
+  useComposer.setState({ kind: d.kind, mode: avatar ? 'avatar' : null, doc: d.doc, docVersion: s.docVersion + 1, slots: d.slots, vars: {}, editingId: d.editingId ?? null })
 }
 
-export const clearDraft = () => useComposer.setState(s => ({ doc: null, docVersion: s.docVersion + 1, slots: [], editingId: null }))
+export const clearDraft = () => useComposer.setState(s => ({ doc: null, docVersion: s.docVersion + 1, slots: [], vars: {}, editingId: null }))
 
 /** Apply a submit outcome to the queue: remove, or upsert with a state (items sent straight from the composer get appended so the draft isn't lost). */
 export function applyToQueue(item: QueueEntry, patch: 'remove' | Pick<QueueEntry, 'state' | 'error'>) {

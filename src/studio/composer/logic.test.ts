@@ -10,6 +10,7 @@ import { ApiError } from '@/shared/api'
 import {
   addFromChip, addManual, diffItem, expandModels, itemFromDraft, normalizeParams, planSend, pruneChips,
   quoteEntry, referenceState, sentReferenceIds, serializePrompt, type Draft,
+  textVarsOf, varLabel, isOptionalVar, applyVars, varOptions, varBlockReason,
   modelPriceLabel, summaryParams, unitLabel,
   boolValues, controlOf, defaultOf, defaultParams, formatParam, paramLabel,
 } from './logic'
@@ -249,12 +250,53 @@ describe('summaryParams / unitLabel / modelPriceLabel', () => {
   })
   it('prices per image / second / minute from the default-params quote', () => {
     const img = { ...gpt, billing: { unit: 'per_call' } }
-    expect(modelPriceLabel(img, 5.70197)).toBe('约 5.7 点/张') // default n = 1
-    expect(modelPriceLabel({ ...img, params: img.params.map(p => p.field === 'n' ? { ...p, default: 2 } : p) }, 12)).toBe('约 6 点/张')
+    expect(modelPriceLabel(img, 5.70197)).toBe('约 ¥0.06/张') // default n = 1
+    expect(modelPriceLabel({ ...img, params: img.params.map(p => p.field === 'n' ? { ...p, default: 2 } : p) }, 12)).toBe('约 ¥0.06/张')
     const vid = { ...seedance, billing: { unit: 'per_second' } } // default duration 5
-    expect(modelPriceLabel(vid, 28.5)).toBe('约 5.7 点/秒')
-    expect(modelPriceLabel({ ...vid, billing: { unit: 'per_minute_output' } }, 1)).toBe('约 12 点/分钟')
-    expect(modelPriceLabel({ ...vid, billing: { unit: 'per_call' } }, 30)).toBe('约 30 点/次')
+    expect(modelPriceLabel(vid, 28.5)).toBe('约 ¥0.06/秒')
+    expect(modelPriceLabel({ ...vid, billing: { unit: 'per_minute_output' } }, 1)).toBe('约 ¥0.12/分钟')
+    expect(modelPriceLabel({ ...vid, billing: { unit: 'per_call' } }, 30)).toBe('约 ¥0.30/次')
     expect(modelPriceLabel(img, null)).toBe('按次')
+  })
+})
+
+describe('{{填空}} 文本变量', () => {
+  const doc = (text: string): JSONContent => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
+  const P = '标题：{{主题词}}；副标：{{副标题，可留空}}；主角 {{主体:商品}}；再说一次 {{主题词}}'
+
+  it('只认普通空位，{{主体:…}} 归主体那套；标签取逗号前那截', () => {
+    expect(textVarsOf(P)).toEqual(['{{主题词}}', '{{副标题，可留空}}'])
+    expect(varLabel('{{副标题，可留空}}')).toBe('副标题')
+    expect(isOptionalVar('{{副标题，可留空}}')).toBe(true)
+    expect(isOptionalVar('{{主题词}}')).toBe(false)
+  })
+
+  it('空位一直留在草稿里，格子才能反复改；替换只发生在发送前', () => {
+    const { prompt } = serializePrompt(doc(P), [])
+    expect(prompt).toContain('{{主题词}}') // 序列化不动空位
+    expect(applyVars(prompt, { '{{主题词}}': '春季新品' })).toBe('标题：春季新品；副标：；主角 {{主体:商品}}；再说一次 春季新品')
+    // 改一次值，原文没被改坏，再替换就是新值
+    expect(applyVars(prompt, { '{{主题词}}': '秋冬上新' })).toContain('标题：秋冬上新')
+  })
+
+  it('没填的「可留空」发送时去掉，必填的留着并拦住发送', () => {
+    const { prompt } = serializePrompt(doc(P), [])
+    const sent = applyVars(prompt, {})
+    expect(sent).not.toContain('可留空')
+    expect(varBlockReason([{ prompt: sent }])).toBe('请先填写「主题词」')
+    expect(varBlockReason([{ prompt: applyVars(prompt, { '{{主题词}}': 'x' }) }])).toBeNull()
+  })
+
+  it('取不到名字的空位叫「补充」，不把「可留空」当标签', () => {
+    expect(varLabel('{{主题词}}')).toBe('主题词')
+    expect(varLabel('{{副标题，可留空}}')).toBe('副标题')
+    expect(varLabel('{{可留空；默认根据主题判断}}')).toBe('补充')
+    expect(varLabel('{{建议 2–10 个汉字}}')).toBe('补充')
+  })
+
+  it('内容是选项清单的给下拉，自由填空不给', () => {
+    expect(varOptions('{{红色 / 绿色 / 自动判断}}')).toEqual(['红色', '绿色', '自动判断'])
+    expect(varOptions('{{主题词}}')).toBeNull()
+    expect(varOptions('{{辅助短句，可留空，建议 4-12 个字}}')).toBeNull() // 没有 /，是自由填空
   })
 })

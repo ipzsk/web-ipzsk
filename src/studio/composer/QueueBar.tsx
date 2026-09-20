@@ -6,7 +6,7 @@ import { useMutationState } from '@tanstack/react-query'
 import { AlertCircle, ArrowUp, BookmarkPlus, ChevronDown, Copy, GripVertical, Link2, LoaderCircle, Pencil, RotateCw, Trash2, X } from 'lucide-react'
 import type { ModelSpec } from '@/shared/contracts'
 import { Badge, Button, Dialog, DialogContent, DialogFooter, IconButton, cn } from '@/ui'
-import { formatPoints } from '@/shared/points'
+import { formatCharge } from '@/shared/points'
 import { GENERATION_SUBMIT_KEY, type PendingGeneration } from '../api/generation'
 import { QUEUE_MAX, type QueueEntry } from '../api/queue'
 import { loadDraft, useComposer } from '../store'
@@ -62,7 +62,7 @@ function Row({ item, index, current, models, points, submitting, editing, onRemo
           })}
           {item.reference_asset_ids.length > 0 && <>· <B on={d.references}>{`${item.reference_asset_ids.length} 张参考图`}</B></>}
           {anchorIndex >= 0 && <Badge tone="outline" className="h-5 px-1.5"><Link2 className="size-3" />引用{circled(anchorIndex)}</Badge>}
-          {points != null && <span className="ml-auto pl-2 text-xs text-muted tabular-nums">约 {formatPoints(points)}</span>}
+          {points != null && <span className="ml-auto pl-2 text-xs text-muted tabular-nums">约 {formatCharge(points)}</span>}
         </div>
         {d.prompt && <p className="mt-0.5 line-clamp-2 text-muted" title={item.prompt}>{item.prompt || '（无提示词）'}</p>}
         {item.issues?.length && !submitting ? <p role="alert" className="mt-0.5 flex items-center gap-1 text-xs text-danger"><AlertCircle className="size-3" />{item.issues[0]!.message} · 编辑补全后再发送</p>
@@ -71,7 +71,7 @@ function Row({ item, index, current, models, points, submitting, editing, onRemo
           : item.state === 'failed' ? <p role="alert" className="mt-0.5 flex items-center gap-1 text-xs text-danger"><AlertCircle className="size-3" />{(item.error?.message ?? '提交失败').replace(/。$/, '')}{item.error?.field && !(item.error.field in item.params) ? `（${item.error.field}）` : ''} · 编辑后重新发送</p>
           : item.state === 'retryable' ? <p className="mt-0.5 flex items-center gap-1 text-xs text-warning"><AlertCircle className="size-3" />{item.error?.message ?? '网络异常'} · <button type="button" className="inline-flex items-center gap-0.5 font-semibold underline-offset-2 hover:underline" onClick={() => void retryItem(item.item_id)}><RotateCw className="size-3" />重试</button></p>
           : item.state === 'waiting' ? <p className="mt-0.5 flex items-center gap-1 text-xs text-muted"><LoaderCircle className="size-3 motion-safe:animate-spin" />等待锚图生成完成</p>
-          : item.state === 'cancelled' ? <p className="mt-0.5 text-xs text-danger">已取消 · {item.error?.message ?? '锚图失败'}，未消耗积分</p>
+          : item.state === 'cancelled' ? <p className="mt-0.5 text-xs text-danger">已取消 · {item.error?.message ?? '锚图失败'}，未扣费</p>
           : null}
       </div>
       <div className="flex shrink-0 items-center opacity-70 group-hover:opacity-100 group-focus-within:opacity-100">
@@ -108,7 +108,7 @@ export function QueueBar({ current, models, pointsById, total, onSendAll, sendRe
       <header className="flex items-center gap-2 px-3 py-2">
         <button type="button" aria-expanded={!collapsed} onClick={() => setCollapsed(c => !c)} className="flex cursor-pointer items-center gap-1.5 rounded-control text-[13px] font-semibold outline-none focus-visible:outline-2 focus-visible:outline-acid-deep">
           <ChevronDown className={cn('size-4 transition-transform duration-(--duration-fast)', collapsed && '-rotate-90')} />
-          待发送队列 · {queue.length} 项{total != null && <span className="font-normal text-muted"> · 约 {formatPoints(total)}</span>}
+          待发送队列 · {queue.length} 项{total != null && <span className="font-normal text-muted"> · 约 {formatCharge(total)}</span>}
         </button>
         <div className="flex-1" />
         <Button size="sm" variant="ghost" icon={<BookmarkPlus className="size-4" />} onClick={() => openSaveTemplate({ origin: 'queue', covers: [], sources: queue.map(i => ({ ...i, anchor_of: i.anchor_of ?? null })) })} className="max-md:hidden">存为模板</Button>

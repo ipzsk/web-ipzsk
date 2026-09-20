@@ -16,3 +16,11 @@
   @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
   @keyframes indeterminate { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 }
+
+/* 滚到头就停：滚动容器（输入框、下拉、提及列表、移动端抽屉）到顶/到底后不把滚动传给页面。
+   鼠标在框里就只滚框——否则读长提示词滚到顶，后面的案例墙会跟着往上跑。 */
+@layer base {
+  [class*="overflow-y-auto"], [class*="overflow-auto"], [class*="overflow-y-scroll"] {
+    overscroll-behavior: contain;
+  }
+}

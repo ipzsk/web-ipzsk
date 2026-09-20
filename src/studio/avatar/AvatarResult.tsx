@@ -1,7 +1,7 @@
 // 创作气泡里数字人记录的附加信息，以及主体库「@ 到输入框」选中数字人。
 import type { GenerationParams } from '@/shared/contracts'
 import type { MediaAsset } from '@/media'
-import { formatPoints } from '@/shared/points'
+import { formatCharge } from '@/shared/points'
 import { queryClient } from '@/shared/query'
 import { toast } from '@/ui'
 import type { Subject } from '../api/subjects'
@@ -20,16 +20,16 @@ export const avatarTileLabel = (params: GenerationParams, index: number) => isAv
 export const avatarItemSummary = (i: { item_id: string | null; params: GenerationParams; prompt: string }) =>
   avatarSummary(i.params, i.prompt, avatarExtras(i.item_id), avatarNameOf)
 
-/** 结果单元格附加行：成片时长 + 「预估 N 点 → 实扣 M 点」（结算后）。 */
+/** 结果单元格附加行：成片时长 + 「预估 ¥N → 实扣 ¥M」（结算后）。 */
 export function AvatarResultMeta({ item }: { item: { item_id: string | null; status: string; params: GenerationParams; charged_points: string | null; results: MediaAsset[] } }) {
   if (!isAvatarParams(item.params)) return null
   const est = avatarExtras(item.item_id)?.estimate_points
   const ms = item.results[0]?.duration_ms
   const parts = [
     ms ? `成片 ${formatSeconds(ms / 1000)}` : null,
-    item.status === 'succeeded' && item.charged_points != null && est != null ? `预估 ${formatPoints(est)} → 实扣 ${formatPoints(item.charged_points)}` : null,
+    item.status === 'succeeded' && item.charged_points != null && est != null ? `预估 ${formatCharge(est)} → 实扣 ${formatCharge(item.charged_points)}` : null,
     item.status === 'succeeded' && item.charged_points == null ? '按实际时长结算中' : null,
-    item.status === 'queued' || item.status === 'running' || item.status === 'submitting' ? (est != null ? `预估 ${formatPoints(est)} · 按实际时长多退少补` : '按实际时长结算') : null,
+    item.status === 'queued' || item.status === 'running' || item.status === 'submitting' ? (est != null ? `预估 ${formatCharge(est)} · 按实际时长多退少补` : '按实际时长结算') : null,
   ].filter(Boolean)
   return parts.length ? <p className="text-xs tabular-nums text-muted">{parts.join(' · ')}</p> : null
 }

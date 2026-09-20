@@ -6,8 +6,8 @@ import { ApiError, loginUrl } from '@/shared/api'
 import { openRecharge } from '@/shared/recharge/RechargeDialog'
 import { useOnline } from '@/shared/query'
 import { queryClient } from '@/shared/query'
-import { Button, Dialog, DialogContent, DialogFooter, IconButton, Popover, PopoverContent, PopoverTrigger, SegmentedControl, Tooltip, cn, toast } from '@/ui'
-import { formatPoints } from '@/shared/points'
+import { Button, Dialog, DialogContent, DialogFooter, DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger, IconButton, Input, Popover, PopoverContent, PopoverTrigger, SegmentedControl, Tooltip, cn, focusRing, toast } from '@/ui'
+import { formatCharge } from '@/shared/points'
 import { DropTarget, useUpload, type MediaAsset } from '@/media'
 import { enhancePrompt, fetchModels } from '../api/catalog'
 import { SUBJECT_KIND_LABEL, type Subject } from '../api/subjects'
@@ -17,7 +17,7 @@ import { clearDraft, loadDraft, useComposer } from '../store'
 import { useAccount, useModels, useQueueSync, useQuote, useSubjects } from './hooks'
 import {
   addManual, chipsOf, docFromText, expandModels, isSendable, itemFromDraft, normalizeParams, planSend, queueRoom, quoteEntry, referenceState, serializePrompt,
-  subjectBlockReason, subjectVarLabel, subjectVarsOf,
+  subjectBlockReason, subjectVarLabel, subjectVarsOf, textVarsOf, varBlockReason, varLabel, isOptionalVar, varOptions,
 } from './logic'
 import { COMPOSER_FILL_EVENT, onStudioEvent } from '@/shared/events'
 import { planFill, type FillDetail, type FillPlan } from './fill'
@@ -73,7 +73,7 @@ function applyFill(plan: FillPlan) {
   }
   useComposer.setState(st => ({
     ...(plan.kind && { kind: plan.kind, mode: null }),
-    ...(plan.doc !== undefined && { doc: plan.doc, docVersion: st.docVersion + 1, editingId: null }),
+    ...(plan.doc !== undefined && { doc: plan.doc, docVersion: st.docVersion + 1, vars: {}, editingId: null }),
     ...(plan.slots && { slots: plan.slots }),
     ...(plan.queue && { queue: plan.queue }),
   }))
@@ -131,6 +131,58 @@ function confirmText(plan: FillPlan | null) {
     plan?.doc === null && serializePrompt(s.doc, s.slots).prompt ? '输入框里的提示词和参考图会被清空，避免随「发送」一起提交' : null,
   ]
   return parts.filter(Boolean).join('；') + '。'
+}
+
+/**
+ * 案例提示词里的 {{填空}}：直接在格子里打字，边打边存（值在 store 里，空位留在草稿里，发送前才替换），
+ * 所以随时回来改都行。内容本身是选项清单的（{{红色 / 绿色 / 自动判断}}）给个下拉，省得手打。
+ */
+function VarChip({ token }: { token: string }) {
+  const value = useComposer(st => st.vars[token] ?? '')
+  const setVar = useComposer(st => st.setVar)
+  const options = varOptions(token)
+  const optional = isOptionalVar(token)
+  const label = varLabel(token)
+  const full = token.slice(2, -2)
+
+  // 必填没填 = 实线橙框（发送会被拦住）；填好了回到普通框；可留空 = 虚线灰框，一眼看出「不填也能发」。
+  const shell = cn(
+    'inline-flex h-8 items-center gap-1 rounded-control border bg-card pl-2 pr-1 text-[13px] focus-within:border-acid-deep',
+    optional ? 'border-dashed border-line' : value ? 'border-line' : 'border-warning/50 bg-warning/12',
+  )
+  const labelTone = optional ? 'text-muted' : value ? 'text-muted' : 'text-warning'
+  if (options) return (
+    <span className={cn(shell, 'cursor-pointer')} title={full}>
+      {/* 选项清单本身没有名字（{{16:9 / 4:5 / 1:1}}）：硬安一个「选一个」会让几个格子长得一模一样，
+          名字在提示词正文里，这里只显示选中的值，完整清单走 title。 */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="ghost" className={cn('h-6 max-w-44 gap-1 px-1.5', !value && labelTone)}>
+            <span className="truncate">{value || options.slice(0, 3).join(' / ')}</span><ChevronDown className="size-4 shrink-0" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="top" align="start" className="max-h-72 overflow-y-auto">
+          {options.map(o => <DropdownMenuCheckboxItem key={o} checked={o === value} onSelect={() => setVar(token, o)}>{o}</DropdownMenuCheckboxItem>)}
+          {optional && <DropdownMenuCheckboxItem checked={value === ''} onSelect={() => setVar(token, '')}>不填这项</DropdownMenuCheckboxItem>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </span>
+  )
+
+  // 整块是一个 <label>：指针全程是文本光标，点哪都聚焦输入框。
+  // 不套 Tooltip——浮层在指针下方开合会打断 hover，指针就在「箭头 / 文本」之间来回跳；说明走原生 title。
+  return (
+    <label className={cn(shell, 'cursor-text')} title={full}>
+      <span className={cn('shrink-0 max-w-28 truncate font-semibold', labelTone)}>{label}</span>
+      <Input
+        value={value}
+        onChange={e => setVar(token, e.target.value)}
+        placeholder={optional ? '可留空' : '填这里'}
+        aria-label={full}
+        className="h-6 w-32 border-0 bg-transparent px-1 text-[13px] focus-visible:outline-none"
+      />
+    </label>
+  )
 }
 
 /** {{主体:商品}} in the prompt → pick a subject (kind label match first) or create one. */
@@ -214,7 +266,8 @@ export function Composer({ hidden }: { hidden: boolean }) {
   const params = useMemo(() => model ? normalizeParams(model, memory.params).params : {}, [model, memory.params])
   const [highlight, flash] = useHighlight()
 
-  const current = useMemo(() => avatar ? avatarQueueItem(avatarDraft, avatar, params) : itemFromDraft({ kind, model, params, doc, slots }), [avatar, avatarDraft, kind, model, params, doc, slots])
+  const varValues = useComposer(st => st.vars)
+  const current = useMemo(() => avatar ? avatarQueueItem(avatarDraft, avatar, params) : itemFromDraft({ kind, model, params, doc, slots, vars: varValues }), [avatar, avatarDraft, kind, model, params, doc, slots, varValues])
   const hasPrompt = !!current.prompt
   const refs = referenceState(model, slots.length)
   useEffect(() => { useEditorFlags.setState({ refsOver: refs.over ? refs.message : null }) }, [refs.over, refs.message])
@@ -270,6 +323,8 @@ export function Composer({ hidden }: { hidden: boolean }) {
   // Partial list (more pages) → can't tell deleted from not-yet-loaded; the server rejects deleted ones anyway.
   const subjectIds = useMemo(() => subjects.data && !subjects.hasNextPage ? new Set(subjects.data.map(s => s.id)) : undefined, [subjects.data, subjects.hasNextPage])
   const vars = subjectVarsOf(current.prompt)
+  // 空位取自草稿原文：current.prompt 是替换后的结果，取它格子填完就消失了
+  const textVars = useMemo(() => textVarsOf(serializePrompt(doc, slots).prompt), [doc, slots])
   const insufficient = account.points != null && total != null && total > account.points
 
   const blockReason = (items: QueueEntry[], includesComposer: boolean): string | null =>
@@ -278,7 +333,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
     : !items.length ? (queue.some(i => i.missing) ? '队列里的项引用了已删除的素材，请编辑移除后再发送' : queue.length ? '队列里没有可发送的项（标红的项需要先编辑）' : '先输入提示词')
     : includesComposer && avatar?.reason ? avatar.reason
     : includesComposer && refs.over ? refs.message
-    : subjectBlockReason(items, subjectIds)
+    : varBlockReason(items) ?? subjectBlockReason(items, subjectIds)
 
   const send = (items: QueueEntry[], includesComposer: boolean) => {
     if (sending || blockReason(items, includesComposer)) return
@@ -298,7 +353,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
   const sendAll = () => send(allSendable, false)
 
   // ── queue ──
-  const addReason = !model ? (avatarMode ? avatar?.reason ?? '型号加载中' : '型号加载中') : avatar?.reason ? avatar.reason : !hasPrompt ? '先输入提示词' : refs.over ? refs.message : subjectBlockReason([current], subjectIds) ?? queueRoom(queue.length, editingId ? 0 : 1)
+  const addReason = !model ? (avatarMode ? avatar?.reason ?? '型号加载中' : '型号加载中') : avatar?.reason ? avatar.reason : !hasPrompt ? '先输入提示词' : refs.over ? refs.message : varBlockReason([current]) ?? subjectBlockReason([current], subjectIds) ?? queueRoom(queue.length, editingId ? 0 : 1)
   const addToQueue = () => {
     if (addReason) return
     if (avatarMode) rememberAvatarItems([{ ...current, item_id: editingId ?? current.item_id, fromDraft: true }])
@@ -312,7 +367,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
   const addMany = (ms: ModelSpec[]) => {
     const reason = !hasPrompt ? '先输入提示词' : queueRoom(queue.length, ms.length)
     if (reason) { toast({ title: '无法加入队列', description: reason, tone: 'error' }); return }
-    useComposer.setState(s => ({ queue: [...s.queue, ...expandModels({ kind, model, params, doc, slots }, ms)] }))
+    useComposer.setState(s => ({ queue: [...s.queue, ...expandModels({ kind, model, params, doc, slots, vars: varValues }, ms)] }))
   }
 
   // ── enhance ──
@@ -333,14 +388,14 @@ export function Composer({ hidden }: { hidden: boolean }) {
   const expanded = useEditorFlags(s => s.expanded)
   const insetRef = useComposerInset(hidden, expanded)
   const setExpanded = (v: boolean) => useEditorFlags.setState({ expanded: v })
-  const sendLabel = total != null && sendable.length ? `约 ${formatPoints(total)}` : null
+  const sendLabel = total != null && sendable.length ? `约 ${formatCharge(total)}` : null
 
   const sendButton = account.pending
     ? <Button variant="primary" loading icon={<ArrowUp className="size-[18px]" />}>发送</Button>
     : !account.signedIn
       ? <Button variant="primary" icon={<LogIn className="size-[18px]" />} onClick={saveDraftAndLogin}>登录后生成</Button>
       : insufficient
-        ? <Button variant="danger" icon={<Wallet className="size-[18px]" />} onClick={openRecharge}>点数不足 · 去充值</Button>
+        ? <Button variant="danger" icon={<Wallet className="size-[18px]" />} onClick={openRecharge}>余额不足 · 去充值</Button>
         : (() => {
           const reason = blockReason(sendable, hasPrompt)
           const btn = (
@@ -349,7 +404,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
             </Button>
           )
           return !reason && sendable.length > 1
-            ? <Tooltip content={<div className="grid gap-0.5">{sendable.map((it, i) => <span key={it.item_id}>{String.fromCharCode(0x2460 + i)} {it.model} · {formatPoints(pointsById.get(it.item_id)).replace('待核实', '… 点')}</span>)}<span className="font-semibold text-white">共 {sendable.length} 项 · ⌘/Ctrl+Enter</span></div>}>{btn}</Tooltip>
+            ? <Tooltip content={<div className="grid gap-0.5">{sendable.map((it, i) => <span key={it.item_id}>{String.fromCharCode(0x2460 + i)} {it.model} · {formatCharge(pointsById.get(it.item_id)).replace('待核实', '…')}</span>)}<span className="font-semibold text-white">共 {sendable.length} 项 · ⌘/Ctrl+Enter</span></div>}>{btn}</Tooltip>
             : btn
         })()
 
@@ -401,7 +456,10 @@ export function Composer({ hidden }: { hidden: boolean }) {
                 <IconButton label="增强提示词" loading={enhancing} disabled={!!enhanceReason} disabledReason={enhanceReason ?? undefined} onClick={() => void enhance()}><Sparkles className="size-4" /></IconButton>
               </div>
               </>}
-              {!avatar && vars.length > 0 && <div className="flex flex-wrap gap-1.5 px-1 pt-1">{vars.map(v => <SubjectVarPicker key={v} token={v} subjects={subjects.data ?? []} />)}</div>}
+              {!avatar && (vars.length > 0 || textVars.length > 0) && <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1">
+                {vars.map(v => <SubjectVarPicker key={v} token={v} subjects={subjects.data ?? []} />)}
+                {textVars.map(v => <VarChip key={v} token={v} />)}
+              </div>}
               {/* 单行不换行：参数多了（seedance 有比例/时长/分辨率/更多参数）时左侧横向滚动，
                   发送按钮始终留在同一行右端——换行会把它们甩到下一行，看起来像错位。 */}
               <div className="mt-2 flex items-center gap-1.5">

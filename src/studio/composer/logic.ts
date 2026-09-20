@@ -1,7 +1,7 @@
 // Pure composer rules (§2.2 / §2.3). No React, no store — unit-tested in logic.test.ts.
 import type { JSONContent } from '@tiptap/core'
 import type { GenerationParams, MediaKind, ModelSpec, ParamSpec } from '@/shared/contracts'
-import { pointsNumber } from '@/shared/points'
+import { formatCharge } from '@/shared/points'
 import type { MediaAsset } from '@/media'
 import type { QuoteEntry } from '../api/catalog'
 import type { Mention, ParamChange, ParamInput, ParamValue, QueueEntry, RefSlot } from '../api/queue'
@@ -80,12 +80,12 @@ export const unitLabel = (unit: string | null | undefined) => (unit && UNIT_LABE
 /** A model's default params (empty defaults dropped) — what the model picker quotes. */
 export const defaultParams = (model: ModelSpec): GenerationParams => normalizeParams(model, {}).params
 
-/** 「约 5.7 点/张」 from a default-params quote; falls back to the unit label when there is no price or no per-unit base. */
+/** 「约 ¥0.06/张」 from a default-params quote; falls back to the unit label when there is no price or no per-unit base. */
 export function modelPriceLabel(model: ModelSpec, points: number | null | undefined): string {
   const unit = model.billing?.unit
   const params = defaultParams(model)
   const seconds = Number(params.duration)
-  const per = (v: number, suffix: string) => `约 ${pointsNumber(v)} 点/${suffix}`
+  const per = (v: number, suffix: string) => `约 ${formatCharge(v)}/${suffix}`
   if (points == null) return unitLabel(unit)
   if (unit === 'per_call' || unit === 'image') return model.kind === 'image' ? per(points / (Number(params.n) || 1), '张') : per(points, '次')
   if (!(seconds > 0)) return unitLabel(unit)
@@ -203,10 +203,13 @@ export interface Draft {
   params: GenerationParams
   doc: JSONContent | null
   slots: RefSlot[]
+  /** {{填空}} → 用户填的值，发送前替换（见 applyVars）。 */
+  vars?: Record<string, string>
 }
 
 export function itemFromDraft(d: Draft, item_id: string = crypto.randomUUID()): QueueEntry {
-  const { prompt, mentions } = serializePrompt(d.doc, d.slots)
+  const { prompt: raw, mentions } = serializePrompt(d.doc, d.slots)
+  const prompt = applyVars(raw, d.vars ?? {})
   return {
     item_id, kind: d.kind, model: d.model?.id ?? '', prompt, params: d.params,
     reference_asset_ids: sentReferenceIds(d.model, d.slots), anchor_of: null,
@@ -260,8 +263,8 @@ export const subjectVarsOf = (text: string) => [...new Set([...text.matchAll(SUB
 /** 「商品」 from 「{{主体:商品}}」. */
 export const subjectVarLabel = (token: string) => token.replace(SUBJECT_VAR, '$1')
 
-/** Replace every occurrence of `token` in text nodes with a subject chip (all occurrences share the chip's uid). */
-export function fillSubjectVar(doc: JSONContent, token: string, attrs: ChipAttrs): JSONContent {
+/** Replace every occurrence of `token` in text nodes with `make()`'s nodes (one fresh copy per occurrence). */
+function replaceToken(doc: JSONContent, token: string, make: () => JSONContent[]): JSONContent {
   const walk = (n: JSONContent): JSONContent => {
     if (!n.content) return n
     return {
@@ -269,7 +272,7 @@ export function fillSubjectVar(doc: JSONContent, token: string, attrs: ChipAttrs
       content: n.content.flatMap((c): JSONContent[] => {
         if (c.type !== 'text' || !c.text?.includes(token)) return [walk(c)]
         return c.text.split(token).flatMap((part, i) => [
-          ...(i > 0 ? [{ type: 'mention', attrs: { ...attrs } }] : []),
+          ...(i > 0 ? make() : []),
           ...(part ? [{ ...c, text: part }] : []),
         ])
       }),
@@ -278,6 +281,10 @@ export function fillSubjectVar(doc: JSONContent, token: string, attrs: ChipAttrs
   return walk(doc)
 }
 
+/** Replace every occurrence of `token` in text nodes with a subject chip (all occurrences share the chip's uid). */
+export const fillSubjectVar = (doc: JSONContent, token: string, attrs: ChipAttrs): JSONContent =>
+  replaceToken(doc, token, () => [{ type: 'mention', attrs: { ...attrs } }])
+
 /** Why a set of items can't be sent because of subjects (deleted chip / unfilled placeholder), or null. `subjectIds` undefined = not loaded yet. */
 export function subjectBlockReason(items: Pick<QueueEntry, 'prompt' | 'mentions'>[], subjectIds: Set<string> | undefined): string | null {
   for (const it of items) {
@@ -285,5 +292,54 @@ export function subjectBlockReason(items: Pick<QueueEntry, 'prompt' | 'mentions'
     if (v) return `请为 ${v} 选择主体`
   }
   if (subjectIds && items.some(it => it.mentions.some(m => m.type === 'subject' && !subjectIds.has(m.id)))) return '有主体已被删除，请先移除「主体已删除」标签'
+  return null
+}
+
+// ── {{填空}} 文本变量 ────────────────────────────────────────────────────────
+// 案例提示词（Punk-Skill 那批）自带 {{主题词}}、{{副标题，可留空}} 这样的空位。填入输入框后
+// 只让用户改这几格，不用通读几百字。{{主体:…}} 归上面那套（挑主体、插标签），这里排除掉。
+
+const TEXT_VAR = /\{\{(?!主体[:：])([^{}]{1,40})\}\}/g
+/** 提示词里还没填的文本空位，按出现顺序去重，例如 ['{{主题词}}']。 */
+export const textVarsOf = (text: string) => [...new Set([...text.matchAll(TEXT_VAR)].map(m => m[0]))]
+/**
+ * 空位的短标签：`{{副标题，可留空}}` → 「副标题」。
+ * 案例里的写法很杂——有的只有说明没有名字（`{{可留空；默认根据主题判断}}`、`{{建议 2–10 个汉字}}`），
+ * 这种取不到名字就叫「补充」，完整说明走 title，不让「可留空 可留空」这种重复文案上屏。
+ */
+const HINT_ONLY = /^(可留空|选填|可选|建议|默认|自动)/
+export function varLabel(token: string): string {
+  const segs = token.slice(2, -2).split(/[，,；;]/).map(x => x.trim()).filter(Boolean)
+  return segs.find(x => !HINT_ONLY.test(x)) ?? '补充'
+}
+/** 标了「可留空 / 选填 / 可选」：不填也能发送，发送时整段去掉。 */
+export const isOptionalVar = (token: string) => /可留空|选填|可选/.test(token)
+
+/**
+ * 空位 → 用户填的值，发送前一次性替换。空位本身一直留在草稿里，所以格子能反复改；
+ * 没填的「可留空」直接去掉，不会把 {{副标题，可留空}} 原样发给模型。
+ */
+export function applyVars(prompt: string, vars: Record<string, string>): string {
+  return prompt.replace(TEXT_VAR, token => {
+    const v = vars[token]
+    if (v !== undefined && v !== '') return v
+    return v === '' || isOptionalVar(token) ? '' : token
+  }).trim()
+}
+
+/** 「{{红色 / 绿色 / 自动判断}}」这种本身就是选项清单 → 给个下拉；自由填空返回 null。 */
+export function varOptions(token: string): string[] | null {
+  const inner = token.slice(2, -2)
+  if (!inner.includes('/')) return null
+  const opts = inner.split('/').map(o => o.trim()).filter(Boolean)
+  return opts.length >= 2 && opts.length <= 12 && opts.every(o => o.length <= 12) ? opts : null
+}
+
+/** 必填空位还没填完 → 说清楚差哪个；「可留空」的不拦，serializePrompt 发送时已经去掉。 */
+export function varBlockReason(items: Pick<QueueEntry, 'prompt'>[]): string | null {
+  for (const it of items) {
+    const t = textVarsOf(it.prompt).find(v => !isOptionalVar(v))
+    if (t) return `请先填写「${varLabel(t)}」`
+  }
   return null
 }

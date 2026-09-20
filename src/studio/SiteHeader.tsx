@@ -21,7 +21,7 @@ const linkClass = cn('rounded-control px-3.5 py-2 text-[13px] whitespace-nowrap 
 
 function PointsPill() {
   const { data: wallet, isError } = useWallet()
-  if (isError) return <span role="status" className="text-[13px] text-muted">点数暂不可用</span>
+  if (isError) return <span role="status" className="text-[13px] text-muted">余额暂不可用</span>
   if (!wallet) return null
   const available = Number(wallet.available_cny)
   const frozen = Number(wallet.frozen_cny)

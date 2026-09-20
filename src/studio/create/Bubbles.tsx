@@ -3,7 +3,7 @@ import {
   AtSign, BookmarkPlus, Copy, Download, FolderPlus, ImagePlus, LayoutDashboard, LoaderCircle, Maximize2, MoreHorizontal, PencilLine, RefreshCw, Star, Trash2, TriangleAlert, UserPlus, type LucideIcon,
 } from 'lucide-react'
 import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, IndeterminateBar, SegmentedControl, cn, focusRing, toast } from '@/ui'
-import { formatPoints } from '@/shared/points'
+import { formatCharge } from '@/shared/points'
 import { MediaImage, MediaVideo, useMediaDraggable, type MediaAsset } from '@/media'
 import {
   addToCanvas, copyText, deleteBatch, downloadAsset, deleteItem, fillFromItem, referenceFrom, regenerate, useStars,
@@ -138,12 +138,12 @@ function Status({ item, now }: { item: ItemView; now: number }) {
       return (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="flex items-center gap-1.5 text-danger"><TriangleAlert className="size-4" />{item.failure}</span>
-          <span className="text-xs text-muted">{item.status === 'submit_failed' || Number(item.charged_points ?? 0) === 0 ? '未消耗积分' : `消耗积分 ${formatPoints(item.charged_points)}`}</span>
+          <span className="text-xs text-muted">{item.status === 'submit_failed' || Number(item.charged_points ?? 0) === 0 ? '未扣费' : `消耗 ${formatCharge(item.charged_points)}`}</span>
           <Button size="sm" icon={<RefreshCw className="size-4" />} onClick={() => regenerate(item)}>重试</Button>
         </div>
       )
     case 'cancelled':
-      return <p className="text-sm text-muted">已取消{item.failure ? ` · ${item.failure}` : ''} · 未消耗积分</p>
+      return <p className="text-sm text-muted">已取消{item.failure ? ` · ${item.failure}` : ''} · 未扣费</p>
     default:
       return null
   }
@@ -201,7 +201,7 @@ function ItemCell({ item, label, now, onPreview, canDelete }: { item: ItemView; 
       {(label || canDelete) && (
         <div className="flex items-center gap-2 text-xs">
           {label && <span className="font-semibold">{label}</span>}
-          {item.status === 'succeeded' && <span className="text-muted">{item.charged_points == null ? '结算中' : formatPoints(item.charged_points)}</span>}
+          {item.status === 'succeeded' && <span className="text-muted">{item.charged_points == null ? '结算中' : formatCharge(item.charged_points)}</span>}
           {canDelete && item.record_id && <IconButton label="删除此项" size="icon-sm" className="ml-auto size-7" onClick={() => deleteItem(item)}><Trash2 className="size-3.5" /></IconButton>}
         </div>
       )}

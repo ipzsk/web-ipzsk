@@ -68,7 +68,7 @@ export function mockGenerate(opts: { kind: 'image' | 'video'; params: Record<str
     const t = setInterval(() => {
       const p = Math.min(1, (Date.now() - start) / total)
       opts.onProgress(p)
-      if (fail && p > 0.6) { clearInterval(t); reject(new Error('上游服务繁忙，本次未消耗积分，请重试')); return }
+      if (fail && p > 0.6) { clearInterval(t); reject(new Error('上游服务繁忙，本次未扣费，请重试')); return }
       if (p < 1) return
       clearInterval(t)
       if (opts.kind === 'video') {
