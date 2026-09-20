@@ -1,13 +1,14 @@
+import {request,loginUrl} from '/api.js';
 const $=s=>document.querySelector(s),el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 const labels={pending:'待审核',approved:'已批准',rejected:'已驳回',disabled:'已停用',published:'已上架',withdrawn:'已撤回 / 下架'};
 const amount=v=>v==null?'未确认':Number(v).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:8})+' 元';
 const count=v=>v==null?'未知':Number(v).toLocaleString('zh-CN');
 const errors={developer_approval_required:'需要管理员批准开发者申请。',developer_application_exists:'已有申请，请等待审核。',published_metadata_locked:'已上架插件的名称需要管理员修改。',invalid_release_url:'请填写当前仓库的 GitHub Release 地址。',select_one_tgz_asset:'请提供 npm pack 生成的 .tgz 附件；多个附件时需指定名称。',package_identity_mismatch:'安装包中的包名或版本与登记信息不一致。',already_exists:'插件标识、包名或版本已存在。',github_fetch_failed:'无法读取 GitHub Release，请检查是否已公开发布。',plugin_not_found:'插件不存在或你没有权限。',invalid_date_range:'日期范围不能超过一年。'};
-async function api(path,body){const r=await fetch('https://api.ipzsk.com/api/me/developer'+path,{method:body?'POST':'GET',credentials:'include',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const d=await r.json();if(!r.ok){if(r.status===401){$('#workspace').hidden=true;showLogin();}throw new Error(errors[d.error?.code]??'操作失败：'+(d.error?.code??r.status));}return d;}
-function action(fn){return async e=>{e?.preventDefault();const b=e?.currentTarget?.tagName==='BUTTON'?e.currentTarget:e?.currentTarget?.querySelector('button[type=submit],button.primary');if(b)b.disabled=true;try{$('#notice').textContent='';await fn(e);}catch(err){$('#notice').textContent=err.message;}finally{if(b)b.disabled=false;}};}
+async function api(path,body){try{return await request('/api/me/developer'+path,{body});}catch(e){if(e.status===401){$('#workspace').hidden=true;showLogin();}throw Object.assign(new Error(errors[e.code]??e.message),{status:e.status});}}
+function action(fn){return async e=>{e?.preventDefault();const b=e?.currentTarget?.tagName==='BUTTON'?e.currentTarget:e?.currentTarget?.querySelector('button[type=submit],button.primary');if(b)b.disabled=true;try{$('#notice').textContent='';await fn(e);}catch(err){if(err.status!==401)$('#notice').textContent=err.message;}finally{if(b)b.disabled=false;}};}
 function button(text,fn){const b=el('button',text);b.type='button';b.className='secondary';b.addEventListener('click',action(fn));return b;}
 function table(box,headers,rows){box.replaceChildren();if(!rows.length){box.append(el('p','暂无记录'));return;}const t=el('table'),h=el('tr');headers.forEach(v=>h.append(el('th',v)));const head=el('thead');head.append(h);t.append(head);const body=el('tbody');for(const row of rows){const tr=el('tr');row.forEach(v=>{const td=el('td');td.append(v instanceof Node?v:document.createTextNode(String(v??'—')));tr.append(td);});body.append(tr);}t.append(body);box.append(t);}
-function showLogin(){const gate=$('#gate');gate.hidden=false;const a=el('a','登录 / 注册');a.href='/account?next=developer';a.className='primary';gate.replaceChildren(el('p','使用 IPZSK 账户登录，申请成为插件开发者。'),a);}
+function showLogin(){const gate=$('#gate');gate.hidden=false;const a=el('a','登录 / 注册');a.href=loginUrl('/developer');a.className='primary';gate.replaceChildren(el('p','使用 IPZSK 账户登录，申请成为插件开发者。'),a);}
 let selected;
 async function refresh(){
  const {profile}=await api('');$('#gate').hidden=false;$('#workspace').hidden=true;

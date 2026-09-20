@@ -7,3 +7,6 @@ image-studio/tests
 image-studio/*.mjs
 image-studio/package*.json
 image-studio/upstream-package.json
+node_modules
+# 切换：根目录旧首页不再部署——Vercel 文件系统优先于 rewrites，否则 / 永远命中旧 index.html
+/index.html

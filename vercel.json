@@ -1,5 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "npm run build",
   "redirects": [
     {
       "source": "/video",
@@ -9,12 +11,52 @@
           "value": "ipzsk.com"
         }
       ],
-      "destination": "https://www.ipzsk.com/video",
+      "destination": "https://www.ipzsk.com/studio?kind=video",
       "permanent": false
     },
     {
       "source": "/video.html",
-      "destination": "https://www.ipzsk.com/video",
+      "destination": "/studio?kind=video",
+      "permanent": false
+    },
+    {
+      "source": "/image.html",
+      "destination": "/studio?kind=image",
+      "permanent": false
+    },
+    {
+      "source": "/image",
+      "destination": "/studio?kind=image",
+      "permanent": false
+    },
+    {
+      "source": "/video",
+      "destination": "/studio?kind=video",
+      "permanent": false
+    },
+    {
+      "source": "/index.html",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/account.html",
+      "destination": "/account",
+      "permanent": false
+    },
+    {
+      "source": "/developer.html",
+      "destination": "/developer",
+      "permanent": false
+    },
+    {
+      "source": "/workspace.html",
+      "destination": "/workspace",
+      "permanent": false
+    },
+    {
+      "source": "/workstation.html",
+      "destination": "/workstation",
       "permanent": false
     },
     {
@@ -79,24 +121,44 @@
   ],
   "rewrites": [
     {
+      "source": "/",
+      "destination": "/dist/pages/home.html"
+    },
+    {
       "source": "/workstation",
-      "destination": "/workstation.html"
+      "destination": "/dist/pages/workstation.html"
     },
     {
       "source": "/account",
-      "destination": "/account.html"
+      "destination": "/dist/pages/account.html"
     },
     {
       "source": "/developer",
-      "destination": "/developer.html"
+      "destination": "/dist/pages/developer.html"
     },
     {
       "source": "/workspace",
-      "destination": "/workspace.html"
+      "destination": "/dist/pages/workspace.html"
     },
     {
-      "source": "/video",
-      "destination": "/video.html"
+      "source": "/studio",
+      "destination": "/dist/studio.html"
+    },
+    {
+      "source": "/studio/(.*)",
+      "destination": "/dist/studio.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/dist/admin.html"
+    },
+    {
+      "source": "/admin/(.*)",
+      "destination": "/dist/admin.html"
+    },
+    {
+      "source": "/next/:page(home|account|developer|workstation|workspace)",
+      "destination": "/dist/pages/:page.html"
     }
   ],
   "headers": [
@@ -109,7 +171,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self'; connect-src https://api.ipzsk.com; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
         },
         {
           "key": "X-Content-Type-Options",
@@ -130,7 +192,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src https://api.ipzsk.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
         },
         {
           "key": "X-Content-Type-Options",
@@ -151,7 +213,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self'; connect-src https://api.ipzsk.com; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
         },
         {
           "key": "X-Content-Type-Options",
@@ -172,7 +234,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://4625b08a63fe2d8151c0df01b6d98490.r2.cloudflarestorage.com; connect-src https://api.ipzsk.com; frame-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
         },
         {
           "key": "Referrer-Policy",
@@ -185,7 +247,7 @@
       ]
     },
     {
-      "source": "/video(.*)",
+      "source": "/studio(.*)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -193,15 +255,183 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://api.ipzsk.com; media-src https:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/dist/studio.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/admin(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
         },
         {
           "key": "Referrer-Policy",
           "value": "no-referrer"
         },
         {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/dist/admin.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/workstation",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/dist/pages/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/dist/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/next/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.r2.cloudflarestorage.com; media-src 'self' blob: data: https://*.r2.cloudflarestorage.com; connect-src 'self' https://api.ipzsk.com https://*.r2.cloudflarestorage.com; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
         }
       ]
     }

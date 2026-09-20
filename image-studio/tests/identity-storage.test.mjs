@@ -104,12 +104,11 @@ const mainBundle=await build({
   entryPoints:['web/main.tsx'],bundle:true,write:false,format:'iife',jsx:'automatic',loader:{'.css':'empty'},
   define:{'process.env.NODE_ENV':'"production"'},
   plugins:[{name:'identity-fixtures',setup(builder){
-    builder.onResolve({filter:/^(\.\/api|\.\/storage|\.\/BeginnerStudio|\.\.\/vendor\/src\/client\/ImageGenPanel)$/},args=>({path:args.path,namespace:'identity-fixture'}));
+    builder.onResolve({filter:/^(\.\/api|\.\/storage|\.\.\/vendor\/src\/client\/ImageGenPanel)$/},args=>({path:args.path,namespace:'identity-fixture'}));
     builder.onLoad({filter:/.*/,namespace:'identity-fixture'},args=>{
       if(args.path==='./api')return {contents:'export class WebImageApi {constructor(userId){this.userId=userId;this.disposeCount=0;window.__apis.push(this)} dispose(){this.disposeCount++}}'};
       if(args.path==='./storage')return {contents:'export async function legacyImportStatus(){return {available:false,count:0,pendingTasks:0}};export async function importLegacyWorks(){return 0}'};
-      if(args.path.includes('ImageGenPanel'))return {contents:'export function ImageGenPanel(){return null}'};
-      return {contents:`import React,{useState} from 'react';export function BeginnerStudio({api}){const [preview,setPreview]=useState('empty');return <button data-owner={api.userId??'anonymous'} data-preview={preview} onClick={()=>setPreview('private upload')}>{api.userId??'anonymous'}</button>}`,loader:'jsx',resolveDir:process.cwd()};
+      return {contents:`import React,{useState} from 'react';export function ImageGenPanel({api}){const [preview,setPreview]=useState('empty');return <button data-owner={api.userId??'anonymous'} data-preview={preview} onClick={()=>setPreview('private upload')}>{api.userId??'anonymous'}</button>}`,loader:'jsx',resolveDir:process.cwd()};
     });
   }}],
 });

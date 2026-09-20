@@ -3,19 +3,17 @@ import {createRoot} from 'react-dom/client';
 import {ImageGenPanel} from '../vendor/src/client/ImageGenPanel';
 import {WebImageApi} from './api';
 import {scope} from './settings';
-import {BeginnerStudio} from './BeginnerStudio';
 import {legacyImportStatus,importLegacyWorks} from './storage';
 import './theme.css';
 function StudioApp({api,userId}:{api:WebImageApi;userId:string|null}){
-  const [advanced,setAdvanced]=useState(false);
   const [legacy,setLegacy]=useState({available:false,count:0,pendingTasks:0});
   const [importing,setImporting]=useState(false);
   const [importMessage,setImportMessage]=useState('');
   const [revision,setRevision]=useState(0);
   useEffect(()=>{
-    document.querySelector('.web-layout')?.classList.toggle('web-layout-advanced',advanced);
+    document.querySelector('.web-layout')?.classList.add('web-layout-advanced');
     return ()=>document.querySelector('.web-layout')?.classList.remove('web-layout-advanced');
-  },[advanced]);
+  },[]);
   useEffect(()=>{
     let disposed=false;
     void legacyImportStatus(userId).then(value=>{if(!disposed)setLegacy(value);}).catch(()=>{});
@@ -33,14 +31,13 @@ function StudioApp({api,userId}:{api:WebImageApi;userId:string|null}){
     finally{setImporting(false);}
   }
   return <div className="web-advanced">
-    {!userId&&<aside className="web-advanced-nav"><span>登录后可生成图片、保存作品和画布。现在可以浏览创作模板。</span><a className="web-button" href="/account">登录账户</a></aside>}
     {legacy.available&&<aside className="web-advanced-nav" aria-label="导入旧作品">
       <span>本浏览器有 {legacy.count} 条旧作品记录，尚未关联账户。仅在这些作品属于你时导入当前账户。原记录会保留，旧任务请到个人中心核对，不会自动重新生成。</span>
       <button className="web-button" disabled={importing} onClick={()=>void importWorks()}>{importing?'正在导入…':'确认这些作品属于我并导入'}</button>
     </aside>}
     {!legacy.available&&legacy.pendingTasks>0&&<aside className="web-advanced-nav"><span>本浏览器保留了 {legacy.pendingTasks} 个旧的进行中任务，请到个人中心核对结果和费用。这些任务不会自动重新生成。</span><a className="web-button" href="/account">核对旧任务</a></aside>}
     {importMessage&&<div className="web-advanced-nav" role="status"><span>{importMessage}</span></div>}
-    <React.Fragment key={revision}>{advanced ? <><div className="web-advanced-nav"><button className="web-button" onClick={()=>setAdvanced(false)}>← 返回简单创作</button><span>素材库、无限画布与电商工具</span></div><ImageGenPanel api={api as any} scope={scope as any}/></> : <BeginnerStudio api={api} onAdvanced={()=>setAdvanced(true)}/>}</React.Fragment>
+    <ImageGenPanel key={revision} api={api as any} scope={scope as any} userId={userId}/>
   </div>;
 }
 

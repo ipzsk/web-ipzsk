@@ -1,0 +1,152 @@
+import { useEffect, useState } from 'react'
+import { get, set } from 'idb-keyval'
+import type { ModelSpec } from '@/shared/contracts'
+import type { AssetRef } from './graph'
+import { findCachedUrls, refetchOwners, useFreshUrls } from '@/media'
+import { api as assetsApi } from '../assets/api'
+
+/** Local stand-ins until the model catalog / generation API / upload API are wired (§10). */
+
+export const MOCK_MODELS = [
+  {
+    id: 'gpt-image-2', kind: 'image', name: 'GPT Image 2', billing: { unit: 'image' }, unsupported: {},
+    references: { maxImages: 15 },
+    params: [
+      { field: 'aspect_ratio', type: 'enum', values: ['1:1', '3:4', '4:3', '9:16', '16:9'], default: '1:1' },
+      { field: 'resolution', type: 'enum', values: ['1K', '2K'], default: '1K' },
+      { field: 'n', type: 'integer', values: [1, 2, 3, 4], default: 1 },
+    ],
+  },
+  {
+    id: 'gpt-image-2.5-flare', kind: 'image', name: 'GPT Image 2.5 Flare', billing: { unit: 'image' }, unsupported: {},
+    references: { maxImages: 4 },
+    params: [
+      { field: 'aspect_ratio', type: 'enum', values: ['1:1', '3:4', '16:9'], default: '1:1' },
+      { field: 'resolution', type: 'enum', values: ['1K', '2K', '4K'], default: '2K' },
+      { field: 'n', type: 'integer', values: [1, 2, 4], default: 2 },
+    ],
+  },
+  {
+    id: 'sketch-fast', kind: 'image', name: '草图快出', billing: { unit: 'image' }, unsupported: {},
+    references: { maxImages: 0 },
+    params: [{ field: 'n', type: 'integer', values: [1, 2, 3, 4], default: 4 }],
+  },
+  {
+    id: 'video-v1', kind: 'video', name: '视频 V1', billing: { unit: 'second' }, unsupported: {},
+    references: { maxImages: 0 },
+    params: [
+      { field: 'aspect_ratio', type: 'enum', values: ['16:9', '9:16', '1:1'], default: '16:9' },
+      { field: 'duration', type: 'enum', values: [5, 10], default: 5, unit: 's' },
+    ],
+  },
+] satisfies ModelSpec[] as ModelSpec[]
+
+export const modelsFor = (kind: 'image' | 'video') => MOCK_MODELS.filter(m => m.kind === kind)
+export const findModel = (id?: string) => MOCK_MODELS.find(m => m.id === id)
+export const defaultParams = (m: ModelSpec) => Object.fromEntries(m.params.filter(p => p.default != null).map(p => [p.field, p.default!]))
+
+const SAMPLE_VIDEO = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4'
+
+const ratioOf = (r: unknown): [number, number] => {
+  const m = String(r ?? '1:1').match(/^(\d+):(\d+)$/)
+  return m ? [Number(m[1]), Number(m[2])] : [1, 1]
+}
+
+export function picsumAsset(seed: string, aspect: unknown = '1:1'): AssetRef {
+  const [rw, rh] = ratioOf(aspect)
+  const pic = (w: number) => `https://picsum.photos/seed/${seed}/${w}/${Math.round((w * rh) / rw)}`
+  return { id: `mock-${seed}`, kind: 'image', width: 1024, height: Math.round((1024 * rh) / rw), urls: { w480: pic(480), w960: pic(960), orig: pic(1024) } }
+}
+
+/** 2–5s, progress ticks, 15% failure. */
+export function mockGenerate(opts: { kind: 'image' | 'video'; params: Record<string, unknown>; onProgress: (p: number) => void; rng?: () => number }): Promise<AssetRef[]> {
+  const rng = opts.rng ?? Math.random
+  const total = 2000 + rng() * 3000
+  const fail = rng() < 0.15
+  const start = Date.now()
+  return new Promise((resolve, reject) => {
+    const t = setInterval(() => {
+      const p = Math.min(1, (Date.now() - start) / total)
+      opts.onProgress(p)
+      if (fail && p > 0.6) { clearInterval(t); reject(new Error('上游服务繁忙，本次未消耗积分，请重试')); return }
+      if (p < 1) return
+      clearInterval(t)
+      if (opts.kind === 'video') {
+        const [rw, rh] = ratioOf(opts.params.aspect_ratio ?? '16:9')
+        resolve([{ id: `mock-v-${start}`, kind: 'video', width: rw * 100, height: rh * 100, urls: { orig: SAMPLE_VIDEO } }])
+        return
+      }
+      const n = Number(opts.params.n ?? 1)
+      resolve(Array.from({ length: n }, (_, i) => picsumAsset(`${start}-${i}`, opts.params.aspect_ratio)))
+    }, 120)
+  })
+}
+
+// ---------- upload ----------
+// ponytail: mock keeps the File in IndexedDB under a `local:` url so it survives reload.
+// Real flow = useUpload's createUpload → PUT → completeUpload, then node stores media_assets.id only.
+
+const blobKey = (id: string) => `ipzsk.canvas.blob.${id}`
+
+export async function readImageSize(file: File): Promise<{ width: number; height: number } | null> {
+  if (!file.type.startsWith('image/')) return null
+  try { const b = await createImageBitmap(file); const r = { width: b.width, height: b.height }; b.close(); return r } catch { return null }
+}
+
+export async function mockUpload(file: File, onProgress: (p: number) => void): Promise<AssetRef> {
+  const id = crypto.randomUUID()
+  const size = await readImageSize(file)
+  for (let p = 0.1; p < 1; p += 0.15) { onProgress(p); await new Promise(r => setTimeout(r, 90)) }
+  await set(blobKey(id), file)
+  onProgress(1)
+  const kind = file.type.startsWith('video/') ? 'video' : 'image'
+  return { id, kind, width: size?.width ?? null, height: size?.height ?? null, urls: { orig: `local:${id}` } }
+}
+
+const resolved = new Map<string, string>()
+/**
+ * Resolves `local:` urls to blob urls (cached for the page lifetime). Server assets (`asset_id`) go through the media
+ * freshness resolver (§7.2): refreshed signed urls replace the payload cached in the node near expiry / on load error.
+ * The canvas has no query owning its assets, so Editor injects `refreshCanvasAsset` via MediaRefreshProvider.
+ */
+export function useAssetUrls(asset?: AssetRef): AssetRef['urls'] | undefined {
+  const orig = asset?.urls.orig
+  const local = orig?.startsWith('local:') ? orig.slice(6) : null
+  const [url, setUrl] = useState(() => (local ? resolved.get(local) : undefined))
+  const fresh = useFreshUrls(local ? undefined : asset?.asset_id, asset?.urls ?? { orig: '' })
+  useEffect(() => {
+    if (!local || resolved.has(local)) { if (local) setUrl(resolved.get(local)); return }
+    let live = true
+    void get<Blob>(blobKey(local)).then(b => {
+      if (!b || !live) return
+      const u = URL.createObjectURL(b)
+      resolved.set(local, u)
+      setUrl(u)
+    }).catch(() => {})
+    return () => { live = false }
+  }, [local])
+  if (!asset) return undefined
+  return local ? { orig: url ?? '' } : fresh.urls
+}
+
+/**
+ * Canvas refresher: refetch cached owners (assets lists, records …); if none holds the asset, scan the first pages of the library.
+ * ponytail: up to 3 pages (150 assets); needs `GET /api/me/assets?ids=` to be exact for older assets.
+ */
+export async function refreshCanvasAsset(id: string) {
+  await refetchOwners(id)
+  const cached = findCachedUrls(id)
+  if (cached) return cached
+  let cursor: string | null = null
+  for (let i = 0; i < 3; i++) {
+    const page: Awaited<ReturnType<typeof assetsApi.listAssets>> = await assetsApi.listAssets({}, cursor)
+    const hit = page.items.find(a => a.id === id)
+    if (hit) return hit.urls
+    if (!(cursor = page.next_cursor)) break
+  }
+  return null
+}
+
+/** Best-effort sync resolution for payloads leaving the canvas (e.g. 加入输入框). */
+export const resolveUrl = (u: string) => (u.startsWith('local:') ? resolved.get(u.slice(6)) ?? u : u)
+export const seedResolved = (id: string, blobUrl: string) => { resolved.set(id, blobUrl) }

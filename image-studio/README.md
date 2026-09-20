@@ -3,9 +3,9 @@
 Web adaptation of JayceHuang/dsh-imagegen 1.7.0. The upstream React studio,
 ecommerce flow and node canvas are in `vendor/src/client`; web-only services
 are in `web`. Build with `npm ci` and `npm run build` in this directory.
-Serve the site root; the entry remains `/image.html`.
+Serve the site root; the entry is `/image` (rewritten to `/image.html`).
 
-The default web entry is a beginner workspace: choose an effect, fill one or two
+The web entry renders the professional `ImageGenPanel` directly. Signed out, generation stops before submission with a login prompt (draft kept in sessionStorage); Cmd/Ctrl+Enter submits. `web/BeginnerStudio.tsx` is kept but not mounted; it was a beginner workspace: choose an effect, fill one or two
 fields (or upload a photo), then generate one image. `web/beginner-effects.ts`
 defines the eight curated effects; the first four appear on the home screen.
 Prompts are assembled locally and remain editable under “查看提示词”. Model,

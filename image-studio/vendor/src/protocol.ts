@@ -153,7 +153,7 @@ export interface TemplateSourceMeta {
  * fetch definition in templates-store.ts and an optional bundled snapshot.
  */
 export const TEMPLATE_SOURCES: TemplateSourceMeta[] = [
-  { id: 'ipzsk', label: 'IPZSK 精选', homepage: 'https://www.ipzsk.com/image.html', description: '原网页图片与提示词，按用途分类', bundledOnly: true },
+  { id: 'ipzsk', label: 'IPZSK 精选', homepage: 'https://www.ipzsk.com/image', description: '原网页图片与提示词，按用途分类', bundledOnly: true },
   {
     id: 'canghe',
     label: '沧河案例库',

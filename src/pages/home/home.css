@@ -1,0 +1,11 @@
+@import "../../ui/ui.css";
+
+/* Designer's sticker jitter (479bf1e). Only used under motion-safe: in Home.tsx. */
+@keyframes sticker-jitter {
+  0%, 100% { translate: 0 0; rotate: 0deg; }
+  25% { translate: 1px -2px; rotate: .7deg; }
+  50% { translate: -2px 1px; rotate: -1deg; }
+  75% { translate: 2px 1px; rotate: .45deg; }
+}
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

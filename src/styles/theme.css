@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+/* IPZSK design tokens — single source for every new page (docs/studio-redesign.md §3.1). */
+@theme {
+  --color-paper: #f9f8f6;
+  --color-card: #ffffff;
+  --color-subtle: #eeece8;
+  --color-line: #dddcd9;
+  --color-ink: #1d1f20;
+  /* WCAG AA: #5f6874 ≈ 5.5:1 on paper, 5.8 on card, 5.0 on subtle. */
+  --color-muted: #5f6874;
+  /* Accent from designer commit 479bf1e (IPZSK blue). #1558d6 = 5.9:1 on paper; #1a6bf0 ≈ Punk #1D71FB darkened just enough for white text at 4.8:1. */
+  --color-label: #1558d6;
+  --color-acid: #1a6bf0;
+  --color-acid-deep: #1558d6;
+  --color-acid-soft: #eaf2ff;
+  --color-danger: #a63c2f;
+  /* #855a0d = 5.06:1 on its own 12% tint (4.5 on the 20% hover tint). */
+  --color-warning: #855a0d;
+  /* Neutral green: #1a6e44 = 5.9:1 on paper, 6.3 on card; 5.0 on its 12% tint over paper (5.3 over card), 4.65 on a 20% tint over card. */
+  --color-success: #1a6e44;
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-panel: 24px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  --ease-standard: cubic-bezier(.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 240ms;
+}
+
+@layer base {
+  html, body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); }
+  :focus-visible { outline: 2px solid var(--color-acid-deep); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+  }
+}
