@@ -129,7 +129,7 @@ export function AiDialog({ data }: { data: WorkspaceState }) {
       body.budget_cny = q.reserved_cny; body.policy_version = q.policy_version
       setPrepared(q.can_afford ? { body, owner, projectId: p.id, updated: p.updated, action } : null)
       say((q.billing_enabled ? `本次最多预冻结 ${Number(q.reserved_points).toLocaleString()} 点，按实际用量结算。最多输出 ${q.output_limit} tokens。` : '当前账号计费策略未启用自动扣费，消费以个人中心记录为准。')
-        + (q.can_afford ? '' : ' 可用点数不足，请先到个人中心兑换充值码。'), !q.can_afford)
+        + (q.can_afford ? '' : ' 可用余额不足，请先到个人中心在线充值。'), !q.can_afford)
     } catch { say('无法取得费用信息，请稍后重试。', true) }
     finally { setQuoting(false) }
   }

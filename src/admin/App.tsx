@@ -138,7 +138,7 @@ function Shell() {
           <a href={LEGACY_ADMIN_URL} target="_blank" rel="noopener noreferrer" className={cn('flex h-10 shrink-0 items-center gap-2.5 rounded-control px-3 text-sm text-muted hover:bg-subtle max-md:h-8 max-md:gap-1.5 max-md:px-2.5 max-md:text-[13px]', focusRing)}>
             <ExternalLink className="size-[18px]" aria-hidden />旧版管理后台
           </a>
-          <p className="px-3 text-[11px] leading-5 text-muted max-md:hidden">充值码、计费、开发者审核、插件、分成暂在旧版；上游渠道见「运维」</p>
+          <p className="px-3 text-[11px] leading-5 text-muted max-md:hidden">计费、开发者审核、插件、分成暂在旧版；上游渠道见「运维」</p>
         </div>
       </aside>
       <main className="min-w-0 px-8 pb-16 pt-6 max-md:px-4">

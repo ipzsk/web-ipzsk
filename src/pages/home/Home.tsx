@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowUpRight, ChevronDown, Download, LoaderCircle } from 'lucide-react'
 import { cn, focusRing } from '@/ui'
 import { PLATFORMS, RELEASE_PAGE, detectPlatform, fetchRelease, releaseOptions, type Option } from './release'
+import { WalletHome } from './WalletHome'
 
 // Designer look from commit 479bf1e (lockup, sticker hero, serif headline, rotating phrase, download menu),
 // recoloured with IPZSK tokens; legacy feature cards kept below with /studio entry links.
@@ -117,9 +118,16 @@ function DownloadMenu() {
 
 export function Home() {
   const { phrase, changing } = useRotatingPhrase()
+  const [hash, setHash] = useState(location.hash)
+  useEffect(() => {
+    const sync = () => setHash(location.hash)
+    window.addEventListener('hashchange', sync)
+    return () => window.removeEventListener('hashchange', sync)
+  }, [])
+  const walletOpen = hash === '#wallet'
   return (
     <div className="min-h-dvh overflow-x-clip bg-paper text-ink antialiased">
-      <main>
+      {walletOpen ? <WalletHome /> : <main>
         <section aria-labelledby="hero-title" className="relative mx-auto flex min-h-[calc(100svh-104px)] w-[min(1340px,calc(100%-28px))] items-center justify-center pb-24 pt-14 md:min-h-[calc(100svh-64px)] md:w-[min(1340px,calc(100%-80px))] md:pb-[82px] md:pt-12">
           <div aria-hidden className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
             {STICKERS.map(s => (
@@ -173,9 +181,10 @@ export function Home() {
             ))}
           </div>
         </section>
-      </main>
+      </main>}
       <footer className="mx-auto flex w-[min(1340px,calc(100%-28px))] flex-col justify-between gap-2 border-t border-line py-6 text-[11px] text-muted md:w-[min(1340px,calc(100%-80px))] md:flex-row">
-        <span><strong className="text-ink">IPZSK</strong> · AI 创作工作台</span><span>把想法，推进到发布。</span>
+        <span><strong className="text-ink">IPZSK</strong> · AI 创作工作台</span>
+        <span className="flex flex-wrap gap-x-4 gap-y-2"><a href="/pricing">产品定价</a><a href="/aup">AIGC 使用规范</a><a href="/terms">服务条款</a><a href="/privacy">隐私政策</a><a href="mailto:3318984@gmail.com">客服邮箱</a></span>
       </footer>
     </div>
   )

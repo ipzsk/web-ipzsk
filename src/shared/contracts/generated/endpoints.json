@@ -1,7 +1,7 @@
 {
   "_source": {
     "repo": "ipzsk-api-gateway",
-    "commit": "0d78934"
+    "commit": "2711328"
   },
   "auth_kinds": {
     "bearer": {
@@ -17,10 +17,9 @@
         "origin_denied",
         "origin_not_allowed",
         "rate_limited",
-        "forbidden_role",
-        "admin_session_expired"
+        "forbidden_role"
       ],
-      "description": "better-auth customer session cookie required (bearer tokens rejected with customer_login_required); roles → user_roles + session < 12h"
+      "description": "better-auth customer session cookie required (bearer tokens rejected with customer_login_required); roles → user_roles，会话时长与官网一致（7 天、访问即续期）"
     },
     "cookie_or_bearer": {
       "common_errors": [
@@ -68,7 +67,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "invalid_action",
@@ -91,7 +89,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role"
       ],
@@ -107,7 +104,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "invalid_category",
@@ -132,7 +128,6 @@
       "body": "AdminCaseCreate",
       "body_shape": "{ title: string prompt: string category: string category_zh?: string | null tags?: string[] model?: string | null params?: Record<string, unknown> template?: CaseTemplate | null author?: string | null author_url?: string | null source_repo?: string | null source_url?: string | null license_note?: string | null id?: string | null cover_asset_id: Uuid }",
       "errors": [
-        "admin_session_expired",
         "asset_not_found",
         "asset_not_image",
         "asset_not_ready",
@@ -167,7 +162,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "case_not_draft",
         "case_not_found",
         "customer_login_required",
@@ -184,7 +178,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "case_not_found",
         "customer_login_required",
         "forbidden_role",
@@ -205,7 +198,6 @@
       "body_shape": "{ title?: string prompt?: string category?: string category_zh?: string | null tags?: string[] model?: string | null params?: Record<string, unknown> template?: CaseTemplate | null author?: string | null author_url?: string | null source_repo?: string | null source_url?: string | null license_note?: string | null status?: CaseStatus expected_updated_at?: IsoTime | null }",
       "conflict": "CaseConflict",
       "errors": [
-        "admin_session_expired",
         "case_conflict",
         "case_not_found",
         "case_publish_invalid",
@@ -232,7 +224,6 @@
       "body": "CaseCoverPut",
       "body_shape": "{ asset_id: Uuid }",
       "errors": [
-        "admin_session_expired",
         "asset_not_found",
         "asset_not_image",
         "asset_not_ready",
@@ -256,7 +247,6 @@
       "body": "CasePositionPatch",
       "body_shape": "{ after_id?: string | null before_id?: string | null }",
       "errors": [
-        "admin_session_expired",
         "case_not_found",
         "case_order_conflict",
         "customer_login_required",
@@ -277,7 +267,6 @@
       "body": "CaseReferencesPut",
       "body_shape": "{ asset_ids: Uuid[] }",
       "errors": [
-        "admin_session_expired",
         "asset_not_found",
         "asset_not_image",
         "asset_not_ready",
@@ -303,7 +292,6 @@
       "body": "BulkStatusRequest",
       "body_shape": "{ ids: string[] status: CaseStatus }",
       "errors": [
-        "admin_session_expired",
         "case_not_found",
         "case_publish_invalid",
         "customer_login_required",
@@ -323,7 +311,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "invalid_cursor",
@@ -347,7 +334,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "generation_not_found"
@@ -366,7 +352,6 @@
       "body": "GenerationCancel",
       "body_shape": "{ reason: string }",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "generation_not_cancellable",
@@ -386,7 +371,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "generation_not_found",
@@ -405,7 +389,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role"
       ],
@@ -421,7 +404,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "invalid_query",
@@ -441,7 +423,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "invalid_channel_id",
@@ -459,7 +440,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "invalid_date_range",
@@ -480,7 +460,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "lanehub_api_failed",
@@ -498,7 +477,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "invalid_query",
@@ -520,7 +498,6 @@
       "body": "LaneMatrixSave",
       "body_shape": "{ changes: LaneChange[] }",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "invalid_lane_changes",
@@ -538,7 +515,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "invalid_query",
@@ -558,7 +534,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "invalid_query",
@@ -578,7 +553,29 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
+        "customer_login_required",
+        "forbidden_role",
+        "invalid_id",
+        "invalid_payment_amount",
+        "invalid_payment_event",
+        "invalid_payment_signature",
+        "online_payment_unavailable",
+        "payment_environment_mismatch",
+        "payment_event_conflict",
+        "payment_mismatch",
+        "payment_order_unmatched"
+      ],
+      "method": "GET",
+      "path": "/api/admin/payments",
+      "roles": [
+        "admin",
+        "operator",
+        "viewer"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "errors": [
         "customer_login_required",
         "forbidden_role"
       ],
@@ -594,7 +591,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "invalid_cursor",
@@ -614,7 +610,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "forbidden_role",
         "user_not_found"
@@ -631,7 +626,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "cannot_revoke_own_admin",
         "customer_login_required",
         "forbidden_role",
@@ -649,7 +643,6 @@
     {
       "auth": "cookie",
       "errors": [
-        "admin_session_expired",
         "customer_login_required",
         "email_not_verified",
         "forbidden_role",
@@ -1544,6 +1537,37 @@
     },
     {
       "auth": "cookie_or_bearer",
+      "errors": [
+        "customer_login_required",
+        "invalid_id",
+        "invalid_payment_pack",
+        "online_payment_unavailable",
+        "payment_checkout_already_requested",
+        "payment_checkout_failed",
+        "payment_email_unavailable",
+        "payment_wallet_unavailable"
+      ],
+      "method": "POST",
+      "path": "/api/me/payments/checkout"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "customer_login_required"
+      ],
+      "method": "GET",
+      "path": "/api/me/payments/options"
+    },
+    {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "customer_login_required"
+      ],
+      "method": "GET",
+      "path": "/api/me/payments/orders"
+    },
+    {
+      "auth": "cookie_or_bearer",
       "errors": [],
       "method": "GET",
       "path": "/api/me/plugin-market"
@@ -2133,22 +2157,6 @@
         "type"
       ],
       "response": "VoiceList"
-    },
-    {
-      "auth": "cookie_or_bearer",
-      "errors": [
-        "credit_reference_required",
-        "invalid_api_token",
-        "invalid_credit_amount",
-        "invalid_voucher",
-        "lanehub_token_create_failed",
-        "lanehub_user_create_failed",
-        "lanehub_username_collision",
-        "not_found",
-        "voucher_unavailable"
-      ],
-      "method": "POST",
-      "path": "/api/me/vouchers/redeem"
     },
     {
       "auth": "cookie_or_bearer",
@@ -3325,12 +3333,6 @@
       ]
     },
     {
-      "code": "admin_session_expired",
-      "status": [
-        401
-      ]
-    },
-    {
       "code": "already_exists",
       "status": [
         409
@@ -3502,24 +3504,6 @@
       "code": "background_unsupported",
       "status": [
         400
-      ]
-    },
-    {
-      "code": "batch_already_assigned",
-      "status": [
-        409
-      ]
-    },
-    {
-      "code": "batch_conflict",
-      "status": [
-        409
-      ]
-    },
-    {
-      "code": "batch_expired",
-      "status": [
-        409
       ]
     },
     {
@@ -3768,12 +3752,6 @@
       "code": "email_verification_required",
       "status": [
         403
-      ]
-    },
-    {
-      "code": "export_required",
-      "status": [
-        409
       ]
     },
     {
@@ -4096,12 +4074,6 @@
       ]
     },
     {
-      "code": "invalid_denomination",
-      "status": [
-        400
-      ]
-    },
-    {
       "code": "invalid_email",
       "status": [
         400
@@ -4115,12 +4087,6 @@
     },
     {
       "code": "invalid_expiry",
-      "status": [
-        400
-      ]
-    },
-    {
-      "code": "invalid_export_format",
       "status": [
         400
       ]
@@ -4331,6 +4297,30 @@
     },
     {
       "code": "invalid_password",
+      "status": [
+        401
+      ]
+    },
+    {
+      "code": "invalid_payment_amount",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_payment_event",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_payment_pack",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_payment_signature",
       "status": [
         401
       ]
@@ -4586,18 +4576,6 @@
       ]
     },
     {
-      "code": "invalid_voucher",
-      "status": [
-        400
-      ]
-    },
-    {
-      "code": "invalid_voucher_state",
-      "status": [
-        400
-      ]
-    },
-    {
       "code": "invalid_workspace",
       "status": [
         400
@@ -4706,15 +4684,15 @@
       ]
     },
     {
-      "code": "no_available_vouchers",
-      "status": [
-        409
-      ]
-    },
-    {
       "code": "not_found",
       "status": [
         404
+      ]
+    },
+    {
+      "code": "online_payment_unavailable",
+      "status": [
+        503
       ]
     },
     {
@@ -4745,6 +4723,54 @@
       "code": "password_too_short",
       "status": [
         400
+      ]
+    },
+    {
+      "code": "payment_checkout_already_requested",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "payment_checkout_failed",
+      "status": [
+        502
+      ]
+    },
+    {
+      "code": "payment_email_unavailable",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "payment_environment_mismatch",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "payment_event_conflict",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "payment_mismatch",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "payment_order_unmatched",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "payment_wallet_unavailable",
+      "status": [
+        503
       ]
     },
     {
@@ -5127,24 +5153,6 @@
     },
     {
       "code": "voice_id_required",
-      "status": [
-        400
-      ]
-    },
-    {
-      "code": "voucher_not_unused",
-      "status": [
-        409
-      ]
-    },
-    {
-      "code": "voucher_service_unavailable",
-      "status": [
-        503
-      ]
-    },
-    {
-      "code": "voucher_unavailable",
       "status": [
         400
       ]

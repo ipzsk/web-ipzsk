@@ -9,7 +9,7 @@ describe('request errors', () => {
     respond(402, { error: { code: 'insufficient_balance', message: 'x' } })
     const err = await request('/api/me/x').catch(e => e)
     expect(err).toBeInstanceOf(ApiError)
-    expect(err).toMatchObject({ status: 402, code: 'insufficient_balance', message: '点数不足，请先充值。' })
+    expect(err).toMatchObject({ status: 402, code: 'insufficient_balance', message: '余额不足，请先充值。' })
   })
 
   it('falls back to http_<status> and generic message', async () => {

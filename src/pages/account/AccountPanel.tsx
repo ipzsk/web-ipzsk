@@ -3,14 +3,15 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Copy, Download, FolderOpen, Image, KeyRound, LogOut, RefreshCw, TriangleAlert, Wallet } from 'lucide-react'
 import { Badge, Button, Dialog, DialogContent, DialogFooter, EmptyState, ErrorState, Input, Skeleton, cn, focusRing, toast } from '@/ui'
 import { qk, queryClient } from '@/shared/query'
+import { formatMoney } from '@/shared/billing'
 import {
-  BILLING_STATE, USAGE_STATUS, activeTokenCount, call, formatPoints, tokenInitial, tokenReducer, tokenStatus,
+  BILLING_STATE, USAGE_STATUS, activeTokenCount, call, tokenInitial, tokenReducer, tokenStatus,
   type TokenRow,
 } from './lib'
 import { WALLET_KEY, fetchWallet } from './Recharge'
 
 export interface Profile { user: { email: string; name?: string | null; email_verified: boolean; created_at: string } }
-interface UsageRow { id: string; created_at: string; model: string; status: string; input_tokens: number | null; output_tokens: number | null; charged_points: string | null; billing_state?: string }
+interface UsageRow { id: string; created_at: string; model: string; status: string; input_tokens: number | null; output_tokens: number | null; charged_cny: string | null; billing_state?: string }
 interface Usage { rows: UsageRow[]; page: number; page_size: number; count: number; summary: { requests: number } }
 
 const usageQuery = (page: number) => ({ queryKey: ['account', 'usage', page], queryFn: () => call<Usage>(page === 1 ? '/api/me/usage' : '/api/me/usage?page=' + page) })
@@ -72,7 +73,7 @@ export function AccountPanel({ profile, onRecharge, onSignedOut }: { profile: Pr
   }
 
   const w = wallet.data
-  const available = w ? Number(w.available_points) : 0
+  const available = w ? Number(w.available_cny) : 0
   return (
     <div className="grid min-w-0 grid-cols-1 gap-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -102,18 +103,18 @@ export function AccountPanel({ profile, onRecharge, onSignedOut }: { profile: Pr
       </nav>
 
       <div className="grid grid-cols-2 gap-5 max-md:grid-cols-1">
-        <Card title="可用点数" action={<Button variant="ghost" size="sm" icon={<RefreshCw />} loading={refreshing} loadingText="刷新中" onClick={() => void refresh()}>刷新</Button>}>
+        <Card title="可用余额" action={<Button variant="ghost" size="sm" icon={<RefreshCw />} loading={refreshing} loadingText="刷新中" onClick={() => void refresh()}>刷新</Button>}>
           {wallet.isPending ? <Skeleton className="h-10 w-48" /> : wallet.isError ? (
-            <ErrorState reason="暂时无法读取点数。" action={{ label: '重试', onClick: () => void wallet.refetch() }} />
+            <ErrorState reason="暂时无法读取余额。" action={{ label: '重试', onClick: () => void wallet.refetch() }} />
           ) : w && <>
-            <p className="text-[40px] font-black leading-tight tabular-nums text-ink max-sm:text-[32px]">{formatPoints(w.available_points)}</p>
-            {Number(w.frozen_points) !== 0 && <p className="mt-2 text-sm text-muted">处理中冻结 {formatPoints(w.frozen_points)}</p>}
-            <p className="mt-2 text-sm text-muted">{available > 0 ? `已使用 ${usage.data?.summary.requests ?? '…'} 次 · 网页与客户端共用点数` : '暂无可用点数，请先兑换充值码后使用。'}</p>
+            <p className="text-[40px] font-black leading-tight tabular-nums text-ink max-sm:text-[32px]">{formatMoney(w.available_cny)}</p>
+            {Number(w.frozen_cny) !== 0 && <p className="mt-2 text-sm text-muted">处理中冻结 {formatMoney(w.frozen_cny)}</p>}
+            <p className="mt-2 text-sm text-muted">{available > 0 ? `已使用 ${usage.data?.summary.requests ?? '…'} 次 · 网页与客户端共用人民币余额` : '暂无可用余额，请先在线充值后使用。'}</p>
           </>}
         </Card>
-        <Card title="充值 / 兑换">
-          <p className="text-sm text-muted">10 元 = 1,000 点 · 50 元 = 5,000 点。网页与客户端共用。</p>
-          <Button variant="primary" className="mt-5" icon={<Wallet />} onClick={onRecharge}>购买充值码 / 兑换到账</Button>
+        <Card title="在线充值">
+          <p className="text-sm text-muted">支持 10 元、50 元、100 元三档微信支付，付款核实后自动到账。</p>
+          <Button variant="primary" className="mt-5" icon={<Wallet />} onClick={onRecharge}>选择充值金额</Button>
         </Card>
       </div>
 
@@ -125,7 +126,7 @@ export function AccountPanel({ profile, onRecharge, onSignedOut }: { profile: Pr
                 <div className="-mx-6 overflow-x-auto max-sm:-mx-4">
                   <table className="w-full min-w-[820px] table-fixed text-left text-[13px]">
                     <colgroup><col className="w-[170px]" /><col /><col className="w-[88px]" /><col className="w-[150px]" /><col className="w-[110px]" /><col className="w-[190px]" /></colgroup>
-                    <thead><tr className="bg-subtle/60 text-xs text-muted">{['时间', '模型', '状态', '输入 / 输出 Token', '消耗点数', '请求编号'].map(h => <th key={h} scope="col" className="whitespace-nowrap px-4 py-2.5 font-semibold first:pl-6 last:pr-6">{h}</th>)}</tr></thead>
+                    <thead><tr className="bg-subtle/60 text-xs text-muted">{['时间', '模型', '状态', '输入 / 输出 Token', '扣款（人民币）', '请求编号'].map(h => <th key={h} scope="col" className="whitespace-nowrap px-4 py-2.5 font-semibold first:pl-6 last:pr-6">{h}</th>)}</tr></thead>
                     <tbody>
                       {usage.data.rows.map(r => (
                         <tr key={r.id} className="border-t border-line">
@@ -133,7 +134,7 @@ export function AccountPanel({ profile, onRecharge, onSignedOut }: { profile: Pr
                           <td className="truncate px-4 py-3" title={r.model}>{r.model}</td>
                           <td className="whitespace-nowrap px-4 py-3"><Badge tone={r.status === 'succeeded' ? 'success' : r.status === 'failed' ? 'danger' : r.status === 'uncertain' ? 'warning' : 'neutral'}>{USAGE_STATUS[r.status] ?? r.status}</Badge></td>
                           <td className="whitespace-nowrap px-4 py-3 tabular-nums">{r.input_tokens ?? '待核实'} / {r.output_tokens ?? '待核实'}</td>
-                          <td className="whitespace-nowrap px-4 py-3 tabular-nums">{r.charged_points != null ? formatPoints(r.charged_points) : BILLING_STATE[r.billing_state ?? ''] ?? '历史未计费'}</td>
+                          <td className="whitespace-nowrap px-4 py-3 tabular-nums">{r.charged_cny != null && ['settled', 'released'].includes(r.billing_state ?? '') ? formatMoney(r.charged_cny, true) : BILLING_STATE[r.billing_state ?? ''] ?? '历史未计费'}</td>
                           <td className="py-3 pl-4 pr-6">
                             <span className="flex items-center gap-1">
                               <span className="truncate font-mono text-xs text-muted" title={r.id}>{r.id}</span>
@@ -158,7 +159,7 @@ export function AccountPanel({ profile, onRecharge, onSignedOut }: { profile: Pr
       <Fold title="余额变动">
         {!w?.entries?.length ? <p className="text-sm text-muted">{wallet.isPending ? '正在读取…' : '暂无余额变动。'}</p> : (
           <ul className="grid gap-2 text-sm text-muted">
-            {w.entries.map((r, i) => <li key={i} className="tabular-nums">{time(r.created_at)} · {r.kind === 'consumption' ? '消费' : '充值'} {formatPoints(r.amount_points)}</li>)}
+            {w.entries.map((r, i) => <li key={i} className="tabular-nums">{time(r.created_at)} · {r.kind === 'consumption' ? '消费' : r.kind === 'signup_bonus' ? '注册赠送' : '充值'} {formatMoney(r.amount_cny, true)}</li>)}
           </ul>
         )}
       </Fold>

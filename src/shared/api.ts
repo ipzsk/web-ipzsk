@@ -5,7 +5,7 @@ export const UNAUTHORIZED_EVENT = 'ipzsk:unauthorized'
 const messages: Record<string, string> = {
   customer_login_required: '请先登录。',
   invalid_api_token: '登录已失效，请重新登录。',
-  insufficient_balance: '点数不足，请先充值。',
+  insufficient_balance: '余额不足，请先充值。',
   billing_unavailable: '计费服务暂不可用，请稍后重试。',
   rate_limited: '操作太频繁，请稍后再试。',
   too_many_active: '进行中的任务太多，请等其中一些完成后再提交。',
@@ -15,6 +15,10 @@ const messages: Record<string, string> = {
   unsupported_parameter_for_model: '当前型号不支持这个参数，请修改后重试。',
   reference_asset_not_found: '参考素材已删除或不可用，请移除后重试。',
   queue_conflict: '队列已在其他设备更新。',
+  payment_email_unavailable: '账户邮箱不可用，请重新登录或联系客服。',
+  payment_checkout_already_requested: '充值请求已提交，请先查看充值记录。',
+  online_payment_unavailable: '在线充值暂不可用，请稍后再试。',
+  payment_checkout_failed: '收银台暂时无法打开，请稍后重试。',
 }
 
 export class ApiError extends Error {
@@ -70,7 +74,13 @@ export async function currentUser(): Promise<User | null> {
   catch (error) { if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return null; throw error }
 }
 
-export interface Wallet { available_points: string; frozen_points: string }
+export interface Wallet {
+  available_cny: string
+  frozen_cny: string
+  available_points?: string
+  frozen_points?: string
+  entries?: { created_at: string; kind: string; amount_cny: string }[]
+}
 
 /**
  * Mock adapters, DEV builds only: `?mock=1` on entry or localStorage['ipzsk.mock']==='1'. Read once per page load.

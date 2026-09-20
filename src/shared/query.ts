@@ -24,7 +24,7 @@ export const useWallet = (enabled = true) => useQuery({
   queryKey: qk.wallet,
   enabled,
   queryFn: async (): Promise<Wallet | null> => {
-    if (isMock) return { available_points: mockPoints().toFixed(8), frozen_points: '0.00000000' }
+    if (isMock) return { available_cny: (mockPoints() / 100).toFixed(2), frozen_cny: '0.00', available_points: mockPoints().toFixed(8), frozen_points: '0.00000000' }
     try { return await request<Wallet>('/api/me/wallet') }
     catch (e) { if (e instanceof ApiError && (e.status === 401 || e.status === 403)) return null; throw e }
   },

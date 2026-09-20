@@ -1,17 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ACCOUNT_ERRORS, VOUCHER_ERRORS, accountMessage, activeTokenCount, clearPendingFlow, cooldownSeconds, readFlow, rememberFlow,
+  ACCOUNT_ERRORS, accountMessage, activeTokenCount, clearPendingFlow, cooldownSeconds, readFlow, rememberFlow,
   resolveNext, tokenInitial, tokenReducer, tokenStatus,
 } from './lib'
 
-// Fixtures copied from legacy account.js / recharge.js — parity must hold byte for byte.
-const LEGACY_ACCOUNT = {captcha_required:'请先完成人机验证。',captcha_invalid:'人机验证已失效，请重新验证。',captcha_unavailable:'人机验证服务暂不可用，请稍后重试。',INVALID_EMAIL_OR_PASSWORD:'邮箱或密码不正确；未注册的邮箱请先注册。',EMAIL_NOT_VERIFIED:'邮箱尚未验证，请到注册页面完成邮箱验证。',PASSWORD_TOO_SHORT:'密码至少需要 12 位。',PASSWORD_TOO_LONG:'密码最多 128 位。',USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL:'该邮箱已注册，请登录或找回密码。',email_service_unavailable:'邮箱验证服务尚未开放，注册和找回密码暂不可用；已有账户可以使用密码登录。',email_delivery_failed:'邮件发送失败，请稍后重试。',customer_login_required:'请先使用邮箱和密码登录。',account_disabled:'账户已停用，请联系管理员。',invalid_email:'请检查邮箱地址。',rate_limited:'请求过于频繁，请稍后重试。',INVALID_OTP:'验证码错误或已失效，请检查后重试。',OTP_EXPIRED:'验证码已过期，请重新发送。',TOO_MANY_ATTEMPTS:'验证次数过多，请重新发送验证码。',INVALID_EMAIL:'邮箱地址格式不正确。',voucher_unavailable:'充值码不可用，请核对是否已兑换、过期或尚未启用。',invalid_voucher:'请检查充值码格式。'}
-const LEGACY_VOUCHER = {voucher_unavailable:'兑换码不可用，请核对是否已兑换、过期或尚未启用。',invalid_voucher:'请检查兑换码格式。',rate_limited:'操作太频繁，请稍后再试。',account_disabled:'账户已停用，请联系管理员。'}
+// Supported account errors; retired voucher codes are intentionally absent.
+const LEGACY_ACCOUNT = {captcha_required:'请先完成人机验证。',captcha_invalid:'人机验证已失效，请重新验证。',captcha_unavailable:'人机验证服务暂不可用，请稍后重试。',INVALID_EMAIL_OR_PASSWORD:'邮箱或密码不正确；未注册的邮箱请先注册。',EMAIL_NOT_VERIFIED:'邮箱尚未验证，请到注册页面完成邮箱验证。',PASSWORD_TOO_SHORT:'密码至少需要 12 位。',PASSWORD_TOO_LONG:'密码最多 128 位。',USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL:'该邮箱已注册，请登录或找回密码。',email_service_unavailable:'邮箱验证服务尚未开放，注册和找回密码暂不可用；已有账户可以使用密码登录。',email_delivery_failed:'邮件发送失败，请稍后重试。',customer_login_required:'请先使用邮箱和密码登录。',account_disabled:'账户已停用，请联系管理员。',invalid_email:'请检查邮箱地址。',rate_limited:'请求过于频繁，请稍后重试。',INVALID_OTP:'验证码错误或已失效，请检查后重试。',OTP_EXPIRED:'验证码已过期，请重新发送。',TOO_MANY_ATTEMPTS:'验证次数过多，请重新发送验证码。',INVALID_EMAIL:'邮箱地址格式不正确。'}
 
 describe('error maps', () => {
-  it('match legacy', () => {
+  it('contains the supported account messages', () => {
     expect(ACCOUNT_ERRORS).toEqual(LEGACY_ACCOUNT)
-    expect(VOUCHER_ERRORS).toEqual(LEGACY_VOUCHER)
   })
   it('fallbacks match legacy request()', () => {
     expect(accountMessage('OTP_EXPIRED', 400)).toBe('验证码已过期，请重新发送。')

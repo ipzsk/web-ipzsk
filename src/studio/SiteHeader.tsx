@@ -2,19 +2,20 @@ import { useQuery } from '@tanstack/react-query'
 import type { MouseEvent } from 'react'
 import { ShieldCheck } from 'lucide-react'
 import { cn, focusRing } from '@/ui'
-import { formatPoints } from '@/shared/points'
+import { formatMoney } from '@/shared/billing'
 import { isMock, loginUrl, request } from '@/shared/api'
 import { useCurrentUser, useWallet } from '@/shared/query'
 import { RechargeHost, openRecharge } from '@/shared/recharge/RechargeDialog'
 
 // React port of /site-nav.js + /points-wallet.js; look matches /site-nav.css.
 export type StudioKind = 'image' | 'video' | 'avatar'
-const links: { href: string; text: string; kind?: StudioKind }[] = [
+const links: { href: string; text: string; kind?: StudioKind; wallet?: boolean }[] = [
   { href: '/', text: '首页 · 下载' },
   { href: '/studio?kind=image', text: '图片', kind: 'image' },
   { href: '/studio?kind=video', text: '视频', kind: 'video' },
   { href: '/studio?kind=avatar', text: '数字人', kind: 'avatar' },
   { href: '/workspace', text: '内容工作台' },
+  { href: '/#wallet', text: '余额与账单', wallet: true },
 ]
 const linkClass = cn('rounded-control px-3.5 py-2 text-[13px] whitespace-nowrap hover:bg-subtle max-[720px]:px-3', focusRing)
 
@@ -22,17 +23,17 @@ function PointsPill() {
   const { data: wallet, isError } = useWallet()
   if (isError) return <span role="status" className="text-[13px] text-muted">点数暂不可用</span>
   if (!wallet) return null
-  const available = Number(wallet.available_points)
-  const frozen = Number(wallet.frozen_points)
+  const available = Number(wallet.available_cny)
+  const frozen = Number(wallet.frozen_cny)
   return (
     <button
       type="button"
       onClick={openRecharge}
       aria-haspopup="dialog"
-      title={(frozen > 0 ? `处理中冻结 ${formatPoints(frozen)} · ` : '') + '充值 / 兑换'}
+      title={(frozen > 0 ? `处理中冻结 ${formatMoney(frozen)} · ` : '') + '在线充值'}
       className={cn(linkClass, 'cursor-pointer border border-line bg-card font-bold tabular-nums')}
     >
-      {formatPoints(available)}
+      {formatMoney(available)}
       <span className={cn('font-normal max-[720px]:sr-only', available <= 0 ? 'text-danger' : 'text-label')}>{available <= 0 ? ' · 去充值' : ' · 充值'}</span>
     </button>
   )
@@ -67,7 +68,8 @@ export function SiteHeader({ studioKind, onStudioKind }: { studioKind?: StudioKi
             const onStudio = location.pathname.startsWith('/studio')
             const current = l.kind
               ? onStudio && (studioKind ?? new URLSearchParams(location.search).get('kind') ?? 'image') === l.kind
-              : l.href === '/' ? location.pathname === '/' : location.pathname.startsWith(l.href)
+              : l.wallet ? location.pathname === '/' && location.hash === '#wallet'
+                : l.href === '/' ? location.pathname === '/' && location.hash !== '#wallet' : location.pathname.startsWith(l.href)
             const onClick = l.kind && onStudioKind
               ? (e: MouseEvent) => { if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; e.preventDefault(); onStudioKind(l.kind!) }
               : undefined
