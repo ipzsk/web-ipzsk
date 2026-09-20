@@ -1,0 +1,30 @@
+name: Deploy contributor pushes to Vercel
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vercel-production-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  trigger-vercel:
+    if: github.actor != 'JayceHuang'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger the Vercel main deploy hook
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          test -n "$VERCEL_DEPLOY_HOOK_URL"
+          curl --fail --silent --show-error \
+            --request POST \
+            --retry 3 \
+            --retry-all-errors \
+            "$VERCEL_DEPLOY_HOOK_URL" > /dev/null
