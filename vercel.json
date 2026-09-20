@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    { "source": "/video", "destination": "/video.html", "permanent": false },
+    { "source": "/pricing", "destination": "/pricing.html", "permanent": false },
+    { "source": "/aup", "destination": "/aup.html", "permanent": false },
+    { "source": "/terms", "destination": "/terms.html", "permanent": false },
+    { "source": "/privacy", "destination": "/privacy.html", "permanent": false }
+  ]
+}

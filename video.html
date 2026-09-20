@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="使用 Seedance 2.0 Mini 生成 4–15 秒 AI 视频，提交前显示准确价格。" />
+  <meta name="theme-color" content="#F9F8F6" />
+  <title>AI 生视频 · IPZSK</title>
+  <link rel="stylesheet" href="/home-downloads.css?v=ipzsk-blue-3" />
+  <link rel="stylesheet" href="/video.css?v=1" />
+  <script src="/video.js?v=1" defer></script>
+</head>
+<body>
+  <header class="site-header"><nav class="shell nav" aria-label="主导航">
+    <a class="brand" href="/" aria-label="IPZSK 首页"><img class="brand-logo" src="/assets/ipzsk-lockup.png?v=1" alt="IPZSK" /></a>
+    <div class="nav-links"><a href="/">首页</a><a href="/image.html">生图</a><a class="active" href="/video.html" aria-current="page">生视频</a><a href="/workstation.html">内容工作台</a><a href="/pricing.html">定价</a><a href="/account.html">我的</a></div>
+    <div class="nav-actions"><a class="online-link" href="/pricing.html">查看价格</a><a class="nav-download" href="/account.html">账户与额度 <span aria-hidden="true">↗</span></a></div>
+  </nav></header>
+  <main class="video-shell">
+    <section class="video-heading"><div><p class="eyebrow">IPZSK VIDEO LAB</p><h1>让想法，<br /><span>拥有下一帧。</span></h1></div><div><p class="intro">使用 Seedance 2.0 Mini 生成 4–15 秒短视频。选择清晰度和时长后，提交前会显示并预留本次费用。</p><p class="model-disclosure">底层模型：<strong>Seedance 2.0 Mini</strong> · <code>seedance-2.0-mini</code></p></div></section>
+    <div id="authNotice" class="notice">需要登录并完成邮箱验证后使用。</div>
+    <section class="workspace">
+      <form id="videoForm" class="generator-card">
+        <div class="card-heading"><div><span>01</span><h2>描述要生成的视频</h2></div><small>文生视频</small></div>
+        <label class="prompt-field">视频提示词<textarea id="prompt" rows="8" maxlength="32000" required placeholder="例如：一只橘猫在清晨窗边伸懒腰，柔和逆光，镜头缓慢推进，电影质感"></textarea><span><b id="promptCount">0</b> / 32000</span></label>
+        <div class="settings-grid">
+          <label>生成模型<select id="model"><option value="seedance-2.0-mini">Seedance 2.0 Mini</option></select></label>
+          <label>清晰度<select id="resolution"><option value="480p">480p · 约 ¥0.21/秒</option><option value="720p" selected>720p · 约 ¥0.46/秒</option></select></label>
+          <label>视频时长<span class="number-input"><input id="duration" type="number" min="4" max="15" step="1" value="5" required /><i>秒</i></span></label>
+        </div>
+        <div class="billing-note"><div><span>本次预计扣费</span><strong id="estimatedPrice">¥2.30</strong></div><p>任务提交时预留额度，成功后正式扣除；生成失败或取消时释放预留额度。<a href="/pricing.html">查看完整定价</a></p></div>
+        <label class="policy-check"><input id="policyAgree" type="checkbox" required />我已阅读并同意<a href="/aup.html" target="_blank">《AIGC 可接受使用规范》</a></label>
+        <button id="generateButton" class="generate-button" type="submit">开始生成视频 <span>↗</span></button>
+        <p id="formError" class="form-error" role="alert" hidden></p>
+      </form>
+      <section class="result-card" aria-live="polite">
+        <div class="card-heading"><div><span>02</span><h2>生成结果</h2></div><small id="taskLabel">等待提交</small></div>
+        <div id="emptyResult" class="result-state"><div class="frame-mark">▶</div><strong>视频会出现在这里</strong><p>生成通常需要几分钟，任务编号会保存在本机浏览器中。</p></div>
+        <div id="taskProgress" class="result-state" hidden><div class="progress-orbit"><span id="progressNumber">0%</span></div><strong id="progressTitle">任务已提交</strong><p id="progressCopy">正在等待生成资源。</p><div class="progress-track"><i id="progressBar"></i></div></div>
+        <div id="videoResult" class="video-result" hidden><video id="resultVideo" controls playsinline preload="metadata"></video><div><p id="resultSummary">视频生成完成</p><a id="downloadVideo" target="_blank" rel="noopener noreferrer">打开并保存原视频 ↗</a></div></div>
+        <div id="taskFailed" class="result-state failed" hidden><strong>这次生成没有完成</strong><p id="failureCopy">预留额度会自动释放，请检查提示词或稍后重试。</p></div>
+      </section>
+    </section>
+  </main>
+  <footer class="shell footer"><span><strong>IPZSK</strong> · AI 创作工作台</span><span class="legal-footer-links"><a href="/pricing.html">产品定价</a><a href="/aup.html">AIGC 使用规范</a><a href="/terms.html">服务条款</a><a href="/privacy.html">隐私政策</a><a href="mailto:3318984@gmail.com">客服邮箱</a></span></footer>
+</body></html>

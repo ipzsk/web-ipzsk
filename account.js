@@ -1,11 +1,11 @@
 'use strict';
-// 账户页：注册 / 登录 / 邮箱验证 / 余额 / 兑换码。
+// 账户页：注册 / 登录 / 邮箱验证 / 余额 / 在线充值。
 //
 // 所有请求直接打网关（api.ipzsk.com），带 cookie。www 与 api 同属 ipzsk.com，
 // 算同站，SameSite=Lax 的会话 cookie 会被带上——所以这里不需要再拿一层代理转发，
 // 也就不需要在网站这侧持有任何密钥。**网站不再有服务端密钥**，这是这次改造的重点：
 // 原先生图走的是同源 Function + 一把共享的上游 Key，谁用都记不到人头上。
-const API = 'https://api.ipzsk.com';
+const { call, money, paymentStates } = IPZSKBilling;
 const byId = (id) => document.getElementById(id);
 const show = (id, visible) => byId(id).classList.toggle('hidden', !visible);
 const notice = (id, text, ok = false) => { const el = byId(id); el.textContent = text; el.className = 'notice' + (text ? (ok ? ' ok' : ' error') : ''); };
@@ -17,26 +17,18 @@ const MESSAGES = {
   invalid_email: '邮箱格式不正确',
   email_verification_required: '请先完成邮箱验证',
   account_disabled: '账户已停用，请联系客服',
-  voucher_unavailable: '兑换码无效或已被使用',
   email_service_unavailable: '邮件服务暂不可用，稍后再试',
+  online_payment_unavailable: '在线充值暂未开放，请稍后再试',
+  payment_checkout_failed: '收银台暂时无法打开，请先刷新充值结果再试',
+  payment_checkout_already_requested: '这次充值请求已提交，请查看下方订单记录',
+  payment_wallet_unavailable: '账户额度暂时无法充值，请稍后再试',
+  payment_email_unavailable: '账户邮箱不可用，请重新登录或联系客服',
 };
 const explain = (payload, fallback) => {
   const code = payload?.error?.code ?? payload?.code ?? payload?.message;
   if (MESSAGES[code]) return MESSAGES[code];
   return typeof payload?.message === 'string' && payload.message ? payload.message : fallback;
 };
-
-async function call(path, { method = 'GET', body } = {}) {
-  const response = await fetch(API + path, {
-    method, credentials: 'include',
-    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  let payload = null;
-  try { payload = await response.json(); } catch { payload = null; }
-  if (!response.ok) { const error = new Error('request_failed'); error.status = response.status; error.payload = payload; throw error; }
-  return payload;
-}
 
 // ── 图形验证码：注册、发码、以及连续失败后的登录都要它 ────────────────────
 let challenge = null;
@@ -135,38 +127,102 @@ async function resendOtp() {
   } finally { button.disabled = false; }
 }
 
-// ── 已登录：余额、流水、兑换码 ─────────────────────────────────────────────
-const money = (value) => '¥' + Number(value ?? 0).toFixed(2);
+// ── 已登录：余额、流水、在线充值 ─────────────────────────────────────────────
+let accountAnchorApplied = false;
 async function loadAccount() {
   const profile = await call('/api/me/profile').catch(() => null);
   if (!profile) { show('authCard', true); show('verifyCard', false); return signedOut(); }
   show('authCard', false); show('verifyCard', false);
-  for (const id of ['accountCard', 'voucherCard', 'sessionCard']) show(id, true);
+  for (const id of ['accountCard', 'sessionCard', 'usageCard']) show(id, true);
   byId('who').textContent = `${profile.user.email}`;
+  byId('paymentEmail').textContent = profile.user.email;
   const wallet = await call('/api/me/wallet').catch(() => null);
   byId('balance').textContent = wallet ? money(wallet.available_cny) : '—';
-  byId('balanceSource').textContent = wallet?.source === 'lanehub' ? '可用额度' : '可用余额';
+  byId('balanceSource').textContent = '人民币 · 可用余额';
   byId('entries').innerHTML = (wallet?.entries ?? []).slice(0, 10).map((entry) =>
-    `<tr><td>${entry.kind === 'recharge' ? '充值' : '消费'} · ${new Date(entry.created_at).toLocaleDateString('zh-CN')}</td><td>${money(entry.amount_cny)}</td></tr>`).join('');
+    `<tr><td>${entry.kind === 'signup_bonus' ? '注册赠送' : entry.kind === 'recharge' ? '充值' : '消费'} · ${new Date(entry.created_at).toLocaleDateString('zh-CN')}</td><td>${money(entry.amount_cny, true)}</td></tr>`).join('');
+  await Promise.all([loadPayments(), loadUsage()]);
+  if (!accountAnchorApplied && ['#usageCard', '#paymentCard'].includes(location.hash)) {
+    const target = byId(location.hash.slice(1));
+    if (!target.classList.contains('hidden')) { target.scrollIntoView(); accountAnchorApplied = true; }
+  }
 }
 function signedOut() {
-  for (const id of ['accountCard', 'voucherCard', 'sessionCard']) show(id, false);
+  clearTimeout(paymentTimer);
+  for (const id of ['accountCard', 'sessionCard', 'paymentCard', 'usageCard']) show(id, false);
   show('authCard', true);
 }
 
-async function redeem() {
-  const code = byId('voucherCode').value.trim();
-  if (!code) return notice('voucherNotice', '请输入兑换码');
-  const button = byId('redeem'); button.disabled = true;
-  try {
-    const result = await call('/api/me/vouchers/redeem', { method: 'POST', body: { code } });
-    notice('voucherNotice', result.replayed ? '这张兑换码之前已经兑换过了' : `已入账 ${money(result.amount_cny)}`, true);
-    byId('voucherCode').value = '';
-    await loadAccount();
-  } catch (error) {
-    notice('voucherNotice', explain(error.payload, '兑换失败，请检查兑换码'));
-  } finally { button.disabled = false; }
+let paymentTimer, checkoutPending = false, paymentPolls = 0;
+async function loadPayments() {
+  clearTimeout(paymentTimer);
+  const options = await call('/api/me/payments/options').catch(() => null);
+  if (!options?.enabled) { show('paymentCard', false); return; }
+  show('paymentCard', true);
+  byId('paymentMode').textContent = options.mode === 'test'
+    ? '管理员测试环境：仅用于验证支付流程，不会增加正式可消费额度。' : '选择充值金额，用于 AI 创作及平台付费服务。';
+  byId('paymentPacks').replaceChildren(...options.packs.map(pack => {
+    const button = document.createElement('button'); button.type = 'button'; button.disabled = checkoutPending;
+    const price = document.createElement('strong'); price.textContent = money(pack.amount_cny);
+    const amount = document.createElement('small'); amount.textContent = `到账 ${money(pack.amount_cny)}`;
+    button.append(price, amount); button.addEventListener('click', () => beginCheckout(pack.key)); return button;
+  }));
+  const result = await call('/api/me/payments/orders').catch(() => null);
+  if (!result) return;
+  byId('paymentOrders').replaceChildren(...result.rows.slice(0, 6).map(order => {
+    const item = document.createElement('div'); item.className = 'payment-order';
+    item.textContent = `${money(order.amount_cny)} · ${paymentStates[order.state] ?? '状态待确认'}${order.mode === 'test' ? ' · 测试' : ''}`;
+    const info = document.createElement('small'); info.textContent = `${new Date(order.created_at).toLocaleString('zh-CN')} · ${order.id}`;
+    item.append(info); return item;
+  }));
+  if (new URLSearchParams(location.search).get('payment') === 'return')
+    notice('paymentNotice', '已返回账户，请以下方订单状态为准。付款确认可能需要片刻。', true);
+  if (paymentPolls++ < 20 && result.rows.some(order => ['creating', 'checkout_ready', 'paid', 'crediting'].includes(order.state))) {
+    paymentTimer = setTimeout(async () => {
+      if (byId('paymentCard').classList.contains('hidden')) return;
+      const wallet = await call('/api/me/wallet').catch(() => null);
+      if (wallet) byId('balance').textContent = money(wallet.available_cny);
+      await loadPayments();
+    }, 5000);
+  }
 }
+async function beginCheckout(pack) {
+  if (checkoutPending) return;
+  checkoutPending = true;
+  byId('paymentPacks').querySelectorAll('button').forEach(button => { button.disabled = true; });
+  notice('paymentNotice', '正在前往 Waffo 收银台…', true);
+  try {
+    location.assign(await IPZSKBilling.checkout(pack));
+  } catch (error) {
+    notice('paymentNotice', explain(error.payload, '暂时无法打开收银台，请刷新充值结果后重试'));
+    await loadPayments();
+  } finally {
+    checkoutPending = false;
+    byId('paymentPacks').querySelectorAll('button').forEach(button => { button.disabled = false; });
+  }
+}
+let usagePage = 1, usageLoading = false;
+async function loadUsage(page = usagePage) {
+  if (usageLoading) return;
+  usageLoading = true;
+  byId('usagePrevious').disabled = true; byId('usageNext').disabled = true;
+  byId('usageStatus').textContent = '正在读取消费记录…';
+  try {
+    const result = await call('/api/me/usage?page=' + page);
+    usagePage = page;
+    IPZSKBilling.renderUsage(byId('usageRows'), result.rows);
+    byId('usageStatus').textContent = result.rows.length ? `第 ${page} 页 · 共 ${result.count} 条` : '还没有消费记录。';
+    byId('usagePrevious').disabled = page <= 1;
+    byId('usageNext').disabled = page * result.page_size >= result.count;
+  } catch {
+    byId('usageRows').replaceChildren();
+    byId('usageStatus').textContent = '消费记录加载失败，请点击刷新重试。';
+  } finally { usageLoading = false; }
+}
+byId('usagePrevious').addEventListener('click', () => loadUsage(usagePage - 1));
+byId('usageNext').addEventListener('click', () => loadUsage(usagePage + 1));
+byId('usageRefresh').addEventListener('click', () => loadUsage(1));
+byId('refreshPayments').addEventListener('click', () => { paymentPolls = 0; loadAccount(); });
 
 byId('tabLogin').addEventListener('click', () => setMode('login'));
 byId('tabRegister').addEventListener('click', () => setMode('register'));
@@ -175,10 +231,11 @@ byId('password').addEventListener('keydown', (event) => { if (event.key === 'Ent
 byId('captchaImage').addEventListener('click', () => refreshCaptcha().catch(() => {}));
 byId('submitOtp').addEventListener('click', submitOtp);
 byId('resendOtp').addEventListener('click', resendOtp);
-byId('redeem').addEventListener('click', redeem);
 byId('signOut').addEventListener('click', async () => {
   await call('/api/auth/sign-out', { method: 'POST', body: {} }).catch(() => {});
   signedOut();
 });
-setMode('login');
-loadAccount().catch(() => signedOut());
+if (!IPZSKBilling.useCanonicalOrigin()) {
+  setMode('login');
+  loadAccount().catch(() => signedOut());
+}

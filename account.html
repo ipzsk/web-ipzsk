@@ -35,12 +35,26 @@
     td:last-child{text-align:right;font-variant-numeric:tabular-nums}
     .hidden{display:none!important}
     a{color:#2c6e49}
+    .recharge-packs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .recharge-packs button{padding:14px 8px;background:#eef4ed;color:#172417;border:1px solid #dce7d9}
+    .recharge-packs strong,.recharge-packs small{display:block}.recharge-packs strong{font-size:20px;margin-bottom:4px}
+    .payment-note{font-size:12px;line-height:1.7;color:#6b7180;margin:12px 0}
+    .payment-order{border-top:1px solid #f0f1f5;padding:10px 0;font-size:13px;line-height:1.7}
+    .payment-order small{display:block;color:#6b7180}.payment-order a{margin-left:8px}
+    .payment-methods{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;margin:12px 0}
+    .payment-methods span{padding:6px 9px;border-radius:6px;background:#e9f6ef;color:#216c48}
+    #paymentEmail{overflow-wrap:anywhere}section{scroll-margin-top:20px}
+    .usage-scroll{overflow-x:auto}#usageCard th{text-align:left;font-size:11px;color:#6b7180;font-weight:500}
+    #usageCard td{font-size:11px;padding-right:10px}#usageCard td:first-child{overflow-wrap:anywhere;max-width:160px}
+    #usageCard td:last-child,#usageCard th:last-child{text-align:right;white-space:nowrap;padding-right:0}
+    .usage-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.usage-actions button{font-size:12px}
   </style>
 </head>
 <body>
 <main>
+  <p class="lead"><a href="/#wallet">← 首页 · 余额与账单</a></p>
   <h1>IPZSK 账户</h1>
-  <p class="lead">登录后即可使用生图与模型服务，新账户注册赠送体验额度。</p>
+  <p class="lead">登录后即可使用生图与模型服务，新用户完成注册与邮箱验证后赠送 ¥5.00，每位用户仅限一次。</p>
 
   <section id="authCard">
     <div class="tabs"><button id="tabLogin" aria-pressed="true">登录</button><button id="tabRegister" aria-pressed="false">注册</button></div>
@@ -64,15 +78,31 @@
   </section>
 
   <section id="accountCard" class="hidden">
-    <h2>余额</h2>
+    <h2>账户余额</h2>
     <div class="balance"><span id="balance">—</span><small id="balanceSource"></small></div>
+    <p class="payment-note">余额、充值和消费均以人民币显示。账户余额仅用于平台服务，不支持提现。</p>
     <table id="entries"></table>
   </section>
 
-  <section id="voucherCard" class="hidden">
-    <h2>兑换码</h2>
-    <div class="row"><input id="voucherCode" placeholder="IPZ-XXXXXXXX-…" autocomplete="off" /><button id="redeem">兑换</button></div>
-    <div id="voucherNotice" class="notice"></div>
+  <section id="paymentCard" class="hidden">
+    <h2>在线充值</h2>
+    <p id="paymentMode" class="payment-note"></p>
+    <div class="payment-methods" aria-label="支付方式"><span>微信支付 · 可用</span></div>
+    <p class="payment-note">Waffo 当前人民币收银台仅支持微信支付。点击金额将前往 Waffo 收银台。</p>
+    <p class="payment-note">自动填入邮箱：<span id="paymentEmail"></span><br />账单国家默认为中国，支付市场限定为中国。</p>
+    <div id="paymentPacks" class="recharge-packs"></div>
+    <p class="payment-note">一次性购买，不自动续费。付款核实后额度自动到账。付款前可查看收银台展示的总额与适用税费。</p>
+    <div id="paymentNotice" class="notice" role="status" aria-live="polite"></div>
+    <div id="paymentOrders"></div>
+    <button id="refreshPayments" class="ghost" type="button">刷新充值结果</button>
+  </section>
+
+  <section id="usageCard" class="hidden" aria-labelledby="usageTitle">
+    <h2 id="usageTitle">消费明细</h2>
+    <p class="payment-note">按本人调用记录展示实际人民币扣款，最多保留八位小数。账单尚未回传时显示“待结算”，未扣费记录显示 ¥0.00。</p>
+    <p id="usageStatus" class="payment-note" role="status" aria-live="polite"></p>
+    <div class="usage-scroll"><table aria-label="消费明细"><thead><tr><th scope="col">模型</th><th scope="col">时间</th><th scope="col">扣款（元）</th></tr></thead><tbody id="usageRows"></tbody></table></div>
+    <div class="usage-actions"><button id="usagePrevious" class="ghost" type="button" disabled>上一页</button><button id="usageNext" class="ghost" type="button" disabled>下一页</button><button id="usageRefresh" class="ghost" type="button">刷新</button></div>
   </section>
 
   <section id="sessionCard" class="hidden">
@@ -80,7 +110,9 @@
     <p class="lead" id="who"></p>
     <div class="row"><a href="/image.html"><button class="ghost" type="button">去生图</button></a><button id="signOut" class="ghost">退出登录</button></div>
   </section>
+  <p class="lead" style="text-align:center"><a href="/pricing.html">产品定价</a> · <a href="/aup.html">AIGC 使用规范</a> · <a href="/terms.html">服务条款</a> · <a href="/privacy.html">隐私政策</a> · <a href="mailto:3318984@gmail.com">客服邮箱</a></p>
 </main>
+<script src="/billing-ui.js"></script>
 <script src="/account.js"></script>
 </body>
 </html>

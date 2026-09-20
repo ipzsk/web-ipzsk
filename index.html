@@ -11,6 +11,9 @@
   <meta property="og:url" content="https://ipzsk.com" />
   <title>IPZSK · AI 创作工作台</title>
   <link rel="stylesheet" href="/home-downloads.css?v=ipzsk-blue-3" />
+  <link rel="stylesheet" href="/home-wallet.css" />
+  <script src="/billing-ui.js" defer></script>
+  <script src="/home-wallet.js" defer></script>
   <script src="/home-downloads.js" defer></script>
 </head>
 <body>
@@ -20,11 +23,12 @@
         <img class="brand-logo" src="/assets/ipzsk-lockup.png?v=1" alt="IPZSK" />
       </a>
       <div class="nav-links">
-        <a class="active" href="/" aria-current="page">首页</a>
+        <a id="homeTab" class="active" href="#home" aria-current="page">首页</a>
         <div class="nav-menu-item"><a href="/image.html">生图</a><div class="site-mega-menu" aria-label="生图工作台"><div class="mega-inner"><div class="mega-column"><small>生图工作台</small><a href="/image.html">普通生图</a><a href="/image.html#styleGrid">素材库 · 全部案例</a><a href="/image.html#myAssetsPanel">我的素材</a><a href="/image.html#canvasPanel">无限画布</a></div><div class="mega-column"><small>更多创作</small><a href="/image.html#ecommercePanel">电商模式 <em>预览</em></a></div><div class="mega-feature"><small>IPZSK CREATIVE LAB</small><strong>从一句话开始创作。</strong><p>挑一种风格，把想法推进成可以发布的内容。</p><a href="/image.html">开始使用 ↗</a></div></div></div></div>
-        <a href="/video">生视频</a>
+        <a href="/video.html">生视频</a>
         <a href="/workstation.html">内容工作台</a>
-        <a href="/account.html">我的</a>
+        <a href="/pricing.html">定价</a>
+        <a id="walletTab" href="#wallet">余额与账单</a>
       </div>
       <div class="nav-actions">
         <a class="online-link" href="/workstation.html">在线使用</a>
@@ -34,7 +38,44 @@
   </header>
 
   <main>
-    <section class="hero shell" aria-labelledby="hero-title">
+    <section id="wallet" class="wallet-section shell" aria-labelledby="wallet-title" hidden>
+      <div class="wallet-heading">
+        <div><p class="wallet-eyebrow">我的工作台</p><h2 id="wallet-title">余额、充值与账单</h2></div>
+        <div class="wallet-heading-actions"><button id="walletRefresh" type="button">刷新</button><a href="/account.html">账户管理 ↗</a></div>
+      </div>
+      <p id="walletStatus" class="wallet-note" role="status" aria-live="polite">正在读取账户…</p>
+      <div id="walletGuest" class="wallet-guest" hidden>
+        <div><strong>登录后，管理你的创作额度与账单。</strong><p>新用户完成注册与邮箱验证后赠送 ¥5.00，每位用户仅限一次。</p></div>
+        <a class="wallet-primary" href="/account.html">登录 / 注册 →</a>
+      </div>
+      <div id="walletDashboard" hidden>
+        <div class="wallet-overview">
+          <div class="wallet-balance-card">
+            <p class="wallet-label">可用余额 · 人民币</p><strong id="homeBalance" class="wallet-amount">—</strong>
+            <p id="homeEmail" class="wallet-email"></p>
+            <p class="wallet-note">用于 AI 生图、生视频及平台付费服务，余额不支持提现。</p>
+            <div class="wallet-create-links"><a href="/image.html">去生图 ↗</a><a href="/video.html">去生视频 ↗</a></div>
+          </div>
+          <div class="wallet-recharge-card">
+            <h3>在线充值</h3><p id="homePaymentMode" class="wallet-note">正在读取充值档位…</p>
+            <div class="wallet-methods" aria-label="支付方式"><span class="wallet-method-available">微信支付 · 可用</span></div>
+            <p class="wallet-note">Waffo 当前人民币收银台仅支持微信支付。</p>
+            <div id="homePaymentPacks" class="wallet-packs"></div>
+            <p class="wallet-note">点击金额将前往 Waffo 收银台，自动带入登录邮箱。账单国家默认为中国，支付市场限定为中国。一次性购买，不自动续费；请在付款前确认总额及适用税费。</p>
+            <p id="homePaymentNotice" class="wallet-note" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+        <div class="wallet-history">
+          <div class="wallet-history-heading"><h3>最近消费</h3><a href="/account.html#usageCard">全部消费明细 ↗</a></div>
+          <p class="wallet-note">展示实际扣款，明细保留小额精度；账单回传前显示“待结算”。</p>
+          <p id="homeUsageStatus" class="wallet-note" role="status"></p>
+          <div class="wallet-table-scroll"><table aria-label="最近消费记录"><thead><tr><th scope="col">模型</th><th scope="col">时间</th><th scope="col">扣款（人民币）</th></tr></thead><tbody id="homeUsage"></tbody></table></div>
+        </div>
+        <details class="wallet-history wallet-orders"><summary>最近充值记录</summary><p id="homeOrderStatus" class="wallet-note"></p><div id="homePaymentOrders"></div><a href="/account.html#paymentCard">查看充值详情 ↗</a></details>
+      </div>
+      <noscript><p class="wallet-note">请启用 JavaScript 后查看余额与账单，或前往<a href="/account.html">账户页</a>登录。</p></noscript>
+    </section>
+    <section id="home" class="hero shell" aria-labelledby="hero-title">
       <div class="sticker-field" aria-hidden="true">
         <img class="sticker-img sticker-camera" src="/assets/stickers/sticker-camera.png?v=1" alt="" />
         <img class="sticker-img sticker-video" src="/assets/stickers/sticker-video.png?v=1" alt="" />
@@ -70,6 +111,6 @@
     </section>
   </main>
 
-  <footer class="shell footer"><span><strong>IPZSK</strong> · AI 创作工作台</span><span>把想法，推进到发布。</span></footer>
+  <footer class="shell footer"><span><strong>IPZSK</strong> · AI 创作工作台</span><span class="legal-footer-links"><a href="/pricing.html">产品定价</a><a href="/aup.html">AIGC 使用规范</a><a href="/terms.html">服务条款</a><a href="/privacy.html">隐私政策</a><a href="mailto:3318984@gmail.com">客服邮箱</a></span></footer>
 </body>
 </html>
