@@ -295,21 +295,25 @@ export function subjectBlockReason(items: Pick<QueueEntry, 'prompt' | 'mentions'
   return null
 }
 
-// ── {{填空}} 文本变量 ────────────────────────────────────────────────────────
-// 案例提示词（Punk-Skill 那批）自带 {{主题词}}、{{副标题，可留空}} 这样的空位。填入输入框后
-// 只让用户改这几格，不用通读几百字。{{主体:…}} 归上面那套（挑主体、插标签），这里排除掉。
+// ── 填空 ────────────────────────────────────────────────────────────────────
+// 案例提示词里的空位统一是 {{…}}：`[自定义标题]`、`【人物名称】`、`{DESTINATION}` 这些原始写法
+// 在构建期就被 scripts/lib/case-blanks.mjs 改写掉了（那里还要绕开小标题、JSON 片段、编号小节，
+// 规则住在构建期，改写结果进 manifest，提交时逐行可审）。运行时只认这一种，不再猜。
+// {{主体:…}} 归上面那套（挑主体、插标签），这里排除。
 
 const TEXT_VAR = /\{\{(?!主体[:：])([^{}]{1,40})\}\}/g
-/** 提示词里还没填的文本空位，按出现顺序去重，例如 ['{{主题词}}']。 */
+
+/** 提示词里还没填的空位，按出现顺序去重，例如 ['{{主题词}}']。 */
 export const textVarsOf = (text: string) => [...new Set([...text.matchAll(TEXT_VAR)].map(m => m[0]))]
+
 /**
- * 空位的短标签：`{{副标题，可留空}}` → 「副标题」。
- * 案例里的写法很杂——有的只有说明没有名字（`{{可留空；默认根据主题判断}}`、`{{建议 2–10 个汉字}}`），
+ * 空位的短标签：`{{副标题，可留空}}` → 「副标题」，`{{自定义标题}}` → 「标题」。
+ * 写法很杂——有的只有说明没有名字（`{{可留空；默认根据主题判断}}`、`{{建议 2–10 个汉字}}`），
  * 这种取不到名字就叫「补充」，完整说明走 title，不让「可留空 可留空」这种重复文案上屏。
  */
 const HINT_ONLY = /^(可留空|选填|可选|建议|默认|自动)/
 export function varLabel(token: string): string {
-  const segs = token.slice(2, -2).split(/[，,；;]/).map(x => x.trim()).filter(Boolean)
+  const segs = token.slice(2, -2).replace(/^(自定义|你的|请填写?|请输入|填写|输入)/, '').split(/[，,；;]/).map(x => x.trim()).filter(Boolean)
   return segs.find(x => !HINT_ONLY.test(x)) ?? '补充'
 }
 /** 标了「可留空 / 选填 / 可选」：不填也能发送，发送时整段去掉。 */
@@ -322,16 +326,24 @@ export const isOptionalVar = (token: string) => /可留空|选填|可选/.test(t
 export function applyVars(prompt: string, vars: Record<string, string>): string {
   return prompt.replace(TEXT_VAR, token => {
     const v = vars[token]
-    if (v !== undefined && v !== '') return v
-    return v === '' || isOptionalVar(token) ? '' : token
+    if (v) return v
+    // 空串只对「可留空」有意义（= 跳过，整段删掉）。必填的填了又清空要留着 token，
+    // 否则格子还显示橙色「没填」，发送却解锁了，提示词里那句变成「标题：」发给模型。
+    return isOptionalVar(token) ? '' : token
   }).trim()
 }
 
-/** 「{{红色 / 绿色 / 自动判断}}」这种本身就是选项清单 → 给个下拉；自由填空返回 null。 */
+/**
+ * 「{{红色 / 绿色 / 自动判断}}」这种本身就是选项清单 → 给个下拉；自由填空返回 null。
+ * 认的是带空格的 ` / `：`{{CITY/COUNTRY}}` 是「城市或国家名」，不是让你二选一。
+ */
 export function varOptions(token: string): string[] | null {
   const inner = token.slice(2, -2)
-  if (!inner.includes('/')) return null
-  const opts = inner.split('/').map(o => o.trim()).filter(Boolean)
+  if (!/\s\/\s/.test(inner)) return null
+  const opts = inner.split(/\s\/\s/).map(o => o.trim()).filter(Boolean)
+  // 第一项常常粘着说明：「画幅比例，例如 4:5」「请填写，例如：黑金」。不切掉的话用户选了第一项，
+  // 「请填写，例如：黑金」这句话就被原样写进提示词发给模型。只认「例如」，免得误伤「如意」这种词。
+  if (opts[0]) opts[0] = opts[0].replace(/^.*?例如\s*[:：]?\s*/, '').trim() || opts[0]
   return opts.length >= 2 && opts.length <= 12 && opts.every(o => o.length <= 12) ? opts : null
 }
 
@@ -339,7 +351,9 @@ export function varOptions(token: string): string[] | null {
 export function varBlockReason(items: Pick<QueueEntry, 'prompt'>[]): string | null {
   for (const it of items) {
     const t = textVarsOf(it.prompt).find(v => !isOptionalVar(v))
-    if (t) return `请先填写「${varLabel(t)}」`
+    // 选项型的空位没有名字（内容就是选项清单），拿标签念出来是「补充」或者一长串，
+    // 跟屏幕上那个下拉对不上号——改成说「选一下 4:5 那个」。
+    if (t) return varOptions(t) ? `请先选择「${varOptions(t)![0]} …」` : `请先填写「${varLabel(t)}」`
   }
   return null
 }

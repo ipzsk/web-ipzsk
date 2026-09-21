@@ -141,7 +141,8 @@ export { COMPOSER_FILL_EVENT } from '@/shared/events'
 export type ComposerFillDetail = Extract<SharedFillDetail, { source: 'case' }> & { case_id: string; kind: 'image' | 'video'; model: string | null; prompt: string; params: Record<string, string | number | boolean> }
 
 export function fillDetail(c: CaseItem, promptOnly = false): ComposerFillDetail {
-  const base: ComposerFillDetail = { source: 'case', case_id: c.id, kind: 'image', model: null, prompt: c.prompt, params: {}, reference_urls: [] }
+  const base: ComposerFillDetail = { source: 'case', case_id: c.id, kind: 'image', model: null, prompt: c.prompt, params: {}, reference_urls: [],
+    preview: { url: c.image.urls.w480 ?? c.image.urls.orig, title: c.title } }
   if (promptOnly) return base
   return {
     ...base,

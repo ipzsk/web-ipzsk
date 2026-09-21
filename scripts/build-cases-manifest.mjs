@@ -6,6 +6,7 @@
 // Raw repos (cases.json ⊂ canghe-cases.json, punk-cases.json) are read for counts and Punk source links.
 // Dimensions: original image headers (local file, or HTTP Range on the remote original), cached in scripts/.cache/.
 import fs from 'node:fs/promises'
+import { normalizeBlanks } from './lib/case-blanks.mjs'
 import path from 'node:path'
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
@@ -122,7 +123,9 @@ async function main() {
     items.push({
       id: String(c.id),
       title: c.title,
-      prompt: c.prompt,
+      // 空位写法统一成 {{…}}（见 scripts/lib/case-blanks.mjs）：应用运行时只认这一种，
+      // 改写结果进 manifest，提交时能逐行审 diff。
+      prompt: normalizeBlanks(c.prompt),
       category,
       categoryZh: c.categoryZh,
       tags: [...new Set([...(c.styles ?? []), ...(c.scenes ?? [])])],

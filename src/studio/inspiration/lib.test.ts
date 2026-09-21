@@ -104,7 +104,9 @@ describe('copyright + composer fill', () => {
     const full = fillDetail(c)
     expect(full).toMatchObject({ source: 'case', case_id: '7', kind: 'image', model: 'gpt-image-2', params: { aspect_ratio: '3:4' }, reference_urls: [] })
     expect(full.template!.items[0]).toMatchObject({ prompt: 'p7\n\n主图：白底', references: [{ slot: '商品图' }] })
-    expect(fillDetail(c, true)).toEqual({ source: 'case', case_id: '7', kind: 'image', model: null, prompt: 'p7', params: {}, reference_urls: [] })
+    // promptOnly 也带效果图：它只是输入框旁边的参照，跟带不带型号/参数无关
+    expect(fillDetail(c, true)).toEqual({ source: 'case', case_id: '7', kind: 'image', model: null, prompt: 'p7', params: {}, reference_urls: [],
+      preview: { url: '/t/7.webp', title: 't7' } })
     const spy = vi.fn()
     window.addEventListener(COMPOSER_FILL_EVENT, spy)
     dispatchComposerFill(full)

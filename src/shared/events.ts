@@ -4,6 +4,7 @@
  *
  * `ipzsk:composer-fill` → composer draft / queue. Never auto-submits.
  *   case    inspiration 做同款. `reference_urls` are DISPLAY-ONLY (no asset id): shown in the slots, never sent.
+ *           `preview` is the case's own result image — context for 「照着这张做」, never sent either.
  *   asset   以此为参考 / 加入输入框 (assets view, create results). Appends to reference slots.
  *   record  编辑后重发 of one record. Replaces the draft.
  *   batch   批次编辑后重发. Replaces the queue.
@@ -27,7 +28,7 @@ export interface FillBase { kind?: MediaKind; model?: string | null; prompt?: st
 export interface CaseTemplate { name: string; items: { key: string; label: string; prompt: string; count: number; references: NonNullable<CaseTemplateItem['references']> }[] }
 
 export type ComposerFillDetail =
-  | FillBase & { source: 'case'; case_id?: string; reference_urls: string[]; template?: CaseTemplate }
+  | FillBase & { source: 'case'; case_id?: string; reference_urls: string[]; preview?: { url: string; title?: string }; template?: CaseTemplate }
   | { source: 'asset'; reference_assets: MediaAsset[] }
   | FillBase & { source: 'record'; record_id: string; reference_assets: MediaAsset[] }
   | { source: 'batch'; items: (FillBase & { item_id?: string; anchor_of?: string | null; reference_assets?: MediaAsset[] })[] }
@@ -78,6 +79,7 @@ export function parseComposerFill(raw: unknown): ComposerFillDetail | null {
         : []
       return {
         ...baseOf(raw), source: 'case', ...(isStr(raw.case_id) && { case_id: raw.case_id }), reference_urls: urlsOf(raw.reference_urls),
+        ...(isObj(raw.preview) && isStr(raw.preview.url) && { preview: { url: raw.preview.url, ...(isStr(raw.preview.title) && { title: raw.preview.title }) } }),
         ...(items.length && { template: { name: String((t as Record<string, unknown>).name ?? ''), items } }),
       }
     }

@@ -18,10 +18,15 @@ let seq = 0
 const useToasts = create<{ items: ToastItem[] }>(() => ({ items: [] }))
 const MAX = 3
 
-/** §4.5: top-center under the header, max 3, 4s, pauses on hover (Radix), optional action. */
+/**
+ * §4.5: top-center under the header, max 3, 4s, pauses on hover (Radix), optional action.
+ * 同标题的只留最新一条：连点几个案例会叠出一摞一模一样的「已填入输入框」。
+ * 不能简单只留 1 条——带「撤销」的 toast（删除结果/素材/主体/模板）会被下一条顶掉，
+ * 而删除已经落库，用户就没有撤销窗口了。
+ */
 export function toast(input: ToastInput) {
   const id = ++seq
-  useToasts.setState(s => ({ items: [...s.items, { ...input, id, open: true }].slice(-MAX) }))
+  useToasts.setState(s => ({ items: [...s.items.filter(t => t.title !== input.title || t.action), { ...input, id, open: true }].slice(-MAX) }))
   return id
 }
 const remove = (id: number) => useToasts.setState(s => ({ items: s.items.filter(t => t.id !== id) }))
@@ -35,21 +40,24 @@ export function Toaster() {
           key={t.id}
           duration={t.duration}
           onOpenChange={open => { if (!open) remove(t.id) }}
+          // 整块上色，不只是标题：一行绿字在白底上根本不显眼，而 toast 的全部价值就是被看见。
           className={cn(
-            'relative flex w-full items-start gap-3 rounded-card border border-line bg-card p-4 pr-10 text-sm text-ink shadow-xl motion-safe:animate-fade-in',
-            t.tone === 'error' && 'border-danger/40',
+            'relative flex w-full items-start gap-3 rounded-card border p-4 pr-10 text-sm shadow-xl motion-safe:animate-fade-in',
+            t.tone === 'error' ? 'border-transparent bg-danger text-white'
+              : t.tone === 'success' ? 'border-transparent bg-success text-white'
+                : 'border-line bg-card text-ink',
           )}
         >
           <div className="min-w-0 flex-1">
-            <T.Title className={cn('font-semibold', t.tone === 'error' && 'text-danger', t.tone === 'success' && 'text-success')}>{t.title}</T.Title>
-            {t.description && <T.Description className="mt-1 text-muted">{t.description}</T.Description>}
+            <T.Title className="font-semibold">{t.title}</T.Title>
+            {t.description && <T.Description className={cn('mt-1', !t.tone || t.tone === 'default' ? 'text-muted' : 'opacity-90')}>{t.description}</T.Description>}
           </div>
           {t.action && (
             <T.Action altText={t.action.label} asChild>
               <button type="button" className={buttonVariants({ variant: 'secondary', size: 'sm' })} onClick={t.action.onClick}>{t.action.label}</button>
             </T.Action>
           )}
-          <T.Close aria-label="关闭" className={cn('absolute right-2 top-2 grid size-7 place-items-center rounded-[8px] text-muted hover:bg-subtle', focusRing)}>
+          <T.Close aria-label="关闭" className={cn('absolute right-2 top-2 grid size-7 place-items-center rounded-[8px] opacity-70 hover:bg-card/20 hover:opacity-100', focusRing)}>
             <X className="size-4" />
           </T.Close>
         </T.Root>

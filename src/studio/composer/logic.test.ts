@@ -287,11 +287,32 @@ describe('{{填空}} 文本变量', () => {
     expect(varBlockReason([{ prompt: applyVars(prompt, { '{{主题词}}': 'x' }) }])).toBeNull()
   })
 
+  it('必填空位填了又清空，不算已填（否则界面说没填、发送却放行）', () => {
+    const p = '标题：{{主题词}}；副标：{{副标题，可留空}}'
+    expect(applyVars(p, { '{{主题词}}': '' })).toBe('标题：{{主题词}}；副标：')
+    expect(varBlockReason([{ prompt: applyVars(p, { '{{主题词}}': '' }) }])).toBe('请先填写「主题词」')
+    expect(applyVars(p, { '{{主题词}}': '春季新品' })).toBe('标题：春季新品；副标：')
+  })
+
+  it('选项型空位的拦截文案说「选一下」，不念整串也不念「补充」', () => {
+    expect(varBlockReason([{ prompt: '{{4:5 / 1:1 / 3:4}}' }])).toBe('请先选择「4:5 …」')
+    expect(varBlockReason([{ prompt: '{{主题词}}' }])).toBe('请先填写「主题词」')
+  })
+
+  it('带空格的 ` / ` 才是选项清单，第一项要剥掉粘着的说明', () => {
+    // 不剥的话用户选第一项 = 把「请填写，例如：黑金」这句话发给模型
+    expect(varOptions('{{画幅比例，例如 4:5 / 1:1 / 3:4}}')).toEqual(['4:5', '1:1', '3:4'])
+    expect(varOptions('{{请填写，例如：黑金 / 深红+金 / 深蓝+银}}')).toEqual(['黑金', '深红+金', '深蓝+银'])
+    expect(varOptions('{{CITY/COUNTRY}}')).toBeNull()       // 「城市或国家名」，不是二选一
+    expect(varOptions('{{PART / SLICE / SEGMENT}}')).toEqual(['PART', 'SLICE', 'SEGMENT'])
+  })
+
   it('取不到名字的空位叫「补充」，不把「可留空」当标签', () => {
     expect(varLabel('{{主题词}}')).toBe('主题词')
     expect(varLabel('{{副标题，可留空}}')).toBe('副标题')
     expect(varLabel('{{可留空；默认根据主题判断}}')).toBe('补充')
     expect(varLabel('{{建议 2–10 个汉字}}')).toBe('补充')
+    expect(varLabel('{{自定义标题}}')).toBe('标题')   // 「自定义」是写法不是名字
   })
 
   it('内容是选项清单的给下拉，自由填空不给', () => {

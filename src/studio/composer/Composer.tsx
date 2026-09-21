@@ -16,7 +16,7 @@ import type { ParamInput, QueueEntry } from '../api/queue'
 import { clearDraft, loadDraft, useComposer } from '../store'
 import { useAccount, useModels, useQueueSync, useQuote, useSubjects } from './hooks'
 import {
-  addManual, chipsOf, docFromText, expandModels, isSendable, itemFromDraft, normalizeParams, planSend, queueRoom, quoteEntry, referenceState, serializePrompt,
+  addManual, applyVars, chipsOf, docFromText, expandModels, isSendable, itemFromDraft, normalizeParams, planSend, queueRoom, quoteEntry, referenceState, serializePrompt,
   subjectBlockReason, subjectVarLabel, subjectVarsOf, textVarsOf, varBlockReason, varLabel, isOptionalVar, varOptions,
 } from './logic'
 import { COMPOSER_FILL_EVENT, onStudioEvent } from '@/shared/events'
@@ -75,6 +75,7 @@ function applyFill(plan: FillPlan) {
     ...(plan.kind && { kind: plan.kind, mode: null }),
     ...(plan.doc !== undefined && { doc: plan.doc, docVersion: st.docVersion + 1, vars: {}, editingId: null }),
     ...(plan.slots && { slots: plan.slots }),
+    ...(plan.preview !== undefined && { sourceCase: plan.preview }),
     ...(plan.queue && { queue: plan.queue }),
   }))
   if (plan.toast) toast({ title: '已填入输入框', tone: 'success' })
@@ -185,6 +186,30 @@ function VarChip({ token }: { token: string }) {
   )
 }
 
+/**
+ * 案例的效果图：填入提示词后摆在输入框旁边当参照，看着它改那几个空。
+ * 跟左上角的参考图槽位是两回事——它不随请求发送，所以样式上不做成槽位，也带一个「移除」。
+ */
+function CasePreview() {
+  const c = useComposer(st => st.sourceCase)
+  if (!c) return null
+  return (
+    // 浮在输入面板左外侧：面板里寸土寸金，放外面既不挤文字也不挡提示词。
+    // 窗口窄到放不下就不显示——硬塞会盖住面板或者被切掉半张。
+    // inset-y-0 + items-center：高度跟着输入面板走，竖图不会上下捅出面板之外（那样看着就是没对齐）。
+    <div className="group/preview absolute inset-y-0 right-full z-10 mr-4 flex items-center max-[1180px]:hidden">
+      {/* 按原比例显示，不裁切：这张图是拿来照着看的，裁成方块就看不出版式了 */}
+      <img src={c.url} alt={c.title ? `案例效果：${c.title}` : '案例效果'} title={c.title ? `${c.title}（照着这张做，不会作为参考图发送）` : '照着这张做，不会作为参考图发送'}
+        className="max-h-full max-w-56 rounded-card bg-card object-contain shadow-xl ring-1 ring-line" />
+      <button type="button" aria-label="不看这张案例图"
+        onClick={() => useComposer.setState({ sourceCase: null })}
+        className={cn('absolute -right-2 -top-2 grid size-6 place-items-center rounded-full border border-line bg-card text-muted shadow-sm transition-opacity hover:text-ink max-[720px]:opacity-100 min-[721px]:opacity-0 group-hover/preview:opacity-100 focus-visible:opacity-100', focusRing)}>
+        <X className="size-3.5" />
+      </button>
+    </div>
+  )
+}
+
 /** {{主体:商品}} in the prompt → pick a subject (kind label match first) or create one. */
 function SubjectVarPicker({ token, subjects }: { token: string; subjects: Subject[] }) {
   const label = subjectVarLabel(token)
@@ -235,6 +260,33 @@ function useComposerInset(hidden: boolean, expanded: boolean) {
   }, [hidden, expanded])
   useEffect(() => () => { document.documentElement.style.removeProperty('--composer-inset') }, [])
   return ref
+}
+
+/**
+ * 浏览案例时把输入面板收起来（只留一行提示词 + 工具条），鼠标移回来或聚焦输入框就展开。
+ * 填入一个长提示词后面板能占掉大半屏，挡住正在翻的案例墙。
+ * 正在输入时不收：光标在编辑器里就当人在写字，滚动多半是编辑器自己的滚动条。
+ */
+function useAutoCollapse() {
+  const [collapsed, setCollapsed] = useState(false)
+  const hovering = useRef(false)
+  useEffect(() => {
+    const onScroll = (e: Event) => {
+      const t = e.target as HTMLElement | null
+      // Radix 的下拉/浮层走 Portal 挂在 body 下，不在 [data-composer] 里面：
+      // 菜单一打开鼠标就算"离开"面板，滚选项列表会把面板收在打开的菜单底下。
+      if (t?.closest?.('[data-composer]') || t?.closest?.('[data-radix-popper-content-wrapper]')) return
+      if (hovering.current) return                 // 鼠标停在面板上就是在用它
+      // 手机上面板本来就折成一行（点开才是抽屉），再收一次没有意义
+      if (window.matchMedia('(max-width: 767px)').matches) return
+      setCollapsed(true)
+    }
+    // capture：案例墙可能滚的是某个容器而不是 window，捕获阶段两种都能收到
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true })
+    return () => document.removeEventListener('scroll', onScroll, { capture: true })
+  }, [])
+  // 不看 document.activeElement：填入案例后编辑器本来就带着焦点，按焦点判断等于永远不收。
+  return { collapsed, expand: () => setCollapsed(false), hovering }
 }
 
 // Owned by F3. Bottom floating composer shared by inspiration / create / assets views.
@@ -323,8 +375,12 @@ export function Composer({ hidden }: { hidden: boolean }) {
   // Partial list (more pages) → can't tell deleted from not-yet-loaded; the server rejects deleted ones anyway.
   const subjectIds = useMemo(() => subjects.data && !subjects.hasNextPage ? new Set(subjects.data.map(s => s.id)) : undefined, [subjects.data, subjects.hasNextPage])
   const vars = subjectVarsOf(current.prompt)
-  // 空位取自草稿原文：current.prompt 是替换后的结果，取它格子填完就消失了
-  const textVars = useMemo(() => textVarsOf(serializePrompt(doc, slots).prompt), [doc, slots])
+  // 空位取自草稿原文：current.prompt 是替换后的结果，取它格子填完就消失了。
+  // 队列项也要算进来——套图案例（§2.8）把 N 条提示词直接塞进队列、草稿留空，
+  // 只看草稿的话屏幕上一个格子都没有，发送却被「请先填写…」永久拦住。
+  const textVars = useMemo(
+    () => [...new Set([...textVarsOf(serializePrompt(doc, slots).prompt), ...queue.flatMap(i => textVarsOf(i.prompt))])],
+    [doc, slots, queue])
   const insufficient = account.points != null && total != null && total > account.points
 
   const blockReason = (items: QueueEntry[], includesComposer: boolean): string | null =>
@@ -333,9 +389,12 @@ export function Composer({ hidden }: { hidden: boolean }) {
     : !items.length ? (queue.some(i => i.missing) ? '队列里的项引用了已删除的素材，请编辑移除后再发送' : queue.length ? '队列里没有可发送的项（标红的项需要先编辑）' : '先输入提示词')
     : includesComposer && avatar?.reason ? avatar.reason
     : includesComposer && refs.over ? refs.message
-    : varBlockReason(items) ?? subjectBlockReason(items, subjectIds)
+    : varBlockReason(items.map(i => ({ prompt: applyVars(i.prompt, varValues) }))) ?? subjectBlockReason(items, subjectIds)
 
-  const send = (items: QueueEntry[], includesComposer: boolean) => {
+  const send = (rawItems: QueueEntry[], includesComposer: boolean) => {
+    // 队列项存的是入队那一刻的快照，空位在里面还是 {{…}}：发送前按当前填的值替换一遍，
+    // 这样套图案例（提示词在队列里、草稿是空的）也能用下面那排格子填。
+    const items = rawItems.map(i => { const prompt = applyVars(i.prompt, varValues); return prompt === i.prompt ? i : { ...i, prompt } })
     if (sending || blockReason(items, includesComposer)) return
     setSending(true)
     setTimeout(() => setSending(false), 300) // §2.2: only guard ~300ms against double clicks
@@ -365,7 +424,9 @@ export function Composer({ hidden }: { hidden: boolean }) {
     useComposer.setState(s => ({ queue: [...s.queue, current] }))
   }
   const addMany = (ms: ModelSpec[]) => {
-    const reason = !hasPrompt ? '先输入提示词' : queueRoom(queue.length, ms.length)
+    // 和 addReason 用同一套判断：入队存的是当下的快照，带着没填的 {{}} 进去之后，
+    // 用户再在格子里填也只改草稿，队列里那几份救不回来，只能逐个「编辑」重来。
+    const reason = !hasPrompt ? '先输入提示词' : varBlockReason([current]) ?? subjectBlockReason([current], subjectIds) ?? queueRoom(queue.length, ms.length)
     if (reason) { toast({ title: '无法加入队列', description: reason, tone: 'error' }); return }
     useComposer.setState(s => ({ queue: [...s.queue, ...expandModels({ kind, model, params, doc, slots, vars: varValues }, ms)] }))
   }
@@ -387,6 +448,10 @@ export function Composer({ hidden }: { hidden: boolean }) {
   // ── mobile sheet ──
   const expanded = useEditorFlags(s => s.expanded)
   const insetRef = useComposerInset(hidden, expanded)
+  const autoCollapse = useAutoCollapse()
+  // 不能 && !expanded：expanded 是移动端抽屉的标志，而填入案例时 focusComposer() 就会把它设成 true，
+  // 桌面端于是永远收不起来（实测过一次）。桌面/移动的区分放在 useAutoCollapse 里按视口判断。
+  const compact = autoCollapse.collapsed
   const setExpanded = (v: boolean) => useEditorFlags.setState({ expanded: v })
   const sendLabel = total != null && sendable.length ? `约 ${formatCharge(total)}` : null
 
@@ -432,7 +497,13 @@ export function Composer({ hidden }: { hidden: boolean }) {
           <QueueBar current={current} models={new Map((models.data ?? []).map(m => [m.id, m]))} pointsById={pointsById} total={queueTotal}
             onSendAll={account.signedIn ? sendAll : saveDraftAndLogin} sendReason={account.signedIn ? blockReason(allSendable, false) : null} sending={sending} />
           <DropTarget id="composer" accept={acceptAssets} onDrop={items => useComposer.setState(s => ({ slots: addManual(s.slots, items) }))} onFiles={onFiles} className="rounded-panel">
-            <div className={cn('rounded-panel border border-line bg-card p-3 shadow-xl', editingId && 'border-acid ring-3 ring-acid/10')}>
+            <div data-composer
+              onMouseEnter={() => { autoCollapse.hovering.current = true; autoCollapse.expand() }}
+              onMouseLeave={() => { autoCollapse.hovering.current = false }}
+              onFocusCapture={autoCollapse.expand} onPointerDown={autoCollapse.expand} onKeyDownCapture={autoCollapse.expand}
+              className={cn('relative rounded-panel border border-line bg-card p-3 shadow-xl', editingId && 'border-acid ring-3 ring-acid/10')}>
+              {/* 挂在面板本身而不是输入区内层：内层不含工具条，图会比面板矮一截，看着就是没对齐 */}
+              <CasePreview />
               {editingId && (
                 <div className="mb-1 flex items-center gap-2 px-1 text-xs text-muted">
                   <RefreshCw className="size-3.5" />正在编辑队列第 {queue.findIndex(i => i.item_id === editingId) + 1} 项
@@ -450,16 +521,26 @@ export function Composer({ hidden }: { hidden: boolean }) {
                   quote={hasPrompt ? quote.data?.[queue.length] : undefined}
                   fieldError={(() => { const e = queue.find(i => i.item_id === editingId)?.error; return e ? guideAvatarError(e) : null })()} />
               ) : <>
-              <ReferenceSlots refs={refs} upload={upload} onFiles={onFiles} />
+              {/* 收起/展开的动画：高度 auto 没法直接过渡，用 grid-rows 0fr↔1fr 这招，不用 JS 量高度 */}
+              <div className={cn('grid transition-[grid-template-rows] duration-(--duration-base) ease-(--ease-standard) motion-reduce:transition-none', compact ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]')}>
+                <div className="overflow-hidden"><ReferenceSlots refs={refs} upload={upload} onFiles={onFiles} /></div>
+              </div>
               <div className="flex items-start gap-1">
-                <div className="min-w-0 flex-1"><PromptEditor onSubmit={sendComposer} onFiles={onFiles} placeholder="描述你想要的画面，输入 @ 引用主体或参考图…" /></div>
+                <div className={cn('min-w-0 flex-1 overflow-hidden transition-[max-height] duration-(--duration-base) ease-(--ease-standard) motion-reduce:transition-none',
+                  compact ? 'max-h-7 [mask-image:linear-gradient(to_bottom,black_55%,transparent)]' : 'max-h-[12.5rem]')}><PromptEditor onSubmit={sendComposer} onFiles={onFiles} placeholder="描述你想要的画面，输入 @ 引用主体或参考图…" /></div>
                 <IconButton label="增强提示词" loading={enhancing} disabled={!!enhanceReason} disabledReason={enhanceReason ?? undefined} onClick={() => void enhance()}><Sparkles className="size-4" /></IconButton>
               </div>
               </>}
-              {!avatar && (vars.length > 0 || textVars.length > 0) && <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1">
-                {vars.map(v => <SubjectVarPicker key={v} token={v} subjects={subjects.data ?? []} />)}
-                {textVars.map(v => <VarChip key={v} token={v} />)}
-              </div>}
+              {!avatar && (vars.length > 0 || textVars.length > 0) && (
+                <div className={cn('grid transition-[grid-template-rows] duration-(--duration-base) ease-(--ease-standard) motion-reduce:transition-none', compact ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]')}>
+                  <div className="overflow-hidden">
+                    <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1">
+                      {vars.map(v => <SubjectVarPicker key={v} token={v} subjects={subjects.data ?? []} />)}
+                      {textVars.map(v => <VarChip key={v} token={v} />)}
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* 单行不换行：参数多了（seedance 有比例/时长/分辨率/更多参数）时左侧横向滚动，
                   发送按钮始终留在同一行右端——换行会把它们甩到下一行，看起来像错位。 */}
               <div className="mt-2 flex items-center gap-1.5">

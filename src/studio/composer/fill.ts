@@ -37,6 +37,8 @@ export interface FillPlan {
   notices: string[]
   /** Composer should toast 「已填入输入框」 (senders that already toast: case, canvas). */
   toast: boolean
+  /** 案例的效果图：输入框旁边显示「照着这张做」。undefined = 不动，null = 清掉。 */
+  preview?: { url: string; title?: string } | null
 }
 
 function resolveModel(ctx: FillContext, kind: MediaKind, wanted: string | null | undefined, notices: string[]) {
@@ -109,7 +111,7 @@ export function planFill(d: FillDetail, ctx: FillContext): FillPlan {
     const slotNames = [...new Set(d.template.items.flatMap(t => t.references.map(r => r.slot)))]
     if (slotNames.length) notices.push(`套图需要放入：${slotNames.join('、')}（编辑队列项后添加参考图）`)
     // §2.3: 发送 would append a non-empty draft as an extra item — a template replaces the draft too (Composer confirms if it had a prompt).
-    return { kind, model: model?.id, params: items[0]?.params, doc: null, slots: [], queue: capQueue(items, notices), notices, toast: false }
+    return { kind, model: model?.id, params: items[0]?.params, doc: null, slots: [], queue: capQueue(items, notices), notices, toast: false, preview: d.preview ?? null }
   }
 
   // case / record / canvas → replace the draft. Record chips come back from prompt_doc; their references as manual slots.
@@ -123,5 +125,7 @@ export function planFill(d: FillDetail, ctx: FillContext): FillPlan {
     kind, model: model?.id,
     params: model ? normalizeParams(model, { ...ctx.memory[kind]?.params, ...b.params }).params : ctx.memory[kind]?.params,
     doc, slots, notices, toast: d.source === 'record',
+    // 换案例就换图；从素材/记录/画布填入时清掉上一个案例的图，免得对不上号。
+    preview: d.source === 'case' ? d.preview ?? null : null,
   }
 }
