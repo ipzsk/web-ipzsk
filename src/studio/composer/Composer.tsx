@@ -16,7 +16,7 @@ import type { ParamInput, QueueEntry } from '../api/queue'
 import { clearDraft, loadDraft, useComposer } from '../store'
 import { useAccount, useModels, useQueueSync, useQuote, useSubjects } from './hooks'
 import {
-  addManual, applyVars, chipsOf, docFromText, expandModels, isSendable, itemFromDraft, normalizeParams, planSend, queueRoom, quoteEntry, referenceState, serializePrompt,
+  addManual, applyVars, chipsOf, docFromText, expandModels, isSendable, itemFromDraft, normalizeParams, planSend, queueRoom, quoteEntry, quoteSummary, referenceState, serializePrompt,
   subjectBlockReason, subjectVarLabel, subjectVarsOf, textVarsOf, varBlockReason, varLabel, isOptionalVar, varOptions,
 } from './logic'
 import { COMPOSER_FILL_EVENT, onStudioEvent } from '@/shared/events'
@@ -314,7 +314,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
   // 数字人：型号由形象来源 + 档位决定（avatar/logic.ts decideAvatar），只调比例与清晰度。
   const avatar = useMemo(() => avatarMode ? decideAvatar(avatarDraft, models.data ?? []) : null, [avatarMode, avatarDraft, models.data])
   const avatarModel = avatar && (avatar.model ?? avatarModels(models.data ?? []).library[0])
-  const model = avatarMode ? avatarModel ? avatarParamModel(avatarModel) : undefined : kindModels.find(m => m.id === memory.model) ?? kindModels[0]
+  const model = useMemo(() => avatarMode ? avatarModel ? avatarParamModel(avatarModel) : undefined : kindModels.find(m => m.id === memory.model) ?? kindModels[0], [avatarMode, avatarModel, kindModels, memory.model])
   const params = useMemo(() => model ? normalizeParams(model, memory.params).params : {}, [model, memory.params])
   const [highlight, flash] = useHighlight()
 
@@ -364,11 +364,14 @@ export function Composer({ hidden }: { hidden: boolean }) {
   const sendable = planSend(queue.filter(i => !submitting.has(i.item_id)), current)
   const quoteItems = useMemo(() => [...queue, ...(hasPrompt ? [current] : [])], [queue, current, hasPrompt])
   const quote = useQuote(quoteItems.map(quoteEntry), account.signedIn && !!model)
-  const pointsById = new Map(quoteItems.map((it, i) => [it.item_id, quote.data?.[i]?.points ?? null]))
-  const sum = (items: QueueEntry[]) => quote.data && !quote.isPlaceholderData
-    ? Math.round(items.reduce((a, it) => a + (pointsById.get(it.item_id) ?? 0), 0) * 10) / 10 : null
-  const total = sum(sendable)
-  const queueTotal = sum(queue)
+  const quotePending = !quote.isCurrent || quote.isPending || quote.isFetching
+  const quotesById = new Map(quoteItems.map((it, i) => [it.item_id, quote.data?.[i]]))
+  const pointsById = new Map(quoteItems.map(it => [it.item_id, quoteSummary([quotesById.get(it.item_id)], quotePending, quote.isError).total]))
+  const priced = (items: QueueEntry[]) => quoteSummary(items.map(it => quotesById.get(it.item_id)), quotePending, quote.isError)
+  const sendQuote = priced(sendable)
+  const total = sendQuote.total
+  const queueTotal = priced(queue).total
+  const quoteNeedsRetry = !quotePending && !!priced(quoteItems).reason
 
   // ── send ──
   const [sending, setSending] = useState(false)
@@ -383,13 +386,17 @@ export function Composer({ hidden }: { hidden: boolean }) {
     [doc, slots, queue])
   const insufficient = account.points != null && total != null && total > account.points
 
-  const blockReason = (items: QueueEntry[], includesComposer: boolean): string | null =>
-    !online ? '网络已断开，恢复后再发送'
+  const blockReason = (items: QueueEntry[], includesComposer: boolean): string | null => {
+    const price = priced(items)
+    return !online ? '网络已断开，恢复后再发送'
     : !model ? '型号加载中'
     : !items.length ? (queue.some(i => i.missing) ? '队列里的项引用了已删除的素材，请编辑移除后再发送' : queue.length ? '队列里没有可发送的项（标红的项需要先编辑）' : '先输入提示词')
     : includesComposer && avatar?.reason ? avatar.reason
     : includesComposer && refs.over ? refs.message
     : varBlockReason(items.map(i => ({ prompt: applyVars(i.prompt, varValues) }))) ?? subjectBlockReason(items, subjectIds)
+      ?? price.reason
+      ?? (account.points != null && price.total != null && price.total > account.points ? '余额不足，请先充值' : null)
+  }
 
   const send = (rawItems: QueueEntry[], includesComposer: boolean) => {
     // 队列项存的是入队那一刻的快照，空位在里面还是 {{…}}：发送前按当前填的值替换一遍，
@@ -517,8 +524,8 @@ export function Composer({ hidden }: { hidden: boolean }) {
                 </p>
               )}
               {avatar ? (
-                <AvatarComposerPanel decision={avatar} onSubmit={sendComposer} quotePending={quote.isFetching}
-                  quote={hasPrompt ? quote.data?.[queue.length] : undefined}
+                <AvatarComposerPanel decision={avatar} onSubmit={sendComposer} quotePending={quotePending}
+                  quote={hasPrompt && quote.isCurrent ? quote.isError ? { points: null, error: { code: 'quote_failed', message: '请重新获取报价' } } : quote.data?.[queue.length] : undefined}
                   fieldError={(() => { const e = queue.find(i => i.item_id === editingId)?.error; return e ? guideAvatarError(e) : null })()} />
               ) : <>
               {/* 收起/展开的动画：高度 auto 没法直接过渡，用 grid-rows 0fr↔1fr 这招，不用 JS 量高度 */}
@@ -539,6 +546,12 @@ export function Composer({ hidden }: { hidden: boolean }) {
                       {textVars.map(v => <VarChip key={v} token={v} />)}
                     </div>
                   </div>
+                </div>
+              )}
+              {account.signedIn && quoteNeedsRetry && (
+                <div role="alert" className="mt-2 flex flex-wrap items-center gap-2 text-sm text-danger">
+                  <span>暂时无法确认费用，请重新获取报价后再发送。</span>
+                  <Button size="sm" variant="ghost" onClick={() => void quote.refetch()}>重新获取报价</Button>
                 </div>
               )}
               {/* 单行不换行：参数多了（seedance 有比例/时长/分辨率/更多参数）时左侧横向滚动，

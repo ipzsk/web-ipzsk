@@ -147,7 +147,8 @@ describe('send semantics', () => {
 })
 
 it('classifies HTTP outcomes', () => {
-  expect(classify(new ApiError('', { status: 409, code: 'idempotency_conflict' })).status).toBe('accepted')
+  expect(classify(new ApiError('', { status: 409, code: 'request_already_received' })).status).toBe('accepted')
+  expect(classify(new ApiError('', { status: 409, code: 'idempotency_conflict' })).status).toBe('rejected')
   expect(classify(new ApiError('', { status: 400, code: 'unsupported_param' })).status).toBe('rejected')
   expect(classify(new ApiError('', { status: 402, code: 'insufficient_balance' })).status).toBe('rejected')
   expect(classify(new ApiError('', { status: 503, code: 'x' })).status).toBe('retryable')

@@ -3,7 +3,7 @@ import type { JSONContent } from '@tiptap/core'
 import type { GenerationParams, MediaKind, ModelSpec, ParamSpec } from '@/shared/contracts'
 import { formatCharge } from '@/shared/points'
 import type { MediaAsset } from '@/media'
-import type { QuoteEntry } from '../api/catalog'
+import type { QuoteEntry, QuoteResult } from '../api/catalog'
 import type { Mention, ParamChange, ParamInput, ParamValue, QueueEntry, RefSlot } from '../api/queue'
 import { QUEUE_MAX } from '../api/queue'
 
@@ -253,6 +253,17 @@ export function planSend(queue: QueueEntry[], composer: QueueEntry | null): Queu
 
 export const quoteEntry = (i: Pick<QueueEntry, 'kind' | 'model' | 'params' | 'reference_asset_ids'>): QuoteEntry =>
   ({ kind: i.kind, model: i.model, params: i.params, reference_asset_ids: [...i.reference_asset_ids] })
+
+/** A partial/failed quote must never turn an unknown price into zero or permit a paid submit. */
+export function quoteSummary(quotes: (QuoteResult | undefined)[], pending: boolean, failed: boolean): { total: number | null; reason: string | null } {
+  if (!quotes.length) return { total: null, reason: null }
+  if (pending) return { total: null, reason: '正在获取报价，请稍候' }
+  if (failed) return { total: null, reason: '报价获取失败，请重新获取报价' }
+  if (quotes.some(q => q?.error || q?.points == null || !Number.isFinite(q.points) || q.points < 0)) {
+    return { total: null, reason: '部分项目暂无有效报价，请调整参数或重新获取报价' }
+  }
+  return { total: Math.round(quotes.reduce((sum, q) => sum + q!.points!, 0) * 10) / 10, reason: null }
+}
 
 // ── {{主体:…}} template variables (§2.8 / §2.9) ──────────────────────────────
 

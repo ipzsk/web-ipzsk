@@ -31,6 +31,15 @@ describe('queue sync', () => {
     expect(out).toEqual({ status: 'rejected', error: { code: 'invalid_param_value', message: 'bad', field: 'resolution' } })
   })
 
+  it.each(['idempotency_conflict', 'anchor_not_succeeded', 'unknown_conflict'])('409 %s remains a rejected submission', code => {
+    expect(classify(new ApiError('conflict', { status: 409, code }))).toEqual({ status: 'rejected', error: { code, message: 'conflict' } })
+  })
+
+  it('only an explicit duplicate acknowledgement is accepted; concurrency limits stay retryable', () => {
+    expect(classify(new ApiError('duplicate', { status: 409, code: 'request_already_received' }))).toEqual({ status: 'accepted' })
+    expect(classify(new ApiError('busy', { status: 409, code: 'too_many_active' })).status).toBe('retryable')
+  })
+
   it('missing items are not sendable', () => {
     const q = [entry('a', { missing: true }), entry('b')]
     expect(planSend(q, null).map(i => i.item_id)).toEqual(['b'])

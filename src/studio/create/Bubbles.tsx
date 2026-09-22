@@ -4,6 +4,8 @@ import {
 } from 'lucide-react'
 import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, IndeterminateBar, SegmentedControl, cn, focusRing, toast } from '@/ui'
 import { formatCharge } from '@/shared/points'
+import { queryClient } from '@/shared/query'
+import { recordKeys } from '../api/records'
 import { MediaImage, MediaVideo, useMediaDraggable, type MediaAsset } from '@/media'
 import {
   addToCanvas, copyText, deleteBatch, downloadAsset, deleteItem, fillFromItem, referenceFrom, regenerate, useStars,
@@ -207,9 +209,12 @@ function ItemCell({ item, label, now, onPreview, canDelete }: { item: ItemView; 
       )}
       <Status item={item} now={now} />
       <AvatarResultMeta item={item} />
-      {item.status === 'succeeded' && !results.length && (item.kind === 'video'
-        ? <p className="text-sm text-muted">视频已生成，结果暂不可预览</p>
-        : <Stage text="处理结果" waited={`已等待 ${formatWait(now - Date.parse(item.created_at))}`} />)}
+      {item.status === 'succeeded' && !results.length && (
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
+          <span>生成已完成，结果暂未就绪。可刷新查看最新结果。</span>
+          <Button size="sm" variant="ghost" icon={<RefreshCw className="size-3.5" />} onClick={() => void queryClient.invalidateQueries({ queryKey: recordKeys.all })}>刷新结果</Button>
+        </div>
+      )}
       {results.length > 0 && (
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [--tile-h:180px] max-md:[--tile-h:132px]">
           {results.map((a, i) => <ResultTile key={a.id} asset={a} item={item} index={i} onPreview={() => onPreview(results, i)} />)}
@@ -224,7 +229,7 @@ export function ResultBubble({ group, onPreview }: { group: Group; onPreview: (a
   const { items } = group
   const batch = items.length > 1
   const [layout, setLayout] = useState<'position' | 'model'>('position')
-  const now = useNow(items.some(i => i.status === 'queued' || i.status === 'running' || (i.status === 'succeeded' && !i.results.length && i.kind === 'image')))
+  const now = useNow(items.some(i => i.status === 'queued' || i.status === 'running'))
   const charge = chargeLabel(items)
   const done = items.filter(i => i.status === 'succeeded').length
   const models = [...new Set(items.map(i => i.model))]

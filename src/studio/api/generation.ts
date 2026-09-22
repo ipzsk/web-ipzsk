@@ -51,10 +51,10 @@ export class SubmitError extends Error {
 
 const RETRYABLE_CODES = new Set(['rate_limited', 'too_many_active', 'billing_unavailable'])
 
-/** HTTP → outcome. 2xx/409 accepted (409 = same Idempotency-Key already accepted); other 4xx rejected; 0/5xx/429 retryable. */
+/** Only the gateway's explicit duplicate acknowledgement counts as accepted; other 409s are errors. */
 export function classify(error: unknown): SubmitOutcome {
   if (!(error instanceof ApiError)) return { status: 'retryable', error: { code: 'network_error', message: '网络异常，请重试' } }
-  if (error.status === 409 && error.code !== 'too_many_active') return { status: 'accepted' }
+  if (error.status === 409 && error.code === 'request_already_received') return { status: 'accepted' }
   const field = (error.body as { error?: { field?: unknown } } | null)?.error?.field
   const e = { code: error.code, message: error.message, ...(typeof field === 'string' && { field }) }
   if (error.status === 0 || error.status >= 500 || error.status === 429 || RETRYABLE_CODES.has(error.code)) return { status: 'retryable', error: e }

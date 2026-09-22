@@ -216,9 +216,10 @@ export function AvatarComposerPanel({ decision, quote, quotePending, fieldError,
 }
 
 function CostLine({ quote, pending, billSeconds }: { quote?: AvatarQuote; pending?: boolean; billSeconds: number }) {
+  const points = !pending && !quote?.error && quote?.points != null && Number.isFinite(quote.points) && quote.points >= 0 ? quote.points : null
   return (
     <span className="inline-flex flex-wrap items-center gap-x-1.5">
-      <span className="tabular-nums">按 {formatSeconds(billSeconds)} 预扣{quote?.points != null ? <> · 约 <b className="text-ink">{pointsNumber(quote.points)}</b> 点</> : quote?.error && !pending ? ` · 暂无报价（${quote.error.message}）` : ' · 报价中…'}</span>
+      <span className="tabular-nums">按 {formatSeconds(billSeconds)} 预扣{points != null ? <> · 约 <b className="text-ink">{pointsNumber(points)}</b> 点</> : pending ? ' · 报价中…' : quote?.error ? ` · 暂无报价（${quote.error.message}）` : ' · 暂无报价'}</span>
       <span>· 按实际时长结算，可能多退少补</span>
     </span>
   )

@@ -9,6 +9,8 @@ const messages: Record<string, string> = {
   billing_unavailable: '计费服务暂不可用，请稍后重试。',
   rate_limited: '操作太频繁，请稍后再试。',
   too_many_active: '进行中的任务太多，请等其中一些完成后再提交。',
+  idempotency_conflict: '这条请求与之前提交的内容不同，请先查看原任务，再编辑后重新发送。',
+  anchor_not_succeeded: '参考任务还未完成，请等待结果就绪后再发送。',
   network_error: '暂时无法连接服务，请检查网络后重试。',
   invalid_param_value: '参数取值不被当前型号支持，请修改后重试。',
   unsupported_parameter: '当前型号不支持这个参数，请修改后重试。',

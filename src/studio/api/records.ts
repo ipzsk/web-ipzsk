@@ -195,8 +195,14 @@ export const recordKeys = {
   threads: ['threads'] as const,
 }
 
-const hasUnsettled = (items: GenerationRecord[]) =>
-  items.some(r => (r.status === 'succeeded' && r.charged_points == null && Date.now() - Date.parse(r.updated_at) < 120_000) || r.status === 'queued' || r.status === 'running')
+function recordsRefetchInterval(items: GenerationRecord[]): number | false {
+  const age = (r: GenerationRecord) => Date.now() - Date.parse(r.updated_at)
+  if (items.some(r => r.status === 'queued' || r.status === 'running' || (r.status === 'succeeded' && r.charged_points == null && age(r) < 120_000))) return 5000
+  // Settlement can finish before the independent archive worker saves the file. Keep reading until results arrive.
+  // Cover the worker's eight exponential retries (over an hour); older unavailable/deleted results have manual refresh.
+  if (items.some(r => r.status === 'succeeded' && !r.results.length && age(r) < 2 * 60 * 60_000)) return 10_000
+  return false
+}
 
 export const useThreadRecords = (threadId: string | null) => useInfiniteQuery({
   queryKey: recordKeys.thread(threadId ?? ''),
@@ -204,8 +210,8 @@ export const useThreadRecords = (threadId: string | null) => useInfiniteQuery({
   initialPageParam: null as string | null,
   getNextPageParam: last => last.next_cursor,
   enabled: !!threadId,
-  // Active progress comes from the single active poll; this only re-reads briefly while charges settle.
-  refetchInterval: q => hasUnsettled(q.state.data?.pages[0]?.items ?? []) ? 5000 : false,
+  // Include loaded older pages: a slow generation can leave page one while newer requests arrive.
+  refetchInterval: q => recordsRefetchInterval(q.state.data?.pages.flatMap(p => p.items) ?? []),
 })
 
 /** One request for all active records (§2.5 任务恢复), every 3s while any, refetch on focus. */

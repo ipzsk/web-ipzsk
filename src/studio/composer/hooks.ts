@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { hashKey, useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { ApiError } from '@/shared/api'
 import { useCurrentUser, useWallet } from '@/shared/query'
 import { toast } from '@/ui'
@@ -37,13 +37,15 @@ export function useDebounced<T>(value: T, ms: number) {
 export const quoteQueryKey = (entries: QuoteEntry[]) => ['media', 'quote', entries] as const
 export function useQuote(entries: QuoteEntry[], enabled: boolean) {
   const debounced = useDebounced(entries, 300)
-  return useQuery({
+  const result = useQuery({
     queryKey: quoteQueryKey(debounced),
     queryFn: ({ signal }) => quote(debounced, signal),
     enabled: enabled && debounced.length > 0,
     staleTime: 10 * 60_000,
     placeholderData: prev => prev,
   })
+  // During debounce the query still belongs to the previous inputs, even before placeholderData is set.
+  return { ...result, isCurrent: hashKey(quoteQueryKey(entries)) === hashKey(quoteQueryKey(debounced)) && !result.isPlaceholderData }
 }
 
 /**
