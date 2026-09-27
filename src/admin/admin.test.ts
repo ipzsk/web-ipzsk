@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '@/shared/api'
-import { can, cancelBlockReason, moveCase, positionBetween, publishIssues, revokeBlockReason, sessionLeft, templateIssues, type AdminCase } from './lib'
+import { can, cancelBlockReason, grantIssues, moveCase, positionBetween, publishIssues, revokeBlockReason, sessionLeft, templateIssues, type AdminCase } from './lib'
 import { createMockApi } from './api'
 
 const noDelay = async () => {}
@@ -19,6 +19,16 @@ describe('role gating', () => {
     expect(can(['admin'], 'roles.write')).toBe(true)
     expect(can([], 'read')).toBe(false)
     expect(can(['viewer', 'operator'], 'cases.write')).toBe(true)
+    expect(can(['admin'], 'wallet.grant')).toBe(true)
+    expect(can(['viewer', 'operator'], 'wallet.grant')).toBe(false)
+  })
+
+  it('checks wallet grants like the gateway', () => {
+    expect(grantIssues('50', '测试补发')).toEqual({})
+    expect(grantIssues('0.01', 'ok')).toEqual({})
+    for (const a of ['0', '1000.01', '1.234', 'abc', '', '-5']) expect(grantIssues(a, 'ok').amount, a).toBeTruthy()
+    expect(grantIssues('5', ' x ').reason).toBeTruthy()
+    expect(grantIssues('5', 'x'.repeat(201)).reason).toBeTruthy()
   })
   it('blocks revoking own admin and the last admin', () => {
     expect(revokeBlockReason({ role: 'admin', targetId: 'me', meId: 'me', adminCount: 3 })).toMatch('自己')
@@ -153,5 +163,18 @@ describe('mock adapter', () => {
     expect(failed.items.every(x => x.status === 'failed')).toBe(true)
     expect(await code(api.generations.cancel(failed.items[0]!.id, 'x'))).toBe('generation_not_cancellable')
     expect((await api.generations.cancel('g-0006', '卡住')).status).toBe('cancelled')
+  })
+
+  it('wallet grant: admin only, validated, idempotent per key, raises the balance and audits', async () => {
+    expect(await code(createMockApi('operator', noDelay).users.grantWallet('u-5', { amount_cny: '50', reason: '测试' }, 'k'))).toBe('forbidden_role')
+    const api = createMockApi('admin', noDelay)
+    expect(await code(api.users.grantWallet('u-5', { amount_cny: '0', reason: '测试' }, 'k0'))).toBe('invalid_amount')
+    const before = Number((await api.users.get('u-5')).wallet!.available_points)
+    const first = await api.users.grantWallet('u-5', { amount_cny: '50', reason: '测试补发' }, 'k1')
+    const again = await api.users.grantWallet('u-5', { amount_cny: '50', reason: '测试补发' }, 'k1')
+    expect(again.grant.id).toBe(first.grant.id)
+    expect(Number(again.wallet!.available_points)).toBe(before + 5000)
+    expect(await code(api.users.grantWallet('u-5', { amount_cny: '60', reason: '测试补发' }, 'k1'))).toBe('idempotency_conflict')
+    expect((await api.audit.list({ action: 'wallet.grant' })).items.filter(e => e.target_id === 'u-5')).toHaveLength(1)
   })
 })

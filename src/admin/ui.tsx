@@ -70,6 +70,10 @@ const ADMIN_ERRORS: Record<string, string> = {
   upstream_unavailable: '上游暂时不可用，请稍后重试。',
   asset_not_ready: '图片还在处理，请稍后再设为封面。',
   storage_copy_failed: '封面复制失败，请重试。',
+  invalid_amount: '金额为 0.01–1000 元，最多两位小数。',
+  invalid_reason: '原因需 2–200 字。',
+  idempotency_conflict: '这次提交与之前的内容不一致，请关闭后重新发起。',
+  lanehub_account_missing: '该用户的计费账户开通失败，请稍后重试。',
 }
 export const adminErrorText = (e: unknown) =>
   e instanceof ApiError ? ADMIN_ERRORS[e.code] ?? e.message : '操作未成功，请稍后重试。'

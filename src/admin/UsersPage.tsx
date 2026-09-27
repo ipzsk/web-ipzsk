@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, ShieldCheck, UserSearch, X } from 'lucide-react'
-import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, EmptyState, ErrorState, Button, Skeleton, Tooltip, cn, focusRing, toast } from '@/ui'
+import { Coins, Plus, ShieldCheck, UserSearch, X } from 'lucide-react'
+import { Badge, Dialog, DialogContent, DialogFooter, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, EmptyState, ErrorState, Button, Input, Skeleton, Textarea, Tooltip, cn, focusRing, toast } from '@/ui'
 import { queryClient } from '@/shared/query'
 import { adminApi, type AdminUserDetail } from './api'
-import { GEN_STATUS_LABEL, ROLES, ROLE_LABEL, fmtPoints, fmtTime, revokeBlockReason, type Role } from './lib'
+import { GEN_STATUS_LABEL, ROLES, ROLE_LABEL, fmtPoints, fmtTime, grantIssues, revokeBlockReason, type Role } from './lib'
 import { Confirm, Drawer, FilterInput, KV, PageHeader } from './ui'
 import { useAdminMe, useCan } from './App'
 
@@ -175,9 +175,13 @@ function UserDrawer({ id, onClose }: { id: string | null; onClose: () => void })
 
 function Wallet({ d }: { d: AdminUserDetail }) {
   const u = d.usage
+  const canGrant = useCan('wallet.grant')
   return (
     <section>
-      <h3 className="mb-2 text-sm font-bold">钱包与用量 <span className="font-normal text-muted">（只读）</span></h3>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-bold">钱包与用量{!canGrant && <span className="font-normal text-muted">（只读）</span>}</h3>
+        {canGrant && <GrantWallet d={d} />}
+      </div>
       <div className="grid grid-cols-3 gap-2 text-sm">
         <Stat k="可用点数" v={d.wallet ? fmtPoints(d.wallet.available_points) : '暂不可用'} />
         <Stat k="冻结" v={d.wallet ? fmtPoints(d.wallet.frozen_points) : '—'} />
@@ -189,6 +193,57 @@ function Wallet({ d }: { d: AdminUserDetail }) {
       {d.wallet_error && <p className="mt-2 text-xs text-warning">钱包查询失败（计费服务暂不可用），稍后重开抽屉重试。</p>}
       <p className="mt-2 text-xs text-muted">充值、退款与核销仍在旧版管理后台处理。</p>
     </section>
+  )
+}
+
+/**
+ * 补发余额：填写 → 确认两步。一个 Idempotency-Key 对应一份（金额，原因）：出错后原样重试沿用同一个 key，
+ * 网关只会落一笔；改了内容才换新 key。
+ */
+function GrantWallet({ d }: { d: AdminUserDetail }) {
+  const [step, setStep] = useState<'closed' | 'form' | 'confirm'>('closed')
+  const [amount, setAmount] = useState('')
+  const [reason, setReason] = useState('')
+  const [touched, setTouched] = useState(false)
+  const keyFor = useRef<{ payload: string; key: string } | null>(null)
+  const issues = grantIssues(amount, reason)
+  const value = Number(amount).toFixed(2)
+  const who = d.user.email ?? d.user.id
+  const open = () => { setAmount(''); setReason(''); setTouched(false); keyFor.current = null; setStep('form') }
+  const submit = async () => {
+    const body = { amount_cny: amount.trim(), reason: reason.trim() }, payload = JSON.stringify(body)
+    if (keyFor.current?.payload !== payload) keyFor.current = { payload, key: crypto.randomUUID() }
+    await adminApi.users.grantWallet(d.user.id, body, keyFor.current.key)
+    setStep('closed')
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'user', d.user.id] })
+    toast({ title: `已给 ${who} 补发 ¥${value}`, tone: 'success' })
+  }
+  return (
+    <>
+      <Button size="sm" icon={<Coins />} onClick={open}>补发余额</Button>
+      <Dialog open={step === 'form'} onOpenChange={o => { if (!o) setStep('closed') }}>
+        <DialogContent title="补发余额" description={`给 ${who} 补发人民币余额，入账后立即可用，并写入审计日志。`}>
+          <form className="grid gap-3" onSubmit={e => { e.preventDefault(); setTouched(true); if (!issues.amount && !issues.reason) setStep('confirm') }}>
+            <Input label="金额（元）" inputMode="decimal" placeholder="例如 50" value={amount} onChange={e => setAmount(e.target.value)} error={touched ? issues.amount : undefined} autoFocus />
+            <Textarea label="原因" placeholder="例如：生成失败补偿 / 测试账号额度" value={reason} maxLength={200} onChange={e => setReason(e.target.value)}
+              error={touched ? issues.reason : undefined} hint="仅记入审计，用户看不到" />
+            <DialogFooter>
+              <Button onClick={() => setStep('closed')}>取消</Button>
+              <Button type="submit" variant="primary">下一步</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Confirm
+        open={step === 'confirm'}
+        onOpenChange={o => { if (!o) setStep(s => (s === 'confirm' ? 'form' : s)) }}
+        title={`确认补发 ¥${value}？`}
+        description={<>给 <strong>{who}</strong> 入账 <strong>¥{value}</strong>（{(Number(value) * 100).toLocaleString('zh-CN')} 点）。<br />原因：{reason.trim()}<br />提交后不可撤回。</>}
+        confirmLabel="确认补发"
+        loadingText="补发中"
+        onConfirm={submit}
+      />
+    </>
   )
 }
 

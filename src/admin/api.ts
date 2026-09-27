@@ -1,8 +1,8 @@
 import { ApiError, request } from '@/shared/api'
 import type { MediaAsset } from '@/shared/contracts'
-import type { AdminGeneration, AdminGenerationDetail, AdminMe, AdminUserDetail, AdminUserSummary, AuditEvent, RoleGrant, UserRef } from '@/shared/contracts'
+import type { AdminGeneration, AdminGenerationDetail, AdminMe, AdminUserDetail, AdminUserSummary, AuditEvent, RoleGrant, UserRef, WalletGrantCreate, WalletGrantResult } from '@/shared/contracts'
 import { MOCK_MODELS, isMock, mockDelay } from '@/studio/api/catalog'
-import { can, publishIssues, positionBetween, type AdminCase, type CaseFields, type CaseStatus, type Capability, type GenStatus, type Role } from './lib'
+import { can, grantIssues, publishIssues, positionBetween, type AdminCase, type CaseFields, type CaseStatus, type Capability, type GenStatus, type Role } from './lib'
 
 /* Adapters for docs/admin-api.md. Mock: `?mock=1` (same switch as studio) + `&role=admin|operator|viewer|none|expired|guest`. */
 
@@ -37,6 +37,8 @@ export interface AdminApi {
     staff(): Promise<{ user: UserRef; roles: RoleGrant[] }[]>
     grant(id: string, role: Role): Promise<{ roles: Role[] }>
     revoke(id: string, role: Role): Promise<{ roles: Role[] }>
+    /** `key` is one Idempotency-Key per grant: a retry after an error sends the same key and can never pay twice. */
+    grantWallet(id: string, body: WalletGrantCreate, key: string): Promise<WalletGrantResult>
   }
   generations: {
     list(q: GenerationQuery): Promise<Page<AdminGeneration>>
@@ -74,6 +76,7 @@ export const realApi: AdminApi = {
     staff: async () => (await request<{ items: { user: UserRef; roles: RoleGrant[] }[] }>('/api/admin/roles')).items,
     grant: (id, role) => request(`/api/admin/users/${enc(id)}/roles/${role}`, { method: 'PUT' }),
     revoke: (id, role) => request(`/api/admin/users/${enc(id)}/roles/${role}`, { method: 'DELETE' }),
+    grantWallet: (id, body, key) => request(`/api/admin/users/${enc(id)}/wallet-grants`, { body, headers: { 'Idempotency-Key': key } }),
   },
   generations: {
     list: q => request(`/api/admin/generations?${qs(q)}`),
@@ -113,6 +116,13 @@ export function createMockApi(role: MockRole = 'admin', delay = mockDelay): Admi
   const grants = new Map<string, Map<Role, RoleGrant>>()
   for (const u of users) grants.set(u.id, new Map(u.roles.map(role => [role, { role, granted_at: iso(now - 30 * DAY), granted_by: me.id === u.id ? null : { id: me.id, email: me.email } }])))
   const rolesOf = (id: string) => [...(grants.get(id)?.keys() ?? [])].sort() as Role[]
+  const granted = new Map<string, number>() // user id → 元 granted in this session
+  const grantKeys = new Map<string, { fingerprint: string; grant: WalletGrantResult['grant'] }>()
+  const walletOf = (id: string): Pick<AdminUserDetail, 'wallet' | 'wallet_error'> => {
+    const n = Number(id.split('-')[1]) || 0
+    return n % 11 === 7 ? { wallet: null, wallet_error: 'billing_unavailable' }
+      : { wallet: { available_points: (n * 37.5 + (granted.get(id) ?? 0) * 100).toFixed(8), frozen_points: (n % 3 ? 0 : 12).toFixed(8) }, wallet_error: null }
+  }
   const refOf = (u: AdminUserSummary): UserRef => ({ id: u.id, email: u.email, name: u.name })
 
   const models = MOCK_MODELS.map(m => m.id)
@@ -314,8 +324,7 @@ export function createMockApi(role: MockRole = 'admin', delay = mockDelay): Admi
           user: { id: u.id, email: u.email, name: u.name, email_verified: u.email_verified, created_at: u.created_at, last_sign_in_at: iso(now - n * 3600_000) },
           roles: [...(grants.get(id)?.values() ?? [])],
           developer: { state: n % 5 === 2 ? 'approved' : null },
-          wallet: n % 11 === 7 ? null : { available_points: (n * 37.5).toFixed(8), frozen_points: (n % 3 ? 0 : 12).toFixed(8) },
-          wallet_error: n % 11 === 7 ? 'billing_unavailable' : null,
+          ...walletOf(id),
           usage: {
             last_30d: { generations: recent.length, succeeded: recent.filter(x => x.status === 'succeeded').length, failed: recent.filter(x => x.status === 'failed').length, cancelled: recent.filter(x => x.status === 'cancelled').length, charged_points: recent.reduce((s, x) => s + Number(x.charged_points ?? 0), 0).toFixed(8) },
             total_generations: mine.length, storage: { assets: n * 3, bytes: n * 12_345_678 },
@@ -335,6 +344,24 @@ export function createMockApi(role: MockRole = 'admin', delay = mockDelay): Admi
         const g = grants.get(id)!
         if (!g.has(r)) { g.set(r, { role: r, granted_at: new Date().toISOString(), granted_by: refOf(me) }); log('role.grant', id, { role: r }, Date.now()) }
         return { roles: rolesOf(id) }
+      },
+      async grantWallet(id, body, key) {
+        await gate('wallet.grant')
+        const u = users.find(x => x.id === id)
+        if (!u) throw err(404, 'user_not_found')
+        const issues = grantIssues(body.amount_cny, body.reason)
+        if (issues.amount) throw err(400, 'invalid_amount')
+        if (issues.reason) throw err(400, 'invalid_reason')
+        const fingerprint = `${id}|${Number(body.amount_cny).toFixed(2)}|${body.reason.trim()}`
+        const prior = grantKeys.get(key)
+        if (prior && prior.fingerprint !== fingerprint) throw err(409, 'idempotency_conflict')
+        if (!prior) {
+          granted.set(id, (granted.get(id) ?? 0) + Number(body.amount_cny))
+          const grant = { id: crypto.randomUUID(), amount_cny: Number(body.amount_cny).toFixed(2), reason: body.reason.trim(), created_at: new Date().toISOString() }
+          grantKeys.set(key, { fingerprint, grant })
+          log('wallet.grant', id, { amount_cny: grant.amount_cny, reason: grant.reason }, Date.now())
+        }
+        return { grant: grantKeys.get(key)!.grant, ...walletOf(id) }
       },
       async revoke(id, r) {
         await gate('roles.write')

@@ -8,11 +8,11 @@ export const ROLE_LABEL: Record<Role, string> = { admin: '管理员', operator: 
 
 /* ---------- role gating (§0.1) ---------- */
 
-export type Capability = 'read' | 'cases.write' | 'generations.act' | 'ops.write' | 'roles.write'
+export type Capability = 'read' | 'cases.write' | 'generations.act' | 'ops.write' | 'roles.write' | 'wallet.grant'
 
 export function can(roles: readonly string[], cap: Capability): boolean {
   if (cap === 'read') return roles.some(r => (ROLES as string[]).includes(r))
-  if (cap === 'roles.write') return roles.includes('admin')
+  if (cap === 'roles.write' || cap === 'wallet.grant') return roles.includes('admin')
   return roles.includes('admin') || roles.includes('operator')
 }
 
@@ -173,6 +173,16 @@ export function cancelBlockReason(r: { status: GenStatus; created_at: string }, 
 
 /** Same gateway failure-code map as the studio (create/lib.ts), so both consoles say the same thing. */
 export { FAILURE_MESSAGES as FAILURE_LABEL } from '@/studio/create/lib'
+
+/** Same limits as the gateway's wallet grant (0.01–1000 元, 2 decimals; reason 2–200 chars), checked before submitting. */
+export function grantIssues(amount: string, reason: string): { amount?: string; reason?: string } {
+  const out: { amount?: string; reason?: string } = {}
+  const n = /^\d{1,4}(\.\d{1,2})?$/.test(amount.trim()) ? Number(amount) : NaN
+  if (!(n > 0 && n <= 1000)) out.amount = '金额为 0.01–1000 元，最多两位小数'
+  const r = reason.trim().length
+  if (r < 2 || r > 200) out.reason = '原因需 2–200 字'
+  return out
+}
 
 export const fmtTime = (iso: string) => new Date(iso).toLocaleString('zh-CN', { hour12: false })
 export const fmtPoints = (p: string | null) => p == null ? '结算中' : `${Number(p).toLocaleString('zh-CN', { maximumFractionDigits: 2 })} 点`
