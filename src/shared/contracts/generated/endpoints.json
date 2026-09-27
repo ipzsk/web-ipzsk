@@ -1,7 +1,7 @@
 {
   "_source": {
     "repo": "ipzsk-api-gateway",
-    "commit": "2711328"
+    "commit": "635934a-dirty"
   },
   "auth_kinds": {
     "bearer": {
@@ -108,6 +108,7 @@
         "forbidden_role",
         "invalid_category",
         "invalid_cursor",
+        "invalid_kind",
         "invalid_limit",
         "invalid_query",
         "invalid_status",
@@ -126,10 +127,9 @@
     {
       "auth": "cookie",
       "body": "AdminCaseCreate",
-      "body_shape": "{ title: string prompt: string category: string category_zh?: string | null tags?: string[] model?: string | null params?: Record<string, unknown> template?: CaseTemplate | null author?: string | null author_url?: string | null source_repo?: string | null source_url?: string | null license_note?: string | null id?: string | null cover_asset_id: Uuid }",
+      "body_shape": "{ title: string prompt: string category: string category_zh?: string | null tags?: string[] model?: string | null params?: Record<string, unknown> template?: CaseTemplate | null author?: string | null author_url?: string | null source_repo?: string | null source_url?: string | null license_note?: string | null kind?: CaseKind license_tier?: LicenseTier | null id?: string | null cover_asset_id: Uuid }",
       "errors": [
         "asset_not_found",
-        "asset_not_image",
         "asset_not_ready",
         "case_id_taken",
         "case_not_found",
@@ -140,6 +140,8 @@
         "invalid_category",
         "invalid_idempotency_key",
         "invalid_json",
+        "invalid_kind",
+        "invalid_license_tier",
         "invalid_params",
         "invalid_prompt",
         "invalid_tags",
@@ -195,7 +197,7 @@
     {
       "auth": "cookie",
       "body": "AdminCasePatch",
-      "body_shape": "{ title?: string prompt?: string category?: string category_zh?: string | null tags?: string[] model?: string | null params?: Record<string, unknown> template?: CaseTemplate | null author?: string | null author_url?: string | null source_repo?: string | null source_url?: string | null license_note?: string | null status?: CaseStatus expected_updated_at?: IsoTime | null }",
+      "body_shape": "{ title?: string prompt?: string category?: string category_zh?: string | null tags?: string[] model?: string | null params?: Record<string, unknown> template?: CaseTemplate | null author?: string | null author_url?: string | null source_repo?: string | null source_url?: string | null license_note?: string | null kind?: CaseKind license_tier?: LicenseTier | null status?: CaseStatus expected_updated_at?: IsoTime | null }",
       "conflict": "CaseConflict",
       "errors": [
         "case_conflict",
@@ -205,6 +207,8 @@
         "forbidden_role",
         "invalid_expected_updated_at",
         "invalid_json",
+        "invalid_kind",
+        "invalid_license_tier",
         "invalid_params",
         "invalid_status",
         "invalid_tags",
@@ -225,7 +229,6 @@
       "body_shape": "{ asset_id: Uuid }",
       "errors": [
         "asset_not_found",
-        "asset_not_image",
         "asset_not_ready",
         "case_not_found",
         "customer_login_required",
@@ -268,7 +271,6 @@
       "body_shape": "{ asset_ids: Uuid[] }",
       "errors": [
         "asset_not_found",
-        "asset_not_image",
         "asset_not_ready",
         "case_not_found",
         "customer_login_required",
@@ -281,6 +283,31 @@
       ],
       "method": "PUT",
       "path": "/api/admin/cases/:id/references",
+      "response": "AdminCase",
+      "roles": [
+        "admin",
+        "operator"
+      ]
+    },
+    {
+      "auth": "cookie",
+      "body": "CaseVideoPut",
+      "body_shape": "{ asset_id: Uuid | null }",
+      "errors": [
+        "asset_not_found",
+        "asset_not_ready",
+        "case_not_found",
+        "customer_login_required",
+        "forbidden_role",
+        "invalid_asset_id",
+        "invalid_json",
+        "media_storage_unavailable",
+        "storage_copy_failed",
+        "unknown_field",
+        "video_is_cover"
+      ],
+      "method": "PUT",
+      "path": "/api/admin/cases/:id/video",
       "response": "AdminCase",
       "roles": [
         "admin",
@@ -2354,10 +2381,12 @@
     {
       "auth": "public",
       "errors": [
+        "invalid_kind",
         "media_storage_unavailable"
       ],
       "method": "GET",
       "path": "/api/public/case-categories",
+      "query": "CaseCategoriesQuery",
       "response": "CaseCategories"
     },
     {
@@ -2365,6 +2394,7 @@
       "errors": [
         "invalid_category",
         "invalid_cursor",
+        "invalid_kind",
         "invalid_limit",
         "invalid_query",
         "media_storage_unavailable"
@@ -3357,12 +3387,6 @@
       ]
     },
     {
-      "code": "asset_not_image",
-      "status": [
-        400
-      ]
-    },
-    {
       "code": "asset_not_owned",
       "status": [
         422
@@ -3906,6 +3930,12 @@
       ]
     },
     {
+      "code": "invalid_asset_id",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "invalid_asset_ids",
       "status": [
         400
@@ -4213,6 +4243,12 @@
     },
     {
       "code": "invalid_language",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_license_tier",
       "status": [
         400
       ]
@@ -5149,6 +5185,12 @@
       "code": "user_not_found",
       "status": [
         404
+      ]
+    },
+    {
+      "code": "video_is_cover",
+      "status": [
+        409
       ]
     },
     {

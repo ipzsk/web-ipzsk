@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent } from 'react'
 import { ChevronLeft, ChevronRight, Copy, ExternalLink, Flag, Heart, ImageOff, Layers, LayoutDashboard, LoaderCircle, Type, WandSparkles } from 'lucide-react'
 import { Badge, Button, Dialog, DialogContent, EmptyState, IconButton, Skeleton, cn, focusRing, useDelayedLoading } from '@/ui'
-import { MediaCard, MediaImage } from '@/media'
+import { MediaCard, MediaImage, MediaVideo } from '@/media'
 import { toggleFavorite, useCase, useFavorites, useSimilar } from './api'
 import { caseAspect, copyrightLabel, takedownHref, type CaseItem } from './lib'
 import { addCaseToCanvas, caseAsset, copyPrompt, fillComposer } from './actions'
@@ -67,7 +67,7 @@ export function CaseDetail({ id, list, hasMore, loadMore, onClose, onNavigate }:
           <>
             <div className="grid gap-6 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
               <div className="md:sticky md:top-0 md:self-start">
-                <ZoomImage c={c} />
+                {c.video ? <CaseVideo c={c} video={c.video} /> : <ZoomImage c={c} />}
               </div>
 
               <div className="grid min-w-0 content-start gap-5">
@@ -98,7 +98,8 @@ export function CaseDetail({ id, list, hasMore, loadMore, onClose, onNavigate }:
                   <div className="flex flex-wrap gap-1.5">
                     {c.model && <Badge>{c.model}</Badge>}
                     {Object.entries(c.params ?? {}).map(([k, v]) => <Badge key={k} tone="outline">{k === 'aspect_ratio' ? '比例' : k} {String(v)}</Badge>)}
-                    <Badge tone="outline">{c.image.width ?? '?'}×{c.image.height ?? '?'}</Badge>
+                    <Badge tone="outline">{(c.video ?? c.image).width ?? '?'}×{(c.video ?? c.image).height ?? '?'}</Badge>
+                    {!!c.video?.duration_ms && <Badge tone="outline">{Math.round(c.video.duration_ms / 1000)} 秒</Badge>}
                   </div>
                 </section>
 
@@ -124,7 +125,7 @@ export function CaseDetail({ id, list, hasMore, loadMore, onClose, onNavigate }:
                   <p>{copyrightLabel(c).detail}</p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1">
                     {c.author_url && <a className={cn('inline-flex items-center gap-1 text-ink underline-offset-2 hover:underline', focusRing)} href={c.author_url} target="_blank" rel="noopener noreferrer"><ExternalLink aria-hidden className="size-3.5" />作者主页</a>}
-                    {c.source_url && <a className={cn('inline-flex items-center gap-1 text-ink underline-offset-2 hover:underline', focusRing)} href={c.source_url} target="_blank" rel="noopener noreferrer"><ExternalLink aria-hidden className="size-3.5" />原帖 / 来源</a>}
+                    {c.source_url && <a className={cn('inline-flex items-center gap-1 text-ink underline-offset-2 hover:underline', focusRing)} href={c.source_url} target="_blank" rel="noopener noreferrer"><ExternalLink aria-hidden className="size-3.5" />查看原帖</a>}
                     <a className={cn('inline-flex items-center gap-1 underline-offset-2 hover:text-ink hover:underline', focusRing)} href={takedownHref(c)}><Flag aria-hidden className="size-3.5" />请求下架</a>
                   </div>
                 </section>
@@ -136,6 +137,17 @@ export function CaseDetail({ id, list, hasMore, loadMore, onClose, onNavigate }:
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Video / 数字人 example: native controls, the cover as poster; same footprint as ZoomImage. */
+function CaseVideo({ c, video }: { c: CaseItem; video: NonNullable<CaseItem['video']> }) {
+  const w = video.width ?? c.image.width, h = video.height ?? c.image.height
+  const ratio = w && h ? w / h : 16 / 9
+  return (
+    <div className="mx-auto overflow-hidden rounded-card" style={{ width: `min(100%, ${(78 * ratio).toFixed(2)}dvh)` }}>
+      <MediaVideo key={c.id} mode="controls" src={video.urls.orig} poster={c.image.urls.w960 ?? c.image.urls.orig} width={w} height={h} label={c.title} className="w-full" />
+    </div>
   )
 }
 

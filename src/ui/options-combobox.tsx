@@ -3,6 +3,7 @@ import { Popover as P } from 'radix-ui'
 import { Check, Search, X } from 'lucide-react'
 import { cn } from './cn'
 import { focusRing } from './button'
+import { Tooltip } from './tooltip'
 
 export interface ComboOption {
   value: string
@@ -185,9 +186,11 @@ export function OptionsCombobox({ label, placeholder, value, onValueChange, grou
                         {o.count != null && <span className={cn('text-xs tabular-nums', on ? 'text-label' : 'text-muted')}>{o.count}</span>}
                         {o.onRemove && (
                           // Mouse-only (a nested button would be interactive-in-option); keyboard users press Delete on the active row.
-                          <span aria-hidden title="删除" onClick={(e) => { e.stopPropagation(); o.onRemove!() }} className="grid size-6 place-items-center rounded-[6px] text-muted hover:bg-line hover:text-ink">
-                            <X className="size-3.5" />
-                          </span>
+                          <Tooltip content="删除">
+                            <span aria-hidden onClick={(e) => { e.stopPropagation(); o.onRemove!() }} className="grid size-6 place-items-center rounded-[6px] text-muted hover:bg-line hover:text-ink">
+                              <X className="size-3.5" />
+                            </span>
+                          </Tooltip>
                         )}
                       </div>
                     )

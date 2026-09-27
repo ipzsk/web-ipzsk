@@ -24,7 +24,7 @@ import { planFill, type FillDetail, type FillPlan } from './fill'
 import { ModelPicker, ParamChips } from './ModelControls'
 import { PromptEditor, focusComposer, insertSubjectMention, useEditorFlags } from './PromptEditor'
 import { QueueBar, useSubmittingIds } from './QueueBar'
-import { ReferenceSlots } from './ReferenceSlots'
+import { CollapsedReferences, ReferenceSlots } from './ReferenceSlots'
 import { sender } from './send'
 import { uploadApi } from './uploadApi'
 import { AvatarComposerPanel } from '../avatar/AvatarComposerPanel'
@@ -96,9 +96,14 @@ function useComposerFill() {
       const models = catalog?.error instanceof ApiError && catalog.error.status === 401 ? []
         : await queryClient.ensureQueryData({ queryKey: ['media', 'models'], queryFn: fetchModels, staleTime: 10 * 60_000 }).catch(() => [])
       const s = useComposer.getState()
-      if (detail.source === 'record' && isAvatarParams(detail.params)) { // 数字人记录「编辑后重发」→ 数字人草稿
-        hydrateAvatarDraft(detail.model ?? '', detail.params ?? {}, detail.prompt ?? '', null, detail.reference_assets)
-        s.remember('avatar', { model: detail.model ?? undefined, params: detail.params ?? {} })
+      // 数字人记录「编辑后重发」/ 数字人案例「做同款」→ 数字人草稿（案例的 prompt 即脚本，不带形象）
+      const avatarCase = detail.source === 'case' && detail.mode === 'avatar'
+      if (avatarCase || (detail.source === 'record' && isAvatarParams(detail.params))) {
+        hydrateAvatarDraft(detail.model ?? '', detail.params ?? {}, detail.prompt ?? '', null, detail.source === 'record' ? detail.reference_assets : [])
+        // A case's model is only a hint (not a catalog id): keep the remembered avatar model, take its params.
+        s.remember('avatar', avatarCase
+          ? { model: s.memory.avatar?.model, params: { ...s.memory.avatar?.params, ...detail.params } }
+          : { model: detail.model ?? undefined, params: detail.params ?? {} })
         useComposer.setState({ kind: 'video', mode: 'avatar', editingId: null })
         toast({ title: '已填入输入框', tone: 'success' })
         return
@@ -153,9 +158,10 @@ function VarChip({ token }: { token: string }) {
   )
   const labelTone = optional ? 'text-muted' : value ? 'text-muted' : 'text-warning'
   if (options) return (
-    <span className={cn(shell, 'cursor-pointer')} title={full}>
+    <Tooltip content={full}>
+    <span className={cn(shell, 'cursor-pointer')}>
       {/* 选项清单本身没有名字（{{16:9 / 4:5 / 1:1}}）：硬安一个「选一个」会让几个格子长得一模一样，
-          名字在提示词正文里，这里只显示选中的值，完整清单走 title。 */}
+          名字在提示词正文里，这里只显示选中的值，完整清单走 tooltip。 */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" variant="ghost" className={cn('h-6 max-w-44 gap-1 px-1.5', !value && labelTone)}>
@@ -168,12 +174,13 @@ function VarChip({ token }: { token: string }) {
         </DropdownMenuContent>
       </DropdownMenu>
     </span>
+    </Tooltip>
   )
 
-  // 整块是一个 <label>：指针全程是文本光标，点哪都聚焦输入框。
-  // 不套 Tooltip——浮层在指针下方开合会打断 hover，指针就在「箭头 / 文本」之间来回跳；说明走原生 title。
+  // 整块是一个 <label>：指针全程是文本光标，点哪都聚焦输入框。说明浮在上方，不压在指针下面。
   return (
-    <label className={cn(shell, 'cursor-text')} title={full}>
+    <Tooltip content={full}>
+    <label className={cn(shell, 'cursor-text')}>
       <span className={cn('shrink-0 max-w-28 truncate font-semibold', labelTone)}>{label}</span>
       <Input
         value={value}
@@ -183,6 +190,7 @@ function VarChip({ token }: { token: string }) {
         className="h-6 w-32 border-0 bg-transparent px-1 text-[13px] focus-visible:outline-none"
       />
     </label>
+    </Tooltip>
   )
 }
 
@@ -199,8 +207,10 @@ function CasePreview() {
     // inset-y-0 + items-center：高度跟着输入面板走，竖图不会上下捅出面板之外（那样看着就是没对齐）。
     <div className="group/preview absolute inset-y-0 right-full z-10 mr-4 flex items-center max-[1180px]:hidden">
       {/* 按原比例显示，不裁切：这张图是拿来照着看的，裁成方块就看不出版式了 */}
-      <img src={c.url} alt={c.title ? `案例效果：${c.title}` : '案例效果'} title={c.title ? `${c.title}（照着这张做，不会作为参考图发送）` : '照着这张做，不会作为参考图发送'}
-        className="max-h-full max-w-56 rounded-card bg-card object-contain shadow-xl ring-1 ring-line" />
+      <Tooltip content={c.title ? `${c.title}（照着这张做，不会作为参考图发送）` : '照着这张做，不会作为参考图发送'}>
+        <img src={c.url} alt={c.title ? `案例效果：${c.title}` : '案例效果'}
+          className="max-h-full max-w-56 rounded-card bg-card object-contain shadow-xl ring-1 ring-line" />
+      </Tooltip>
       <button type="button" aria-label="不看这张案例图"
         onClick={() => useComposer.setState({ sourceCase: null })}
         className={cn('absolute -right-2 -top-2 grid size-6 place-items-center rounded-full border border-line bg-card text-muted shadow-sm transition-opacity hover:text-ink max-[720px]:opacity-100 min-[721px]:opacity-0 group-hover/preview:opacity-100 focus-visible:opacity-100', focusRing)}>
@@ -481,7 +491,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
         })()
 
   return (
-    <div hidden={hidden} className={cn('pointer-events-none fixed inset-x-0 bottom-4 z-30 px-4 max-md:bottom-[72px] md:left-52', expanded && 'max-md:bottom-0 max-md:z-50 max-md:px-0')}>
+    <div hidden={hidden} className={cn('pointer-events-none fixed inset-x-0 bottom-4 z-30 px-4 max-md:bottom-[72px] md:left-52 embed:bottom-4! embed:left-0!', expanded && 'max-md:bottom-0 max-md:z-50 max-md:px-0')}>
       {expanded && <div aria-hidden className="pointer-events-auto fixed inset-0 bg-ink/30 md:hidden" onClick={() => setExpanded(false)} />}
       <div ref={insetRef} className="pointer-events-auto relative mx-auto max-w-4xl">
         {/* Mobile collapsed: one line → tap opens the bottom sheet. */}
@@ -503,7 +513,10 @@ export function Composer({ hidden }: { hidden: boolean }) {
           )}
           <QueueBar current={current} models={new Map((models.data ?? []).map(m => [m.id, m]))} pointsById={pointsById} total={queueTotal}
             onSendAll={account.signedIn ? sendAll : saveDraftAndLogin} sendReason={account.signedIn ? blockReason(allSendable, false) : null} sending={sending} />
-          <DropTarget id="composer" accept={acceptAssets} onDrop={items => useComposer.setState(s => ({ slots: addManual(s.slots, items) }))} onFiles={onFiles} className="rounded-panel">
+          {/* 收起态下参考图格子是 0 高；拖放不会触发 focus/pointerdown，放下后要主动展开，否则看不到刚加的图 */}
+          <DropTarget id="composer" accept={acceptAssets} className="rounded-panel"
+            onDrop={items => { autoCollapse.expand(); useComposer.setState(s => ({ slots: addManual(s.slots, items) })) }}
+            onFiles={files => { autoCollapse.expand(); onFiles(files) }}>
             <div data-composer
               onMouseEnter={() => { autoCollapse.hovering.current = true; autoCollapse.expand() }}
               onMouseLeave={() => { autoCollapse.hovering.current = false }}
@@ -533,6 +546,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
                 <div className="overflow-hidden"><ReferenceSlots refs={refs} upload={upload} onFiles={onFiles} /></div>
               </div>
               <div className="flex items-start gap-1">
+                {compact && <CollapsedReferences onExpand={autoCollapse.expand} />}
                 <div className={cn('min-w-0 flex-1 overflow-hidden transition-[max-height] duration-(--duration-base) ease-(--ease-standard) motion-reduce:transition-none',
                   compact ? 'max-h-7 [mask-image:linear-gradient(to_bottom,black_55%,transparent)]' : 'max-h-[12.5rem]')}><PromptEditor onSubmit={sendComposer} onFiles={onFiles} placeholder="描述你想要的画面，输入 @ 引用主体或参考图…" /></div>
                 <IconButton label="增强提示词" loading={enhancing} disabled={!!enhanceReason} disabledReason={enhanceReason ?? undefined} onClick={() => void enhance()}><Sparkles className="size-4" /></IconButton>

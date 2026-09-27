@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import {
   DndContext, DragOverlay, PointerSensor, pointerWithin, useDndContext, useDraggable, useDroppable, useSensor, useSensors,
-  type DragEndEvent, type DragStartEvent,
+  type DragEndEvent, type DragStartEvent, type Modifier,
 } from '@dnd-kit/core'
 import { Ban } from 'lucide-react'
 import { cn } from './cn'
@@ -15,6 +15,20 @@ type DropData = { accept: Accept; onDrop: (items: MediaAsset[]) => void }
 export function checkAccept(accept: Accept | undefined, items: MediaAsset[]): true | string {
   if (!items.length) return '没有可放置的内容'
   return accept ? accept(items) : true
+}
+
+/**
+ * The overlay starts at the dragged card's top-left, so a small ghost from a large card trails the pointer by
+ * wherever the card was grabbed. Center it on the pointer instead (same as @dnd-kit/modifiers snapCenterToCursor).
+ */
+export const centerOnPointer: Modifier = ({ activatorEvent, draggingNodeRect, transform }) => {
+  if (!draggingNodeRect || !activatorEvent || !('clientX' in activatorEvent)) return transform
+  const { clientX, clientY } = activatorEvent as PointerEvent
+  return {
+    ...transform,
+    x: transform.x + clientX - draggingNodeRect.left - draggingNodeRect.width / 2,
+    y: transform.y + clientY - draggingNodeRect.top - draggingNodeRect.height / 2,
+  }
 }
 
 const payloadOf = (data: unknown) => (data as DragPayload | undefined)?.items ?? []
@@ -41,7 +55,7 @@ export function MediaDndProvider({ children }: { children: ReactNode }) {
       accessibility={{ screenReaderInstructions: { draggable: '按住拖动到目标区域；也可以使用「移动到…」菜单' } }}
     >
       {children}
-      <DragOverlay dropAnimation={reducedMotion() ? null : { duration: 180, easing: 'cubic-bezier(.2,0,0,1)' }}>
+      <DragOverlay modifiers={[centerOnPointer]} dropAnimation={reducedMotion() ? null : { duration: 180, easing: 'cubic-bezier(.2,0,0,1)' }}>
         {dragging && <DragGhost items={dragging} />}
       </DragOverlay>
     </DndContext>

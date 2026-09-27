@@ -3,7 +3,12 @@ import { COMPOSER_FILL_EVENT, dispatchStudioEvent, type ComposerFillDetail as Sh
 
 import type { AssetUrls, CaseImage, InspirationCase } from '@/shared/contracts'
 
-/** A case as the gateway serves it (`GET /api/public/cases`). The static manifest is mapped into this shape. */
+import type { CaseKind } from '@/shared/contracts'
+export type { CaseKind, CaseVideo } from '@/shared/contracts'
+/**
+ * A case as the gateway serves it (`GET /api/public/cases?kind=`). The static manifest is mapped into this shape.
+ * `video` is the example clip of a video / 数字人 case (A 级 may have none); the cover stays in `image`.
+ */
 export type CaseItem = InspirationCase
 
 /** One row of data/cases.manifest.json (built by scripts/build-cases-manifest.mjs). Only `fromManifest` reads it. */
@@ -31,6 +36,7 @@ export const fromManifest = (m: ManifestCase): CaseItem => ({
   model: m.model ?? null, params: m.params ?? {}, template: m.template ?? null,
   author: m.author ?? null, author_url: m.author_url ?? null, source_url: m.source_url ?? null, source_repo: m.source_repo, license_note: m.license_note,
   image: { width: m.image.width, height: m.image.height, urls: { w480: m.image.url, w960: null, orig: m.image.orig } },
+  kind: 'image', video: null, license_tier: null,
 })
 
 /** CaseImage urls (nullable variants) → MediaImage urls (absent variants). */
@@ -42,7 +48,7 @@ const primitiveParams = (p: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(p).filter(([, v]) => ['string', 'number', 'boolean'].includes(typeof v))) as Record<string, string | number | boolean>
 
 /** `cat` is a comma-separated list (`a,b` = either category), same as the gateway's `cat=a,b`. */
-export type CaseFilter = { cat: string; q: string }
+export type CaseFilter = { cat: string; q: string; kind?: CaseKind }
 
 export const splitCats = (cat: string) => cat.split(',').filter(Boolean)
 /** Toggle one category in a `cat` list; '' clears. */
@@ -120,13 +126,15 @@ export function similarCases(all: CaseItem[], target: CaseItem, limit = 12): Cas
 // TODO: real takedown mailbox (§14 「提供邮箱供权利人要求下架」).
 export const TAKEDOWN_EMAIL = 'support@ipzsk.com'
 
-export function copyrightLabel(c: Pick<CaseItem, 'id' | 'title' | 'source_repo' | 'author'>) {
+export function copyrightLabel(c: Pick<CaseItem, 'id' | 'title' | 'source_repo' | 'author'> & { license_tier?: CaseItem['license_tier'] }) {
   if (c.source_repo === 'Punk-Skill') {
     return { card: '来源：Punk-Skill（MIT）', detail: `来源：Punk-Skill（MIT）${c.author ? ` · 作者 ${c.author}` : ''}` }
   }
+  // A 级 = the repo's own work under its license; otherwise (B 级, and the awesome-gpt-image-2 images) the author keeps the rights.
+  const repo = c.source_repo ?? 'awesome-gpt-image-2'
   return {
-    card: '来源：awesome-gpt-image-2',
-    detail: `来源：awesome-gpt-image-2${c.author ? ` · 原作者 ${c.author}` : ''} · 示例内容版权归原作者，仅供学习参考`,
+    card: `来源：${repo}`,
+    detail: `来源：${repo}${c.author ? ` · ${c.license_tier === 'A' ? '作者' : '原作者'} ${c.author}` : ''}${c.license_tier === 'A' ? '' : ' · 示例内容版权归原作者，仅供学习参考'}`,
   }
 }
 
@@ -140,8 +148,10 @@ export { COMPOSER_FILL_EVENT } from '@/shared/events'
 /** 做同款 detail (shape documented in src/shared/events.ts, source 'case'). */
 export type ComposerFillDetail = Extract<SharedFillDetail, { source: 'case' }> & { case_id: string; kind: 'image' | 'video'; model: string | null; prompt: string; params: Record<string, string | number | boolean> }
 
+/** A 数字人 case fills the avatar draft (kind video + mode avatar, prompt = script); a video case switches the composer to video. */
 export function fillDetail(c: CaseItem, promptOnly = false): ComposerFillDetail {
-  const base: ComposerFillDetail = { source: 'case', case_id: c.id, kind: 'image', model: null, prompt: c.prompt, params: {}, reference_urls: [],
+  const base: ComposerFillDetail = { source: 'case', case_id: c.id, kind: c.kind === 'video' || c.kind === 'avatar' ? 'video' : 'image',
+    ...(c.kind === 'avatar' && { mode: 'avatar' as const }), model: null, prompt: c.prompt, params: {}, reference_urls: [],
     preview: { url: c.image.urls.w480 ?? c.image.urls.orig, title: c.title } }
   if (promptOnly) return base
   return {
@@ -162,4 +172,24 @@ export function fillDetail(c: CaseItem, promptOnly = false): ComposerFillDetail 
 
 export function dispatchComposerFill(detail: ComposerFillDetail) {
   dispatchStudioEvent(COMPOSER_FILL_EVENT, detail)
+}
+
+/* ---------- ?mock=1: video / 数字人 examples (the manifest only has images) ---------- */
+
+// CC0 sample clip (MDN), small enough for a hover preview.
+const MOCK_MP4 = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4'
+
+/** Re-labels a few manifest images as video / 数字人 cases so mock mode shows those feeds. Every other video case has a clip (B 级), the rest are prompt-only (A 级). */
+export function mockKindCases(all: CaseItem[], kind: Exclude<CaseKind, 'image'>, n = 8): CaseItem[] {
+  const cats: [string, string][] = kind === 'video' ? [['cinematic', '电影感'], ['product-ad', '产品广告']] : [['ugc-sales', '口播带货']]
+  return all.slice(0, n).map((c, i) => {
+    const [category, category_zh] = cats[i % cats.length]!
+    const clip = kind === 'video' && i % 2 === 0
+    return {
+      ...c, id: `mock-${kind}-${i}`, kind, category, category_zh, template: null, model: null, params: { aspect_ratio: '16:9' },
+      title: `${kind === 'video' ? '视频' : '数字人'}示例 ${i + 1} · ${c.title}`,
+      video: clip ? { urls: { orig: MOCK_MP4, poster: null }, width: 1280, height: 720, duration_ms: 5000 } : null,
+      license_tier: clip ? 'B' : 'A', source_repo: 'mock', source_url: clip ? 'https://x.com/example/status/1' : null,
+    }
+  })
 }

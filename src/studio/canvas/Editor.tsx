@@ -8,7 +8,7 @@ import {
 import {
   ArrowLeft, Check, CloudOff, Group, ImagePlus, Keyboard, LoaderCircle, Maximize, Minus, MousePointerClick, Plus, Redo2, TriangleAlert, Undo2,
 } from 'lucide-react'
-import { Button, Dialog, DialogContent, DialogFooter, EmptyState, IconButton, cn, toast } from '@/ui'
+import { Button, Dialog, DialogContent, DialogFooter, EmptyState, IconButton, Tooltip, cn, toast } from '@/ui'
 import { DEFAULT_SIZE, handleId, kindsForDangling, parseHandle, type CanvasEdge, type NodeKind } from './graph'
 import { ADDABLE, NodeMenu } from './NodeMenu'
 import { NodePanel } from './NodePanel'
@@ -70,10 +70,12 @@ function SaveStatus({ onConflict }: { onConflict: () => void }) {
   const status = useCanvas(s => s.status)
   if (status === 'conflict') {
     return (
-      <button type="button" aria-live="polite" onClick={onConflict} title="远端有更新，点击处理"
+      <Tooltip content="远端有更新，点击处理">
+      <button type="button" aria-live="polite" onClick={onConflict}
         className="inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-full border border-warning/50 bg-warning/10 px-2.5 text-xs font-semibold text-warning hover:bg-warning/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acid-deep">
         <TriangleAlert className="size-4" />冲突
       </button>
+      </Tooltip>
     )
   }
   const map = {
@@ -197,9 +199,11 @@ function ZoomControls() {
   return (
     <div className="flex items-center gap-0.5 rounded-control border border-line bg-card p-1 shadow-sm">
       <IconButton size="icon-sm" label="缩小" onClick={() => void rf.zoomOut({ duration: 180 })}><Minus /></IconButton>
-      <Button size="sm" variant="ghost" className="h-8 w-14 px-0 tabular-nums" aria-label="缩放到 100%" title="缩放到 100%" onClick={() => void rf.zoomTo(1, { duration: 180 })}>
-        {Math.round(zoom * 100)}%
-      </Button>
+      <Tooltip content="缩放到 100%">
+        <Button size="sm" variant="ghost" className="h-8 w-14 px-0 tabular-nums" aria-label="缩放到 100%" onClick={() => void rf.zoomTo(1, { duration: 180 })}>
+          {Math.round(zoom * 100)}%
+        </Button>
+      </Tooltip>
       <IconButton size="icon-sm" label="放大" onClick={() => void rf.zoomIn({ duration: 180 })}><Plus /></IconButton>
       <span className="mx-0.5 h-5 w-px bg-line" />
       <IconButton size="icon-sm" label="适应视图 (⇧1)" onClick={() => void rf.fitView({ duration: 240, padding: 0.2 })}><Maximize /></IconButton>
@@ -374,7 +378,7 @@ function Inner() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-paper px-3">
-        <Link to="/studio/canvas" aria-label="返回画布列表" title="返回画布列表" className="grid size-8 shrink-0 place-items-center rounded-control hover:bg-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acid-deep"><ArrowLeft className="size-[18px]" /></Link>
+        <Tooltip content="返回画布列表"><Link to="/studio/canvas" aria-label="返回画布列表" className="grid size-8 shrink-0 place-items-center rounded-control hover:bg-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acid-deep"><ArrowLeft className="size-[18px]" /></Link></Tooltip>
         <TitleInput />
         <SaveStatus onConflict={() => setConflictOpen(true)} />
         <span className="flex-1" />
@@ -514,7 +518,7 @@ export function Editor({ projectId }: { projectId: string }) {
   }, [status])
 
   return (
-    <div className="relative -mx-4 -mt-6 -mb-60 h-[calc(100dvh-64px-56px)] overflow-hidden md:-mx-8 md:-mb-48 md:h-[calc(100dvh-64px)] max-[720px]:h-[calc(100dvh-104px-56px)]">
+    <div className="relative -mx-4 -mt-6 -mb-60 h-[calc(100dvh-64px-56px)] overflow-hidden md:-mx-8 md:-mb-48 md:h-[calc(100dvh-64px)] max-[720px]:h-[calc(100dvh-104px-56px)] embed:h-dvh!">
       {!ready ? (
         <div className="grid h-full place-items-center text-sm text-muted"><LoaderCircle className="size-5 motion-safe:animate-spin-slow" /></div>
       ) : missing ? (

@@ -4,7 +4,7 @@ import { Clapperboard, Copy, Ellipsis, ExternalLink, Heart, Info, SearchX, UserR
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, EmptyState, OptionsCombobox, cn, focusRing, type ComboGroup } from '@/ui'
 import { MasonryGrid, MediaCard, type MasonryGridHandle } from '@/media'
 import { toggleFavorite, useCases, useCategories, useFavorites } from './api'
-import { caseAspect, copyrightLabel, patchParams, readParams, splitCats, toggleCat, type CaseItem } from './lib'
+import { caseAspect, copyrightLabel, patchParams, readParams, splitCats, toggleCat, type CaseItem, type CaseKind } from './lib'
 import { caseAsset, copyPrompt, fillComposer } from './actions'
 import { CaseDetail } from './CaseDetail'
 import { TemplatesPanel } from '../templates/TemplatesPanel'
@@ -36,34 +36,22 @@ function useRecentSearches() {
   }
 }
 
-/** All cases are image cases: video / 数字人 composer modes show a lightweight empty state and fetch nothing. */
 export function InspirationView() {
   const kind = useComposer((s) => (s.mode === 'avatar' ? 'avatar' : s.kind))
-  const [sp] = useSearchParams()
-  // An open case (`?case=`) wins over the kind, otherwise the link / back-stack would point at nothing.
-  if (kind === 'image' || sp.has('case')) return <CaseLibrary />
-  return (
-    <section aria-labelledby="inspiration-title">
-      <h1 id="inspiration-title" className="sr-only">灵感</h1>
-      <EmptyState
-        icon={kind === 'avatar' ? UserRound : Clapperboard}
-        text={kind === 'avatar' ? '暂无数字人案例，可以直接在下方输入框开始创作' : '暂无视频案例，可以直接在下方输入框开始创作'}
-        action={{ label: '看看图片案例', onClick: () => useComposer.getState().setKind('image') }}
-      />
-    </section>
-  )
+  return <CaseLibrary kind={kind} />
 }
 
-function CaseLibrary() {
+/** The feed follows the composer's kind (图片 / 视频 / 数字人); an open `?case=` loads by id whatever the kind. */
+function CaseLibrary({ kind }: { kind: CaseKind }) {
   const [sp, setSp] = useSearchParams()
   const navigate = useNavigate()
   const location = useLocation()
   const params = readParams(sp)
-  const filter = useMemo(() => ({ cat: params.cat, q: params.q }), [params.cat, params.q])
+  const filter = useMemo(() => ({ cat: params.cat, q: params.q, kind }), [params.cat, params.q, kind])
 
   const cases = useCases(filter)
   const items = useMemo(() => cases.data?.pages.flatMap((p) => p.items) ?? [], [cases.data])
-  const cats = useCategories(params.q)
+  const cats = useCategories(params.q, kind)
   const favs = useFavorites()
   const grid = useRef<MasonryGridHandle>(null)
 
@@ -146,7 +134,7 @@ function CaseLibrary() {
   return (
     <section aria-labelledby="inspiration-title">
       <h1 id="inspiration-title" className="sr-only">灵感</h1>
-      <div className="sticky top-16 z-30 -mx-4 -mt-6 mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur-md max-[720px]:top-[104px] md:flex-nowrap md:-mx-8 md:px-8">
+      <div className="sticky top-16 embed:top-0! z-30 -mx-4 -mt-6 mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur-md max-[720px]:top-[104px] md:flex-nowrap md:-mx-8 md:px-8">
         <OptionsCombobox
           label="搜索案例"
           placeholder="搜索标题、提示词、标签"
@@ -194,7 +182,13 @@ function CaseLibrary() {
         error={cases.isError ? '案例加载失败，请检查网络后重试' : null}
         onRetry={() => void (cases.isFetchNextPageError ? fetchNextPage() : cases.refetch())}
         onEndReached={onEndReached}
-        empty={<EmptyState icon={SearchX} illustration="brain" text={params.q ? `没有找到与「${params.q}」相关的案例` : '这个分类下还没有案例'} action={{ label: '清除筛选', onClick: clearFilters }} />}
+        empty={kind !== 'image' && !params.q && !params.cat
+          ? <EmptyState
+            icon={kind === 'avatar' ? UserRound : Clapperboard}
+            text={kind === 'avatar' ? '暂无数字人案例，可以直接在下方输入框开始创作' : '暂无视频案例，可以直接在下方输入框开始创作'}
+            action={{ label: '看看图片案例', onClick: () => useComposer.getState().setKind('image') }}
+          />
+          : <EmptyState icon={SearchX} illustration="brain" text={params.q ? `没有找到与「${params.q}」相关的案例` : '这个分类下还没有案例'} action={{ label: '清除筛选', onClick: clearFilters }} />}
       />}
 
       <CaseDetail
@@ -287,7 +281,7 @@ function CaseCard({ c, priority, fav, onOpen, short }: { c: CaseItem; priority: 
           <DropdownMenuItem onSelect={() => onOpen(c)}><Info aria-hidden />查看详情</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => toggleFavorite(c.id)}><Heart aria-hidden className={cn(fav && 'fill-current')} />{fav ? '取消收藏' : '收藏'}</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void copyPrompt(c)}><Copy aria-hidden />复制提示词</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => window.open(c.image.urls.orig, '_blank', 'noopener,noreferrer')}><ExternalLink aria-hidden />新标签打开原图</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => window.open(c.video?.urls.orig ?? c.image.urls.orig, '_blank', 'noopener,noreferrer')}><ExternalLink aria-hidden />{c.video ? '新标签打开视频' : '新标签打开原图'}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

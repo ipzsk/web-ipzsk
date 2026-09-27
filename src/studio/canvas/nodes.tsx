@@ -4,13 +4,13 @@ import {
   Clapperboard, Copy, Film, FolderPlus, Group, Image as ImageIcon, Lock, LockOpen, Play, RotateCw, Sparkles, Star, TextCursorInput, Trash2, Type,
   type LucideIcon,
 } from 'lucide-react'
-import { Button, IconButton, IndeterminateBar, cn } from '@/ui'
+import { Button, IconButton, IndeterminateBar, Tooltip, cn } from '@/ui'
 import { formatWait } from '../create/lib'
 import { MediaImage, MediaVideo } from '@/media'
 import { MODE_LABEL, NODE_LABEL, PORT_LABEL, PORTS, handleId, type AssetRef, type CanvasNode, type NodeKind, type PortType } from './graph'
 import { findModel, useAssetUrls } from './mock'
 import {
-  beginGesture, deleteSelected, duplicate, endGesture, runBlocker, runNode, saveToAssets, sendToComposer, setLocked, updateData, useCanvas,
+  beginGesture, deleteSelected, duplicate, endGesture, runBlocker, runNode, sendToComposer, setLocked, updateData, useCanvas,
 } from './store'
 
 export const KIND_ICON: Record<NodeKind, LucideIcon> = {
@@ -38,11 +38,11 @@ function Port({ nodeId, dir, type, index = 0, total = 1 }: { nodeId: string; dir
   }
   const label = `${PORT_LABEL[type]}${dir === 'in' ? '输入' : '输出'}`
   return (
+    <Tooltip content={label} side={dir === 'in' ? 'left' : 'right'}>
     <Handle
       id={handleId(dir, type)}
       type={dir === 'in' ? 'target' : 'source'}
       position={dir === 'in' ? Position.Left : Position.Right}
-      title={label}
       aria-label={label}
       style={{ top: `${((index + 1) / (total + 1)) * 100}%` }}
       className={cn('!grid !size-6 place-items-center !rounded-full !border-0 !bg-transparent', state === 'no' && 'opacity-25')}
@@ -57,6 +57,7 @@ function Port({ nodeId, dir, type, index = 0, total = 1 }: { nodeId: string; dir
         )}
       />
     </Handle>
+    </Tooltip>
   )
 }
 
@@ -164,7 +165,7 @@ export const MediaNode = memo(function MediaNode(p: SlimProps) {
       toolbar={kind === 'image' && p.data.asset && (
         <>
           <IconButton size="icon-sm" label="加入输入框" onClick={() => sendToComposer(p.id)}><TextCursorInput /></IconButton>
-          <IconButton size="icon-sm" label="存入素材" onClick={saveToAssets}><FolderPlus /></IconButton>
+          <IconButton size="icon-sm" label="存入素材" disabled disabledReason="存入素材即将开放" className="opacity-40"><FolderPlus /></IconButton>
           <span className="mx-0.5 h-5 w-px bg-line" />
         </>
       )}
@@ -218,16 +219,17 @@ export const GenNode = memo(function GenNode(p: SlimProps) {
               {results.map((r, i) => (
                 <div key={r.id} className={cn('relative overflow-hidden rounded-[6px]', i === primary && 'ring-2 ring-acid')}>
                   <AssetView asset={r} label={`结果 ${i + 1}`} />
+                  <Tooltip content={i === primary ? '当前主结果' : '设为主结果'}>
                   <button
                     type="button"
                     aria-label={i === primary ? '当前主结果' : `设为主结果（结果 ${i + 1}）`}
-                    title={i === primary ? '当前主结果' : '设为主结果'}
                     aria-pressed={i === primary}
                     onClick={() => updateData(p.id, { primary: i })}
                     className="nodrag absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full bg-card/90 hover:bg-acid-soft hover:text-label"
                   >
                     <Star className={cn('size-3', i === primary && 'fill-current')} />
                   </button>
+                  </Tooltip>
                 </div>
               ))}
             </div>
@@ -292,7 +294,7 @@ export const GroupNode = memo(function GroupNode(p: SlimProps) {
               onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') { e.currentTarget.value = p.data.title ?? ''; e.currentTarget.blur() } e.stopPropagation() }}
             />
           ) : (
-            <button type="button" className="nodrag truncate rounded-[6px] px-1 hover:bg-subtle" title="双击重命名" onDoubleClick={() => setEditing(true)}>{p.data.title || '编组'}</button>
+            <Tooltip content="双击重命名"><button type="button" className="nodrag truncate rounded-[6px] px-1 hover:bg-subtle" onDoubleClick={() => setEditing(true)}>{p.data.title || '编组'}</button></Tooltip>
           )}
           {p.data.locked && <Lock className="size-3.5 text-muted" aria-label="已锁定" />}
         </div>

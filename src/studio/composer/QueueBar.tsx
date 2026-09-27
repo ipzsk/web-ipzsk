@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useMutationState } from '@tanstack/react-query'
 import { AlertCircle, ArrowUp, BookmarkPlus, ChevronDown, Copy, GripVertical, Link2, LoaderCircle, Pencil, RotateCw, Trash2, X } from 'lucide-react'
 import type { ModelSpec } from '@/shared/contracts'
-import { Badge, Button, Dialog, DialogContent, DialogFooter, IconButton, cn } from '@/ui'
+import { Badge, Button, Dialog, DialogContent, DialogFooter, IconButton, Tooltip, cn } from '@/ui'
 import { formatCharge } from '@/shared/points'
 import { GENERATION_SUBMIT_KEY, type PendingGeneration } from '../api/generation'
 import { QUEUE_MAX, type QueueEntry } from '../api/queue'
@@ -55,16 +55,18 @@ function Row({ item, index, current, models, points, submitting, editing, onRemo
           {summaryParams(isAvatarParams(item.params) ? avatarDisplayParams(item.params) : item.params).map(([k, v]) => {
             const c = changed.get(k)
             return c
-              ? <span key={k} title="该型号不支持原取值，已改为默认值" className="rounded-[4px] bg-acid-soft px-1 font-bold text-label">{formatParam(k, c.from)}→{formatParam(k, c.to)}</span>
+              ? <Tooltip key={k} content="该型号不支持原取值，已改为默认值"><span className="rounded-[4px] bg-acid-soft px-1 font-bold text-label">{formatParam(k, c.from)}→{formatParam(k, c.to)}</span></Tooltip>
               : item.state === 'failed' && item.error?.field === k
-                ? <span key={k} className="contents">· <span data-field-error={k} title={item.error.message} className="rounded-[4px] px-1 font-bold text-danger ring-1 ring-danger">{formatParam(k, v)}</span></span>
+                ? <span key={k} className="contents">· <Tooltip content={item.error.message}><span data-field-error={k} className="rounded-[4px] px-1 font-bold text-danger ring-1 ring-danger">{formatParam(k, v)}</span></Tooltip></span>
                 : <span key={k} className="contents">· <B on={d.params.has(k)}>{formatParam(k, v)}</B></span>
           })}
           {item.reference_asset_ids.length > 0 && <>· <B on={d.references}>{`${item.reference_asset_ids.length} 张参考图`}</B></>}
           {anchorIndex >= 0 && <Badge tone="outline" className="h-5 px-1.5"><Link2 className="size-3" />引用{circled(anchorIndex)}</Badge>}
           {points != null && <span className="ml-auto pl-2 text-xs text-muted tabular-nums">约 {formatCharge(points)}</span>}
         </div>
-        {d.prompt && <p className="mt-0.5 line-clamp-2 text-muted" title={item.prompt}>{item.prompt || '（无提示词）'}</p>}
+        {d.prompt && (item.prompt
+          ? <Tooltip content={item.prompt} className="max-w-96 whitespace-pre-wrap break-words"><p className="mt-0.5 line-clamp-2 text-muted">{item.prompt}</p></Tooltip>
+          : <p className="mt-0.5 line-clamp-2 text-muted">（无提示词）</p>)}
         {item.issues?.length && !submitting ? <p role="alert" className="mt-0.5 flex items-center gap-1 text-xs text-danger"><AlertCircle className="size-3" />{item.issues[0]!.message} · 编辑补全后再发送</p>
           : item.missing && !submitting ? <p role="alert" className="mt-0.5 flex items-center gap-1 text-xs text-danger"><AlertCircle className="size-3" />素材已删除 · 编辑移除失效的参考图后再发送</p>
           : submitting ? <p className="mt-0.5 flex items-center gap-1 text-xs text-muted"><LoaderCircle className="size-3 motion-safe:animate-spin" />提交中</p>

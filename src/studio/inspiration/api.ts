@@ -4,7 +4,7 @@ import { ApiError, isMock, loginUrl, request } from '@/shared/api'
 import { qk, queryClient, useCurrentUser } from '@/shared/query'
 import { toast } from '@/ui'
 import type { CaseCategories, Favorite, InspirationCaseDetail, Page } from '@/shared/contracts'
-import { categoryCounts, fromManifest, pageCases, similarCases, type CaseFilter, type CaseItem, type ManifestCase } from './lib'
+import { categoryCounts, fromManifest, mockKindCases, pageCases, similarCases, type CaseFilter, type CaseItem, type CaseKind, type ManifestCase } from './lib'
 
 /*
  * Case library adapter. Both sources return the generated shapes (InspirationCase / Page), so the view doesn't care.
@@ -18,41 +18,49 @@ let manifest: Promise<CaseItem[]> | undefined
 const loadManifest = () =>
   (manifest ??= import('./data/cases.manifest.json').then((m) => (m.default as ManifestCase[]).map(fromManifest)).catch((e) => { manifest = undefined; throw e }))
 
+/** The manifest only holds images: video / 数字人 feeds are empty there, except for ?mock=1 examples. */
+const loadKind = async (kind: CaseKind = 'image') => {
+  const all = await loadManifest()
+  return kind === 'image' ? all : isMock ? mockKindCases(all, kind) : []
+}
+/** `kind` is omitted for images (the gateway default), so older gateways keep working. */
+const kindParam = (kind?: CaseKind) => (kind && kind !== 'image' ? kind : null)
+
 const qs = (o: Record<string, string | null | undefined>) => new URLSearchParams(Object.entries(o).filter((e): e is [string, string] => !!e[1])).toString()
 
 /** `cat` may list several categories (`a,b`). `total` only from the manifest (the public API pages without a count). */
-export async function listCases({ cat, q, cursor }: CaseFilter & { cursor?: string | null }): Promise<Page<CaseItem> & { total?: number }> {
-  if (casesFromApi) return request<Page<CaseItem>>(`/api/public/cases?${qs({ cat, q, cursor })}`)
-  return pageCases(await loadManifest(), { cat, q }, cursor ?? null)
+export async function listCases({ cat, q, kind, cursor }: CaseFilter & { cursor?: string | null }): Promise<Page<CaseItem> & { total?: number }> {
+  if (casesFromApi) return request<Page<CaseItem>>(`/api/public/cases?${qs({ kind: kindParam(kind), cat, q, cursor })}`)
+  return pageCases(await loadKind(kind), { cat, q }, cursor ?? null)
 }
 
 const detail = (id: string) => request<InspirationCaseDetail>(`/api/public/cases/${encodeURIComponent(id)}`)
 
 export async function getCase(id: string): Promise<CaseItem | null> {
   if (casesFromApi) return detail(id).catch(() => null)
-  return (await loadManifest()).find((c) => c.id === id) ?? null
+  const kind: CaseKind = id.startsWith('mock-video-') ? 'video' : id.startsWith('mock-avatar-') ? 'avatar' : 'image'
+  return (await loadKind(kind)).find((c) => c.id === id) ?? null
 }
 
 /** API mode: counts ignore the search term (the endpoint has no `q`). */
-export async function listCategories(q: string) {
+export async function listCategories(q: string, kind?: CaseKind) {
   if (casesFromApi) {
-    const { items } = await request<CaseCategories>('/api/public/case-categories')
+    const { items } = await request<CaseCategories>(`/api/public/case-categories?${qs({ kind: kindParam(kind) })}`)
     return { total: items.reduce((n, c) => n + c.count, 0), categories: items.map((c) => ({ id: c.category, label: c.category_zh ?? c.category, count: c.count })) }
   }
-  return categoryCounts(await loadManifest(), q)
+  return categoryCounts(await loadKind(kind), q)
 }
 
 export async function listSimilar(id: string): Promise<CaseItem[]> {
   if (casesFromApi) return (await detail(id)).similar
-  const all = await loadManifest()
-  const c = all.find((x) => x.id === id)
-  return c ? similarCases(all, c) : []
+  const c = await getCase(id)
+  return c ? similarCases(await loadKind(c.kind), c) : []
 }
 
 export const caseKeys = {
   list: (f: CaseFilter) => ['cases', 'list', f] as const,
   one: (id: string) => ['cases', 'one', id] as const,
-  categories: (q: string) => ['cases', 'categories', q] as const,
+  categories: (q: string, kind: CaseKind = 'image') => ['cases', 'categories', kind, q] as const,
   similar: (id: string) => ['cases', 'similar', id] as const,
 }
 
@@ -71,9 +79,9 @@ export const useCase = (id: string | null) => useQuery({
   staleTime: 5 * 60_000,
 })
 
-export const useCategories = (q: string) => useQuery({
-  queryKey: caseKeys.categories(casesFromApi ? '' : q), // API counts ignore q: one cache entry
-  queryFn: () => listCategories(q),
+export const useCategories = (q: string, kind: CaseKind = 'image') => useQuery({
+  queryKey: caseKeys.categories(casesFromApi ? '' : q, kind), // API counts ignore q: one cache entry per kind
+  queryFn: () => listCategories(q, kind),
   placeholderData: keepPreviousData,
   staleTime: 5 * 60_000,
 })

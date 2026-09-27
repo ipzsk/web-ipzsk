@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, Ellipsis, LayoutDashboard, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
-  Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, EmptyState, ErrorState, IconButton, Skeleton, cn, focusRing, toast,
+  Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, EmptyState, ErrorState, IconButton, Skeleton, Tooltip, cn, focusRing, toast,
 } from '@/ui'
 import { canvasRepo, type CanvasProjectMeta } from './repo'
 
@@ -81,7 +81,7 @@ function Card({ p }: { p: CanvasProjectMeta }) {
               onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setRenaming(false) }}
             />
           ) : (
-            <h2 className="truncate text-sm font-semibold" onDoubleClick={() => setRenaming(true)} title="双击重命名">{p.title}</h2>
+            <Tooltip content="双击重命名"><h2 className="truncate text-sm font-semibold" onDoubleClick={() => setRenaming(true)}>{p.title}</h2></Tooltip>
           )}
           <p className="mt-0.5 text-xs text-muted">{ago(p.updated_at)}更新 · {p.preview.length} 个节点</p>
         </div>

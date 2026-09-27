@@ -64,8 +64,8 @@ export function ThreadList() {
         {threads.isPending && Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-9 shrink-0" />)}
         {threads.isError && <ErrorState reason="会话列表加载失败" action={{ label: '重试', onClick: () => void threads.refetch() }} />}
         {list.map(t => (
-          <div key={t.id} className={cn('group/t flex h-9 shrink-0 items-center rounded-control text-sm', t.id === threadId ? 'bg-subtle font-semibold' : 'text-ink/80 hover:bg-subtle')}>
-            <Link to={{ pathname: `/studio/create/${t.id}`, search }} aria-current={t.id === threadId ? 'page' : undefined} className={cn('min-w-0 flex-1 truncate px-3 leading-9', focusRing)}>{t.title || '未命名会话'}</Link>
+          <div key={t.id} className={cn('group/t flex h-9 shrink-0 items-center rounded-control text-sm embed:h-8', t.id === threadId ? 'bg-subtle font-semibold embed:font-normal' : 'text-ink/80 hover:bg-subtle')}>
+            <Link to={{ pathname: `/studio/create/${t.id}`, search }} aria-current={t.id === threadId ? 'page' : undefined} className={cn('min-w-0 flex-1 truncate px-3 leading-9 embed:px-2 embed:leading-8', focusRing)}>{t.title || '未命名会话'}</Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button type="button" aria-label={`管理会话 ${t.title}`} className={cn('mr-1 grid size-7 cursor-pointer place-items-center rounded-[8px] opacity-0 hover:bg-line group-hover/t:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100', focusRing)}>

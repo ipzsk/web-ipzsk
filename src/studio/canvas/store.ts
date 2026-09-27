@@ -430,7 +430,6 @@ export function sendToComposer(nodeId: string) {
   toast({ title: '已加入输入框', description: count ? `${count} 张参考图${prompt ? ' + 提示词' : ''}` : '提示词已带入' })
 }
 
-export const saveToAssets = () => toast({ title: '存入素材即将开放', description: '素材库接口接入后可用（§2.6）' })
 
 // ---------- 放到画布 ----------
 

@@ -86,3 +86,17 @@ describe('composer charge guard', () => {
     expect(sender.sendBatch).not.toHaveBeenCalled()
   })
 })
+
+describe('case fill', () => {
+  it('a 数字人 case switches to avatar mode with its prompt as the script', async () => {
+    const { COMPOSER_FILL_EVENT, dispatchStudioEvent } = await import('@/shared/events')
+    const { useAvatarDraft } = await import('../avatar/draft')
+    queryClient.setQueryData(['media', 'models'], [state.model])
+    render(<QueryClientProvider client={queryClient}><TooltipProvider><Composer hidden={false} /></TooltipProvider></QueryClientProvider>)
+    dispatchStudioEvent(COMPOSER_FILL_EVENT, { source: 'case', case_id: 'a1', kind: 'video', mode: 'avatar', model: 'heygen-avatar', prompt: '大家好，我是店长', params: { aspect_ratio: '9:16' }, reference_urls: [] })
+    await vi.waitFor(() => expect(useComposer.getState()).toMatchObject({ kind: 'video', mode: 'avatar' }))
+    expect(useAvatarDraft.getState().script).toBe('大家好，我是店长')
+    expect(useComposer.getState().memory.avatar).toMatchObject({ params: { aspect_ratio: '9:16' } })
+    expect(useComposer.getState().memory.avatar?.model).not.toBe('heygen-avatar')
+  })
+})

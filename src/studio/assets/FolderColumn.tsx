@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { ArrowDown, ArrowUp, Ellipsis, Folder as FolderIcon, FolderPlus, GripVertical, Images, Pencil, Trash2 } from 'lucide-react'
 import {
   Button, Dialog, DialogClose, DialogContent, DialogFooter, DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger, Skeleton, cn, focusRing,
+  DropdownMenuSeparator, DropdownMenuTrigger, Skeleton, Tooltip, cn, focusRing,
 } from '@/ui'
 import { DropTarget } from '@/media'
 import type { Folder } from './api'
@@ -79,15 +79,16 @@ export function FolderColumn({ current, onNavigate }: { current: string | null; 
       </Link>
       <div className="mt-3 flex items-center justify-between px-2.5 text-xs font-semibold text-muted">
         <span>文件夹</span>
+        <Tooltip content="新建文件夹">
         <button
           type="button"
           aria-label="新建文件夹"
-          title="新建文件夹"
           onClick={() => setCreating(true)}
           className={cn('grid size-7 place-items-center rounded-[8px] text-muted transition-[background-color,color,transform] duration-(--duration-fast) hover:bg-subtle hover:text-ink active:scale-[.98] motion-reduce:active:scale-100', focusRing)}
         >
           <FolderPlus className="size-4" aria-hidden />
         </button>
+        </Tooltip>
       </div>
 
       {folders.isPending && [0, 1, 2].map((i) => <Skeleton key={i} className="h-9" />)}

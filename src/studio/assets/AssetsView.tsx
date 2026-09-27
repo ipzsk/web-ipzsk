@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import {
   Button, Dialog, DialogContent, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
-  DropdownMenuTrigger, EmptyState, SegmentedControl, Skeleton, cn, focusRing, toast,
+  DropdownMenuTrigger, EmptyState, SegmentedControl, Skeleton, Tooltip, cn, focusRing, toast,
 } from '@/ui'
 import {
   MasonryGrid, MediaCard, MediaLightbox, useSelection, useUpload,
@@ -133,6 +133,7 @@ function AssetsPage() {
     queryKey: ['assets', 'fav-cases', caseIds],
     queryFn: async () => (await Promise.all(caseIds.map(getCase))).filter((c): c is CaseItem => !!c),
     enabled: tab === 'cases',
+    staleTime: 5 * 60_000, // case details don't change; the key follows the favourite ids
   })
 
   // Folder vanished (deleted here or elsewhere) → back to all assets.
@@ -313,12 +314,12 @@ function AssetsPage() {
 
   return (
     <section aria-labelledby="assets-title" className="md:grid md:grid-cols-[200px_1fr] md:gap-6">
-      <aside className="sticky top-[88px] hidden max-h-[calc(100dvh-104px)] self-start overflow-y-auto md:block">
+      <aside className="sticky top-[88px] hidden max-h-[calc(100dvh-104px)] embed:top-6! embed:max-h-[calc(100dvh-48px)]! self-start overflow-y-auto md:block">
         <FolderColumn current={folderId} />
       </aside>
 
       <div className="min-w-0">
-        <div className="sticky top-16 z-30 -mx-4 -mt-6 mb-4 grid gap-3 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur-md max-[720px]:top-[104px] md:mx-0 md:px-0">
+        <div className="sticky top-16 embed:top-0! z-30 -mx-4 -mt-6 mb-4 grid gap-3 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur-md max-[720px]:top-[104px] md:mx-0 md:px-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 id="assets-title" className="mr-auto flex min-w-0 items-center gap-2 truncate text-xl font-bold">
               {folderId && <FolderIcon className="size-5 shrink-0" aria-hidden />}{title}
@@ -462,8 +463,8 @@ function Chip({ on, small, onClick, children }: { on: boolean; small?: boolean; 
 
 const overlayBtn = cn('grid size-8 shrink-0 place-items-center rounded-control text-card transition-[background-color,transform] duration-(--duration-fast) hover:bg-card/20 active:scale-[.98] motion-reduce:active:scale-100', focusRing, 'focus-visible:outline-card')
 
-function OverlayButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
-  return <button type="button" aria-label={label} title={label} onClick={onClick} className={overlayBtn}>{children}</button>
+function OverlayButton({ label, onClick, className, children }: { label: string; onClick: () => void; className?: string; children: ReactNode }) {
+  return <Tooltip content={label}><button type="button" aria-label={label} onClick={onClick} className={cn(overlayBtn, className)}>{children}</button></Tooltip>
 }
 
 type Mods = { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }
@@ -486,17 +487,20 @@ function AssetCell({ asset, priority, selected, selectionMode, onSelect, dragIte
         dragItems={dragItems}
         onOpen={onOpen}
         overlay={
-          <div className="flex items-center gap-0.5">
+          // Narrow cells (紧凑网格) keep the main actions; the rest stay in the … menu (container widths, not viewport).
+          <div className="@container"><div className="flex items-center gap-0.5">
             <OverlayButton label="预览" onClick={onOpen}><Eye aria-hidden /></OverlayButton>
-            <OverlayButton label="下载" onClick={() => void downloadAssets(one)}><Download aria-hidden /></OverlayButton>
+            <OverlayButton label="下载" onClick={() => void downloadAssets(one)} className="@max-[13rem]:hidden"><Download aria-hidden /></OverlayButton>
             <OverlayButton label="加入输入框" onClick={() => fillAssets(one)}><ImagePlus aria-hidden /></OverlayButton>
-            <OverlayButton label="放到画布" onClick={() => addToCanvas(one)}><LayoutDashboard aria-hidden /></OverlayButton>
-            <button type="button" aria-label={fav ? '取消收藏' : '收藏'} aria-pressed={fav} title={fav ? '取消收藏' : '收藏'} onClick={onFav} className={overlayBtn}>
-              <Heart aria-hidden className={cn(fav && 'fill-current text-acid')} />
-            </button>
+            <OverlayButton label="放到画布" onClick={() => addToCanvas(one)} className="@max-[13rem]:hidden"><LayoutDashboard aria-hidden /></OverlayButton>
+            <Tooltip content={fav ? '取消收藏' : '收藏'}>
+              <button type="button" aria-label={fav ? '取消收藏' : '收藏'} aria-pressed={fav} onClick={onFav} className={overlayBtn}>
+                <Heart aria-hidden className={cn(fav && 'fill-current text-acid')} />
+              </button>
+            </Tooltip>
             <span className="flex-1" />
-            <OverlayButton label="删除" onClick={onDelete}><Trash2 aria-hidden /></OverlayButton>
-          </div>
+            <OverlayButton label="删除" onClick={onDelete} className="@max-[8.5rem]:hidden"><Trash2 aria-hidden /></OverlayButton>
+          </div></div>
         }
       />
       <DropdownMenu>
@@ -547,15 +551,16 @@ function UploadCell({ item, upload, onRepick }: { item: UploadItem; upload: Retu
   return (
     <div className="relative h-full" data-upload-status={item.status}>
       <MediaCard asset={asset} title={item.name} state={state} />
+      <Tooltip content={busy ? '取消上传' : '移除'}>
       <button
         type="button"
         aria-label={busy ? `取消上传 ${item.name}` : `移除 ${item.name}`}
-        title={busy ? '取消上传' : '移除'}
         onClick={() => upload.remove(item.clientId)}
         className={cn('absolute left-2 top-2 z-10 grid size-7 place-items-center rounded-full bg-ink/70 text-card transition-[background-color,transform] duration-(--duration-fast) hover:bg-ink active:scale-[.98] motion-reduce:active:scale-100', focusRing)}
       >
         <X className="size-3.5" aria-hidden />
       </button>
+      </Tooltip>
     </div>
   )
 }
@@ -576,9 +581,11 @@ function CaseCell({ c, asset, onOpen }: { c: CaseItem; asset: MediaAsset; onOpen
             <WandSparkles aria-hidden />做同款
           </button>
           <OverlayButton label="预览" onClick={onOpen}><Eye aria-hidden /></OverlayButton>
-          <button type="button" aria-label="取消收藏" aria-pressed title="取消收藏" onClick={() => toggleFavorite(c.id)} className={overlayBtn}>
-            <Heart aria-hidden className="fill-current text-acid" />
-          </button>
+          <Tooltip content="取消收藏">
+            <button type="button" aria-label="取消收藏" aria-pressed onClick={() => toggleFavorite(c.id)} className={overlayBtn}>
+              <Heart aria-hidden className="fill-current text-acid" />
+            </button>
+          </Tooltip>
         </div>
       }
     />
@@ -645,7 +652,7 @@ export function BatchBar({ count, folders, onMove, onDownload, onFill, onCanvas,
   if (!count) return null
   // Stacks above the floating composer (--composer-inset, set by Composer) instead of covering its send button.
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--composer-inset,8px)+8px)] z-40 flex justify-center px-4 max-md:bottom-[calc(var(--composer-inset,64px)+8px)] md:left-52">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--composer-inset,8px)+8px)] z-40 flex justify-center px-4 max-md:bottom-[calc(var(--composer-inset,64px)+8px)] md:left-52 embed:left-0!">
       <div role="toolbar" aria-label="批量操作" className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-panel border border-line bg-ink p-1.5 pl-4 text-card shadow-2xl motion-safe:animate-fade-in">
         <span className="shrink-0 pr-2 text-sm font-semibold tabular-nums" aria-live="polite">已选 {count} 项</span>
         <DropdownMenu>
@@ -663,7 +670,7 @@ export function BatchBar({ count, folders, onMove, onDownload, onFill, onCanvas,
         <button type="button" className={batchBtn} onClick={onCanvas}><LayoutDashboard aria-hidden /><span className="max-sm:sr-only">放到画布</span></button>
         <button type="button" className={cn(batchBtn, 'text-[#ff9b8c] hover:bg-danger/30')} onClick={onDelete}><Trash2 aria-hidden /><span className="max-sm:sr-only">删除</span></button>
         <span className="mx-1 h-5 w-px shrink-0 bg-card/20" />
-        <button type="button" aria-label="取消选择 (Esc)" title="取消选择 (Esc)" className={cn(batchBtn, 'px-2')} onClick={onClear}><X aria-hidden /></button>
+        <Tooltip content="取消选择 (Esc)"><button type="button" aria-label="取消选择 (Esc)" className={cn(batchBtn, 'px-2')} onClick={onClear}><X aria-hidden /></button></Tooltip>
       </div>
     </div>
   )

@@ -11,7 +11,7 @@ export interface Page<T> { items: T[]; next_cursor: string | null; total?: numbe
 export type { AdminGeneration, AdminGenerationDetail, AdminMe, AdminUserDetail, AdminUserSummary, AuditEvent, RoleGrant, UserRef } from '@/shared/contracts'
 export interface CaseQuery { status?: CaseStatus | ''; category?: string; q?: string; cursor?: string | null }
 export interface CategoryCount { category: string; category_zh: string | null; count: number }
-export type CaseCreate = Partial<CaseFields> & Pick<CaseFields, 'title' | 'prompt' | 'category'> & { id?: string; cover_asset_id: string }
+export type CaseCreate = Partial<CaseFields> & Pick<CaseFields, 'title' | 'prompt' | 'category'> & Partial<Pick<AdminCase, 'kind' | 'license_tier'>> & { id?: string; cover_asset_id: string }
 export type CasePatch = Partial<CaseFields> & { status?: CaseStatus; expected_updated_at?: string }
 export interface BulkResult { items: { id: string; ok: boolean; error?: { code: string; fields?: { field: string; code: string }[] } }[] }
 export interface GenerationQuery { user?: string; model?: string; status?: string; kind?: string; from?: string; to?: string; cursor?: string | null }
@@ -162,7 +162,7 @@ export function createMockApi(role: MockRole = 'admin', delay = mockDelay): Admi
     const rows = (await import('@/studio/inspiration/data/cases.manifest.json')).default as ManifestRow[]
     cases = rows.map((m, i): AdminCase => ({
       id: m.id, title: m.title, prompt: m.prompt, category: m.category, category_zh: m.categoryZh, tags: m.tags, model: m.model ?? null,
-      params: m.params ?? {}, template: m.template ?? null,
+      params: m.params ?? {}, template: m.template ?? null, kind: 'image', license_tier: null, video: null,
       cover: { id: `cover-${m.id}`, kind: 'image', source: 'case', status: 'ready', width: m.image.width, height: m.image.height, duration_ms: null, thumb_state: 'done', created_at: iso(now), urls: { w480: m.image.url, orig: m.image.orig } },
       references: [], author: m.author ?? null, author_url: m.author_url ?? null, source_repo: m.source_repo, source_url: m.source_url ?? null, license_note: m.license_note,
       status: i % 17 === 3 ? 'hidden' : 'published', position: i, created_at: iso(now - (600 - i) * 3600_000), updated_at: iso(now - (600 - i) * 3600_000),
@@ -229,6 +229,7 @@ export function createMockApi(role: MockRole = 'admin', delay = mockDelay): Admi
         const c: AdminCase = {
           id, title: body.title, prompt: body.prompt, category: body.category, category_zh: body.category_zh ?? null, tags: body.tags ?? [], model: body.model ?? null,
           params: body.params ?? {}, template: body.template ?? null, author: body.author ?? null, author_url: body.author_url ?? null,
+          kind: body.kind ?? 'image', license_tier: body.license_tier ?? null, video: null,
           source_repo: body.source_repo ?? null, source_url: body.source_url ?? null, license_note: body.license_note ?? null,
           cover: pic(body.cover_asset_id.slice(0, 8), 960, 960), references: [], status: 'draft',
           position: Math.min(0, ...all.map(x => x.position)) - 1, created_at: t, updated_at: t,

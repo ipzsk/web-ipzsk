@@ -3,7 +3,7 @@ import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, us
 import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { AlertCircle, Plus, RotateCw, X } from 'lucide-react'
-import { IconButton, cn } from '@/ui'
+import { IconButton, Tooltip, cn } from '@/ui'
 import { MediaImage, type UploadController } from '@/media'
 import type { RefSlot } from '../api/queue'
 import { useComposer } from '../store'
@@ -97,5 +97,25 @@ export function ReferenceSlots({ refs, upload, onFiles }: { refs: ReferenceState
         </p>
       )}
     </div>
+  )
+}
+
+/** Collapsed composer: the reference images as a small stack beside the prompt line; click to expand. */
+export function CollapsedReferences({ onExpand }: { onExpand: () => void }) {
+  const slots = useComposer(s => s.slots)
+  if (!slots.length) return null
+  const shown = slots.slice(0, 3)
+  return (
+    <Tooltip content="展开查看参考图">
+    <button type="button" onClick={onExpand} aria-label={`${slots.length} 张参考图，展开查看`}
+      className="flex h-7 shrink-0 cursor-pointer items-center rounded-[8px] pr-1 hover:bg-subtle">
+      {shown.map((s, i) => (
+        <span key={s.asset.id} className={cn('size-7 overflow-hidden rounded-[6px] border-2 border-card bg-subtle', i > 0 && '-ml-2.5')}>
+          <MediaImage asset={s.asset} alt={`图${i + 1}`} hideBadge className="size-full" />
+        </span>
+      ))}
+      {slots.length > shown.length && <span className="ml-1 text-xs font-semibold text-muted">+{slots.length - shown.length}</span>}
+    </button>
+    </Tooltip>
   )
 }

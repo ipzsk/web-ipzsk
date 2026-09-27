@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { AlertCircle, RotateCw, Upload, X } from 'lucide-react'
+import { Tooltip } from '@/ui/tooltip'
 import { cn } from './cn'
 import type { UploadController } from './useUpload'
 
@@ -43,7 +44,6 @@ export function UploadDropzone({ upload, paste = true, disabled, className }: Pr
         role="button"
         tabIndex={disabled ? -1 : 0}
         aria-disabled={!!disabled || undefined}
-        title={disabled}
         onClick={() => !disabled && input.current?.click()}
         onKeyDown={(e) => { if (!disabled && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); input.current?.click() } }}
         onDragEnter={(e) => { if (isFiles(e)) { depth.current++; setOver(true) } }}
@@ -76,7 +76,7 @@ export function UploadDropzone({ upload, paste = true, disabled, className }: Pr
         <ul className="flex flex-col gap-1" aria-label="上传队列">
           {pending.map((it) => (
             <li key={it.clientId} className="flex items-center gap-2 rounded-control bg-card px-2 py-1.5 text-xs">
-              <span className="min-w-0 flex-1 truncate text-ink" title={it.name}>{it.name}</span>
+              <Tooltip content={it.name}><span className="min-w-0 flex-1 truncate text-ink">{it.name}</span></Tooltip>
               {it.status === 'uploading' && (
                 <span className="h-1 w-20 overflow-hidden rounded-full bg-subtle" role="progressbar" aria-valuenow={Math.round(it.progress * 100)} aria-label={`${it.name} 上传进度`}>
                   <span className="block h-full bg-acid-deep transition-[width] duration-fast" style={{ width: `${it.progress * 100}%` }} />
@@ -104,11 +104,13 @@ export function UploadDropzone({ upload, paste = true, disabled, className }: Pr
 
 function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
   return (
-    <button
-      type="button" aria-label={label} title={label} onClick={onClick}
-      className="grid size-6 shrink-0 place-items-center rounded-control text-muted transition-[background-color,color,transform] duration-fast hover:bg-subtle hover:text-ink active:scale-[.98] motion-reduce:active:scale-100"
-    >
-      {children}
-    </button>
+    <Tooltip content={label}>
+      <button
+        type="button" aria-label={label} onClick={onClick}
+        className="grid size-6 shrink-0 place-items-center rounded-control text-muted transition-[background-color,color,transform] duration-fast hover:bg-subtle hover:text-ink active:scale-[.98] motion-reduce:active:scale-100"
+      >
+        {children}
+      </button>
+    </Tooltip>
   )
 }

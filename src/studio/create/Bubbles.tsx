@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type SyntheticEvent } from 'react'
 import {
   AtSign, BookmarkPlus, Copy, Download, FolderPlus, ImagePlus, LayoutDashboard, LoaderCircle, Maximize2, MoreHorizontal, PencilLine, RefreshCw, Star, Trash2, TriangleAlert, UserPlus, type LucideIcon,
 } from 'lucide-react'
-import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, IndeterminateBar, SegmentedControl, cn, focusRing, toast } from '@/ui'
+import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, IconButton, IndeterminateBar, SegmentedControl, cn, focusRing } from '@/ui'
 import { formatCharge } from '@/shared/points'
 import { queryClient } from '@/shared/query'
 import { recordKeys } from '../api/records'
@@ -15,6 +15,7 @@ import { summaryParams } from '../composer/logic'
 import { AvatarResultMeta, avatarItemSummary, avatarTileLabel } from '../avatar/AvatarResult'
 import { avatarDisplayParams, isAvatarParams } from '../avatar/logic'
 import { openSaveTemplate } from '../templates/actions'
+import { openSubjectEditor } from '../subjects/SubjectEditor'
 
 /** 批次「存为模板」: fresh item ids, in-batch anchors re-pointed by record id; covers = the batch's results. */
 function saveBatchAsTemplate(items: ItemView[]) {
@@ -157,16 +158,23 @@ function ResultTile({ asset, item, index, onPreview }: { asset: MediaAsset; item
   // Drag into the composer slots / asset folders (keyboard alternative: 以此为参考). No drag attributes: the tile already holds buttons.
   const drag = useMediaDraggable(`result:${item.item_id ?? item.record_id}:${asset.id}`, [asset])
   const ratio = asset.width && asset.height ? asset.width / asset.height : 1
-  const stub = (t: string) => () => toast({ title: t, description: '即将开放' })
-  const actions: { label: string; icon: LucideIcon; run: () => void }[] = [
+  // soon: not built yet — shown greyed out with a 「即将开放」 tooltip.
+  const actions: { label: string; icon: LucideIcon; run: () => void; soon?: boolean }[] = [
     { label: '再生成', icon: RefreshCw, run: () => regenerate(item) },
     ...(asset.kind === 'image' ? [{ label: '以此为参考', icon: ImagePlus, run: () => referenceFrom(asset) }] : []),
     { label: '放大预览', icon: Maximize2, run: onPreview },
     { label: '下载', icon: Download, run: () => void downloadAsset(asset, item.record_id ?? item.item_id ?? 'result', index) },
     { label: '放到画布', icon: LayoutDashboard, run: () => addToCanvas(item, asset) },
-    { label: '存入素材', icon: FolderPlus, run: stub('存入素材') },
-    { label: '存为主体', icon: UserPlus, run: stub('存为主体') },
+    { label: '存入素材', icon: FolderPlus, run: () => {}, soon: true },
+    ...(asset.kind === 'image' ? [{ label: '存为主体', icon: UserPlus, run: () => openSubjectEditor({ initialAssets: [asset] }) }] : []),
   ]
+  // The toolbar wraps; buttons on a lower row show their tooltip below so it doesn't cover the row above.
+  const [lowerRow, setLowerRow] = useState<ReadonlySet<number>>(new Set())
+  const measureRows = (e: SyntheticEvent<HTMLDivElement>) => {
+    const buttons = [...e.currentTarget.children] as HTMLElement[]
+    const top = buttons[0]?.offsetTop ?? 0
+    setLowerRow(new Set(buttons.flatMap((b, i) => b.offsetTop > top ? [i] : [])))
+  }
   return (
     <figure ref={drag.setNodeRef} {...drag.listeners} className={cn('group/tile relative shrink-0 cursor-grab overflow-hidden rounded-card bg-subtle', drag.isDragging && 'opacity-50')} style={{ height: 'var(--tile-h)', width: `calc(var(--tile-h) * ${ratio})` }}>
       <button type="button" aria-label={`放大预览第 ${index + 1} 张`} className="block h-full w-full cursor-zoom-in" onClick={onPreview}>
@@ -180,15 +188,20 @@ function ResultTile({ asset, item, index, onPreview }: { asset: MediaAsset; item
         className={cn('absolute right-1.5 top-1.5 bg-card/90', !starred && 'md:opacity-0 md:group-hover/tile:opacity-100 md:focus-visible:opacity-100')} onClick={() => toggle(asset.id)}>
         <Star className={cn('size-4', starred && 'fill-current')} />
       </IconButton>
-      <div className="absolute inset-x-1.5 bottom-1.5 hidden flex-wrap justify-end gap-0.5 rounded-control bg-card/92 p-0.5 opacity-0 transition-opacity group-focus-within/tile:opacity-100 group-hover/tile:opacity-100 md:flex">
-        {actions.map(a => <IconButton key={a.label} label={a.label} size="icon-sm" onClick={a.run}><a.icon className="size-4" /></IconButton>)}
+      <div onPointerEnter={measureRows} onFocus={measureRows} className="absolute inset-x-1.5 bottom-1.5 hidden flex-wrap justify-end gap-0.5 rounded-control bg-card/92 p-0.5 opacity-0 transition-opacity group-focus-within/tile:opacity-100 group-hover/tile:opacity-100 md:flex">
+        {actions.map((a, i) => (
+          <IconButton key={a.label} label={a.label} size="icon-sm" tooltipSide={lowerRow.has(i) ? 'bottom' : 'top'}
+            disabled={a.soon} disabledReason={a.soon ? `${a.label}即将开放` : undefined} className={cn(a.soon && 'opacity-40')} onClick={a.run}>
+            <a.icon className="size-4" />
+          </IconButton>
+        ))}
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button type="button" aria-label="更多操作" className={cn('absolute bottom-1.5 right-1.5 grid size-8 place-items-center rounded-full bg-card/92 md:hidden', focusRing)}><MoreHorizontal className="size-4" /></button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {actions.map(a => <DropdownMenuItem key={a.label} onSelect={a.run}><a.icon className="size-4" />{a.label}</DropdownMenuItem>)}
+          {actions.map(a => <DropdownMenuItem key={a.label} disabled={a.soon} onSelect={a.run}><a.icon className="size-4" />{a.soon ? `${a.label}（即将开放）` : a.label}</DropdownMenuItem>)}
         </DropdownMenuContent>
       </DropdownMenu>
     </figure>

@@ -1,5 +1,6 @@
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { AlertCircle, Check, LoaderCircle, RotateCw } from 'lucide-react'
+import { Tooltip } from '@/ui/tooltip'
 import { cn } from './cn'
 import { MediaImage } from './MediaImage'
 import { MediaVideo } from './MediaVideo'
@@ -54,7 +55,7 @@ export function MediaCard({ asset, title, overlay, state, priority, onOpen, sele
     }
   }
 
-  return (
+  const card = (
     <div
       ref={drag.setNodeRef}
       {...drag.listeners}
@@ -65,7 +66,6 @@ export function MediaCard({ asset, title, overlay, state, priority, onOpen, sele
       aria-label={title}
       aria-disabled={disabled ? true : undefined}
       aria-roledescription={dragItems ? '可拖拽卡片' : '卡片'}
-      title={disabled}
       onClick={onClick}
       onKeyDown={onKeyDown}
       className={cn(
@@ -115,6 +115,7 @@ export function MediaCard({ asset, title, overlay, state, priority, onOpen, sele
       {state && <StateBadge state={state} />}
     </div>
   )
+  return disabled ? <Tooltip content={disabled}>{card}</Tooltip> : card
 }
 
 function StateBadge({ state }: { state: CardState }) {

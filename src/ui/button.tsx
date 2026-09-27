@@ -103,12 +103,14 @@ export interface IconButtonProps extends Omit<ButtonProps, 'children' | 'icon' |
   /** Required: becomes aria-label and the hover tooltip. */
   label: string
   children: ReactNode
+  /** Tooltip placement; default top. */
+  tooltipSide?: 'top' | 'bottom' | 'left' | 'right'
 }
 
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
-  { label, children, size = 'icon', variant = 'ghost', disabled, disabledReason, ...props },
+  { label, children, size = 'icon', variant = 'ghost', disabled, disabledReason, tooltipSide, ...props },
   ref,
 ) {
   const button = <Button ref={ref} aria-label={label} size={size} variant={variant} disabled={disabled} {...props}>{children}</Button>
-  return <Tooltip content={disabled && disabledReason ? disabledReason : label}>{button}</Tooltip>
+  return <Tooltip side={tooltipSide} content={disabled && disabledReason ? disabledReason : label}>{button}</Tooltip>
 })

@@ -3,10 +3,11 @@ import { CANVAS_ADD_EVENT, dispatchStudioEvent } from '@/shared/events'
 import type { MediaAsset } from '@/media'
 import { caseUrls, dispatchComposerFill, fillDetail, type CaseItem } from './lib'
 
-export const caseAsset = (c: CaseItem): MediaAsset => ({
-  id: c.id, kind: 'image', status: 'ready', width: c.image.width, height: c.image.height, duration_ms: null,
-  urls: caseUrls(c.image),
-})
+/** A case with an example video becomes a video asset (MediaCard then hover-plays it, muted), its cover as the poster. */
+export const caseAsset = (c: CaseItem): MediaAsset => c.video
+  ? { id: c.id, kind: 'video', status: 'ready', width: c.image.width, height: c.image.height, duration_ms: c.video.duration_ms ?? null,
+    urls: { orig: c.video.urls.orig, poster: c.image.urls.w960 ?? c.image.urls.orig } }
+  : { id: c.id, kind: 'image', status: 'ready', width: c.image.width, height: c.image.height, duration_ms: null, urls: caseUrls(c.image) }
 
 export function fillComposer(c: CaseItem, promptOnly = false) {
   dispatchComposerFill(fillDetail(c, promptOnly))

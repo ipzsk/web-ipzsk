@@ -1,13 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render } from '@testing-library/react'
+import { MediaCard } from '@/media'
+import { parseComposerFill } from '@/shared/events'
 import { getCase, listCases, listCategories } from './api'
+import { caseAsset } from './actions'
 import {
-  COMPOSER_FILL_EVENT, copyrightLabel, dispatchComposerFill, fillDetail, pageCases, patchParams, readParams, similarCases, fromManifest, toggleCat, type CaseItem, type ManifestCase,
+  COMPOSER_FILL_EVENT, copyrightLabel, dispatchComposerFill, fillDetail, mockKindCases, pageCases, patchParams, readParams, similarCases, fromManifest, toggleCat, type CaseItem, type ManifestCase,
 } from './lib'
 
 const mk = (id: string, over: Partial<CaseItem> = {}): CaseItem => ({
   id, title: `t${id}`, prompt: `p${id}`, category: 'posters', category_zh: '封面与海报', tags: [], model: null, params: {}, template: null,
   author: null, author_url: null, source_url: null, image: { width: 3, height: 4, urls: { w480: `/t/${id}.webp`, w960: null, orig: `/o/${id}.png` } },
-  source_repo: 'awesome-gpt-image-2', license_note: '', ...over,
+  source_repo: 'awesome-gpt-image-2', license_note: '', kind: 'image', video: null, license_tier: null, ...over,
 })
 
 describe('manifest adapter', () => {
@@ -111,5 +115,60 @@ describe('copyright + composer fill', () => {
     window.addEventListener(COMPOSER_FILL_EVENT, spy)
     dispatchComposerFill(full)
     expect((spy.mock.calls[0]![0] as CustomEvent).detail).toBe(full)
+  })
+})
+
+describe('video / 数字人 cases', () => {
+  const video = mk('v1', { kind: 'video', model: 'seedance-2.0-mini', params: { duration: 5 }, license_tier: 'B', author: '@maker',
+    video: { urls: { orig: '/v/1.mp4', poster: null }, width: 1280, height: 720, duration_ms: 5000 } })
+  const avatar = mk('a1', { kind: 'avatar', prompt: '大家好，我是店长', params: { aspect_ratio: '9:16' }, license_tier: 'A', author: 'repo-owner' })
+
+  it('keeps the static feed image-only per kind (video / 数字人 exist only in ?mock=1 or the gateway)', async () => {
+    const images = await listCases({ cat: '', q: '' })
+    expect(images.items.every((c) => !c.kind || c.kind === 'image')).toBe(true)
+    expect((await listCases({ cat: '', q: '', kind: 'image' })).items[0]!.id).toBe(images.items[0]!.id)
+    expect((await listCases({ cat: '', q: '', kind: 'video' })).items).toEqual([])
+    expect((await listCategories('', 'avatar')).total).toBe(0)
+  })
+
+  it('mock examples: relabelled per kind, every other video case has a clip', () => {
+    const all = [mk('1'), mk('2'), mk('3')]
+    const v = mockKindCases(all, 'video')
+    expect(v.map((c) => c.kind)).toEqual(['video', 'video', 'video'])
+    expect(v.map((c) => !!c.video)).toEqual([true, false, true])
+    expect(new Set(v.map((c) => c.id)).size).toBe(3)
+    expect(mockKindCases(all, 'avatar').every((c) => c.kind === 'avatar' && !c.video && c.category_zh === '口播带货')).toBe(true)
+  })
+
+  it('fills a video case into video, a 数字人 case into avatar mode (prompt = script)', () => {
+    expect(fillDetail(video)).toMatchObject({ kind: 'video', model: 'seedance-2.0-mini', params: { duration: 5 } })
+    expect(fillDetail(video)).not.toHaveProperty('mode')
+    expect(fillDetail(avatar)).toMatchObject({ kind: 'video', mode: 'avatar', prompt: '大家好，我是店长', params: { aspect_ratio: '9:16' } })
+    expect(parseComposerFill(fillDetail(avatar))).toMatchObject({ source: 'case', mode: 'avatar' })
+  })
+
+  it('labels B 级 as the author\'s rights, A 级 as the repo author\'s own work', () => {
+    expect(copyrightLabel({ ...video, source_repo: 'LearnPrompt/awesome-seedance' }).detail)
+      .toBe('来源：LearnPrompt/awesome-seedance · 原作者 @maker · 示例内容版权归原作者，仅供学习参考')
+    expect(copyrightLabel({ ...avatar, source_repo: 'x/entity-copywriter' }).detail).toBe('来源：x/entity-copywriter · 作者 repo-owner')
+  })
+
+  it('a card with a clip is a video asset that hover-plays muted — but not under reduced motion', () => {
+    const asset = caseAsset(video)
+    expect(asset).toMatchObject({ kind: 'video', duration_ms: 5000, urls: { orig: '/v/1.mp4', poster: '/o/v1.png' } })
+    expect(caseAsset(avatar).kind).toBe('image')
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+    const reduce = (on: boolean) => vi.stubGlobal('matchMedia', (q: string) => ({ matches: on && q.includes('reduce'), media: q, addEventListener() {}, removeEventListener() {} }))
+    const card = () => render(<MediaCard asset={asset} title="v" />).container.querySelector('video')!
+    reduce(true)
+    const still = card()
+    expect(still.muted && still.loop && still.preload === 'none').toBe(true)
+    fireEvent.mouseEnter(still.parentElement!)
+    expect(play).not.toHaveBeenCalled()
+    cleanup()
+    reduce(false)
+    fireEvent.mouseEnter(card().parentElement!)
+    expect(play).toHaveBeenCalledTimes(1)
+    cleanup(); vi.unstubAllGlobals(); play.mockRestore()
   })
 })

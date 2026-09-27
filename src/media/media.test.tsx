@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, renderHook, waitFor } from '@testing-l
 import { Virtualizer } from '@tanstack/virtual-core'
 import { useSelection } from './useSelection'
 import { useUpload, validateFile, type UploadApi } from './useUpload'
-import { DropTarget, MediaDndProvider, checkAccept } from './dnd'
+import { DropTarget, MediaDndProvider, centerOnPointer, checkAccept } from './dnd'
 import { nearestIndex } from './MasonryGrid'
 import { MediaImage } from './MediaImage'
 import type { MediaAsset } from './types'
@@ -180,5 +180,23 @@ describe('MediaImage 处理中 badge', () => {
       cleanup()
     }
     expect(render(<MediaImage asset={{ ...small, thumb_state: 'skipped' }} alt="" />).queryByText('处理中')).toBeNull()
+  })
+})
+
+describe('centerOnPointer', () => {
+  it('centers the drag ghost on the pointer, not on the grabbed card corner', () => {
+    // Card at (100,100); grabbed at (400,300); ghost measured 96×96; moved by (10,20).
+    const rect = { left: 100, top: 100, width: 96, height: 96, right: 196, bottom: 196 }
+    const out = centerOnPointer({
+      activatorEvent: { clientX: 400, clientY: 300 } as PointerEvent,
+      draggingNodeRect: rect, transform: { x: 10, y: 20, scaleX: 1, scaleY: 1 },
+    } as unknown as Parameters<typeof centerOnPointer>[0])
+    // Ghost top-left = rect + transform → center lands on pointer + movement.
+    expect(rect.left + out.x + 48).toBe(410)
+    expect(rect.top + out.y + 48).toBe(320)
+  })
+  it('leaves the transform alone without a pointer event', () => {
+    const t = { x: 5, y: 6, scaleX: 1, scaleY: 1 }
+    expect(centerOnPointer({ activatorEvent: null, draggingNodeRect: null, transform: t } as unknown as Parameters<typeof centerOnPointer>[0])).toBe(t)
   })
 })

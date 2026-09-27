@@ -5,7 +5,7 @@ import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates, useS
 import { CSS } from '@dnd-kit/utilities'
 import { Box, Check, Drama, ImagePlus, Mountain, Package, RotateCw, ScanFace, Star, Upload, User, X, type LucideIcon } from 'lucide-react'
 import { ApiError } from '@/shared/api'
-import { Button, Dialog, DialogContent, DialogFooter, EmptyState, ErrorState, IconButton, Input, SegmentedControl, Skeleton, Textarea, cn, toast } from '@/ui'
+import { Button, Dialog, DialogContent, DialogFooter, EmptyState, ErrorState, IconButton, Input, SegmentedControl, Skeleton, Textarea, Tooltip, cn, toast } from '@/ui'
 import { MediaImage, useUpload, type MediaAsset } from '@/media'
 import { SUBJECT_KINDS, SUBJECT_KIND_LABEL, presentAssets, subjectErrorMessage, type Subject, type SubjectKind } from '../api/subjects'
 import { useSubjects } from '../composer/hooks'
@@ -269,14 +269,17 @@ export function AssetPicker({ open, onOpenChange, room, existing, onPick, descri
                 const reason = already ? '已在参考图中' : blocked ?? (!on && picked.length >= room ? `最多还能加 ${room} 张` : null)
                 return (
                   <li key={a.id}>
+                    {/* aria-disabled (not disabled) keeps it hoverable so the reason tooltip can show. */}
+                    <Tooltip content={reason} open={reason ? undefined : false}>
                     <button
-                      type="button" aria-pressed={on} disabled={!!reason} title={reason ?? undefined} aria-description={reason ?? undefined} onClick={() => toggle(a)}
-                      className={cn('relative block aspect-square w-full cursor-pointer overflow-hidden rounded-[10px] border-2 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acid-deep disabled:cursor-not-allowed disabled:opacity-45', on ? 'border-acid' : 'border-transparent')}
+                      type="button" aria-pressed={on} aria-disabled={!!reason || undefined} aria-description={reason ?? undefined} onClick={() => { if (!reason) toggle(a) }}
+                      className={cn('relative block aspect-square w-full cursor-pointer overflow-hidden rounded-[10px] border-2 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acid-deep aria-disabled:cursor-not-allowed aria-disabled:opacity-45', on ? 'border-acid' : 'border-transparent')}
                     >
                       <MediaImage asset={a} alt="" hideBadge className="size-full" />
                       {(on || already) && <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-acid text-white"><Check className="size-3" /></span>}
                       {blocked && <span className="absolute inset-x-0 bottom-0 bg-ink/80 px-1 py-0.5 text-left text-[10px] leading-tight text-card">{blocked}</span>}
                     </button>
+                    </Tooltip>
                   </li>
                 )
               })}

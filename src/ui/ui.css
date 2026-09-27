@@ -8,6 +8,22 @@
 }
 @custom-variant focus-visible (&:focus-visible, &[data-demo~="focus"]);
 @custom-variant active (&:active, &[data-demo~="active"]);
+/* Inside IPZSK Desktop (see studio/embed.ts): data-embed="nav" | "main" on <html>. */
+@custom-variant embed (&:where([data-embed], [data-embed] *));
+/* The nav pane sits over the desktop sidebar's own material and takes the DeepSeek Harness sidebar
+   palette (ui-theme design-platform.css, light), so the shared studio components read as native rows. */
+html[data-embed="nav"], html[data-embed="nav"] body { background: transparent !important; }
+html[data-embed="nav"] {
+  --color-ink: rgb(15, 17, 21);
+  --color-muted: rgb(129, 133, 140);
+  --color-label: rgb(15, 17, 21);
+  --color-subtle: rgba(38, 49, 72, 0.06);
+  --color-acid-soft: rgb(235, 238, 242);
+  --color-line: rgba(0, 0, 0, 0.06);
+  --color-card: rgb(255, 255, 255);
+  --radius-control: 12px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
 
 @theme {
   --animate-fade-in: fade-in var(--duration-base) var(--ease-standard);

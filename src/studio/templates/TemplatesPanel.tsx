@@ -3,7 +3,7 @@ import { BookmarkPlus, Copy, ImagePlus, Layers, ListPlus, MoreHorizontal, Pencil
 import { MediaImage, MissingMedia } from '@/media'
 import {
   Button, Dialog, DialogContent, DialogFooter, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-  EmptyState, ErrorState, Input, Skeleton, cn, focusRing,
+  EmptyState, ErrorState, Input, Skeleton, Tooltip, cn, focusRing,
 } from '@/ui'
 import type { UserTemplate } from '../api/templates'
 import { isMissingAsset } from '../api/subjects'
@@ -25,7 +25,7 @@ function TemplateCard({ t, onRename, onCover }: { t: UserTemplate; onRename: () 
     <li className={cn('group relative flex flex-col overflow-hidden rounded-card border border-line bg-card transition-[transform,box-shadow] duration-(--duration-fast) shadow-[0_2px_8px_rgb(29_31_32/.035)] hover:-translate-y-px hover:border-acid/40 hover:shadow-[0_9px_24px_rgb(29_113_251/.1)]', temp && 'opacity-70')}>
       <div className="aspect-[4/3] overflow-hidden"><Cover t={t} /></div>
       <div className="grid gap-1 px-3 pt-2.5">
-        <p className="truncate text-sm font-semibold" title={t.name}>{t.name}</p>
+        <Tooltip content={t.name}><p className="truncate text-sm font-semibold">{t.name}</p></Tooltip>
         <p className="text-xs text-muted">{t.items.length} 项{t.variables.length ? ` · ${t.variables.length} 个变量` : ''}{slots ? ` · 需放入 ${slots} 个素材` : ''}</p>
       </div>
       <div className="mt-auto flex items-center gap-1 px-2 py-2">

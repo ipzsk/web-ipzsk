@@ -6,6 +6,8 @@ import { StatesPage } from '@/ui/states-page'
 import { MediaDndProvider } from '@/media'
 import { useOnline, useUnauthorizedBroadcast } from '@/shared/query'
 import { loginUrl } from '@/shared/api'
+import { RechargeHost, openRecharge } from '@/shared/recharge/RechargeDialog'
+import { embedPane, postEmbed, useEmbedMessages } from './embed'
 import { SiteHeader, type StudioKind } from './SiteHeader'
 import { useComposer } from './store'
 import { Composer } from './composer/Composer'
@@ -19,7 +21,7 @@ import { SubjectsPanel } from './subjects/SubjectsPanel'
 import { SubjectEditorHost } from './subjects/SubjectEditor'
 import { TemplateDialogsHost } from './templates/TemplateDialogs'
 
-const views: { id: string; to: string; label: string; icon: LucideIcon }[] = [
+export const views: { id: string; to: string; label: string; icon: LucideIcon }[] = [
   { id: 'inspiration', to: '/studio', label: '灵感', icon: Sparkles },
   { id: 'create', to: '/studio/create', label: '创作', icon: MessagesSquare },
   { id: 'assets', to: '/studio/assets', label: '素材', icon: FolderOpen },
@@ -42,14 +44,14 @@ function useScrollMemory(viewKey: string) {
   }, [])
 }
 
-function NavItem({ to, label, icon: Icon, variant }: (typeof views)[number] & { variant: 'side' | 'tab' }) {
+export function NavItem({ to, label, icon: Icon, variant }: (typeof views)[number] & { variant: 'side' | 'tab' }) {
   return (
     <NavLink
       to={to}
       end={to === '/studio'}
       className={({ isActive }) => cn(
         'flex items-center rounded-control font-semibold transition-colors duration-(--duration-fast)',
-        variant === 'side' ? 'h-10 gap-2.5 px-3 text-sm hover:bg-subtle' : 'h-14 flex-1 flex-col justify-center gap-0.5 text-[11px]',
+        variant === 'side' ? 'h-10 gap-2.5 px-3 text-sm hover:bg-subtle embed:h-8 embed:gap-2 embed:px-2 embed:font-normal' : 'h-14 flex-1 flex-col justify-center gap-0.5 text-[11px]',
         isActive ? (variant === 'side' ? 'bg-acid-soft text-label hover:bg-acid-soft' : 'text-ink') : 'text-ink/80',
         focusRing,
       )}
@@ -75,6 +77,18 @@ function Layout() {
     else useComposer.getState().setKind(k)
     if (pathname !== '/studio') navigate(`/studio?kind=${k}`)
   }
+  // IPZSK Desktop: the nav pane drives this one and mirrors where it is.
+  const embedded = embedPane === 'main'
+  useEmbedMessages(m => {
+    if (!embedded) return
+    if (m.type === 'route') navigate(m.to)
+    else if (m.type === 'kind') onStudioKind(m.kind)
+    else if (m.type === 'recharge') openRecharge()
+    else if (m.type === 'hello') postEmbed({ type: 'state', path: pathname + search, kind: studioKind })
+  })
+  useEffect(() => {
+    if (embedded) postEmbed({ type: 'state', path: pathname + search, kind: studioKind })
+  }, [embedded, pathname, search, studioKind])
   // The composer is the single source of truth for ?kind= wherever it is visible (灵感, 创作): each switch
   // replaces the URL in place, keeping q/cat/case. Entry is read once by readKindOnce.
   // 素材 is excluded on purpose — /studio/assets already owns ?kind= as its own 全部/图片/视频 filter.
@@ -91,10 +105,11 @@ function Layout() {
       <div className="sticky top-0 z-40">
         {!online && <OfflineBanner />}
         {sessionExpired && <SessionExpiredBanner loginHref={loginUrl()} />}
-        <SiteHeader studioKind={studioKind} onStudioKind={onStudioKind} />
+        {!embedded && <SiteHeader studioKind={studioKind} onStudioKind={onStudioKind} />}
       </div>
-      <div className="md:grid md:grid-cols-[208px_1fr]">
-        <aside aria-label="工作台" className="sticky top-16 hidden h-[calc(100dvh-64px)] flex-col gap-1 border-r border-line p-3 md:flex">
+      {embedded && <RechargeHost />}
+      <div className="md:grid md:grid-cols-[208px_1fr] embed:block!">
+        <aside aria-label="工作台" className="sticky top-16 embed:hidden! hidden h-[calc(100dvh-64px)] flex-col gap-1 border-r border-line p-3 md:flex">
           {views.map(v => <NavItem key={v.id} {...v} variant="side" />)}
           <div className="my-2 h-px bg-line" />
           <ThreadList />
@@ -104,7 +119,7 @@ function Layout() {
         </main>
       </div>
       <Composer hidden={!composerVisible} />
-      <nav aria-label="工作台" className="fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
+      <nav aria-label="工作台" className="fixed inset-x-0 bottom-0 z-40 embed:hidden! flex border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
         {views.map(v => <NavItem key={v.id} {...v} variant="tab" />)}
       </nav>
       <SubjectEditorHost />

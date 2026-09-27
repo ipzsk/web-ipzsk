@@ -3,9 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { MutationObserver, QueryClient } from '@tanstack/react-query'
 import { ApiError } from '@/shared/api'
+import { TooltipProvider } from '@/ui'
 import { createMockApi } from './mock'
 import { makeUploadApi, uploadErrorMessage, type Folder } from './api'
-import { addToFolderOptions, assetKeys, createDeleter, positionAt } from './queries'
+import { addToFolderOptions, assetKeys, coveredList, createDeleter, positionAt } from './queries'
 import { BatchBar } from './AssetsView'
 
 afterEach(() => { cleanup(); vi.useRealTimers() })
@@ -138,10 +139,33 @@ describe('BatchBar', () => {
   const noop = () => {}
   const props = { folders: [], onMove: noop, onDownload: noop, onFill: noop, onCanvas: noop, onDelete: noop, onClear: noop }
   it('only shows with a selection', () => {
-    const { rerender } = render(<BatchBar count={0} {...props} />)
+    const { rerender } = render(<BatchBar count={0} {...props} />, { wrapper: TooltipProvider })
     expect(screen.queryByRole('toolbar')).toBeNull()
     rerender(<BatchBar count={2} {...props} />)
     expect(screen.getByRole('toolbar', { name: '批量操作' }).textContent).toContain('已选 2 项')
   })
 })
 
+
+describe('coveredList', () => {
+  const a = (id: string, source: string, kind: string) => ({ id, source, kind }) as never
+  const all = [a('1', 'upload', 'image'), a('2', 'generation', 'video'), a('3', 'generation', 'image')]
+  const seed = (next: string | null) => {
+    const qc = new QueryClient()
+    qc.setQueryData(assetKeys.list({ tab: 'all', kind: '', folder: null }), { pages: [{ items: all, next_cursor: next }], pageParams: [null] })
+    return qc
+  }
+  const ids = (r: ReturnType<typeof coveredList>) => r?.data.pages[0]!.items.map((x) => x.id)
+
+  it('cuts tabs and kinds from a complete 全部 list', () => {
+    const qc = seed(null)
+    expect(ids(coveredList(qc, { tab: 'generation', kind: '', folder: null }))).toEqual(['2', '3'])
+    expect(ids(coveredList(qc, { tab: 'generation', kind: 'image', folder: null }))).toEqual(['3'])
+    expect(ids(coveredList(qc, { tab: 'all', kind: 'video', folder: null }))).toEqual(['2'])
+  })
+  it('does not derive from a partial list, another folder, or itself', () => {
+    expect(coveredList(seed('50'), { tab: 'upload', kind: '', folder: null })).toBeUndefined()
+    expect(coveredList(seed(null), { tab: 'upload', kind: '', folder: 'f1' })).toBeUndefined()
+    expect(coveredList(seed(null), { tab: 'all', kind: '', folder: null })).toBeUndefined()
+  })
+})

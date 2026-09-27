@@ -21,19 +21,42 @@ export const toQuery = (f: ListFilter): AssetQuery => ({
 
 const errText = (e: unknown) => (e instanceof Error && e.message ? e.message : '请检查网络后重试')
 
-export const useAssets = (f: ListFilter, enabled: boolean) => useInfiniteQuery({
-  queryKey: assetKeys.list(f),
-  queryFn: ({ pageParam }) => api.listAssets(toQuery(f), pageParam),
-  initialPageParam: null as string | null,
-  getNextPageParam: (last) => last.next_cursor,
-  enabled,
-  staleTime: 30_000, // §7.3
-})
+type Lists = InfiniteData<Page<Asset>, string | null>
+
+/**
+ * 我的上传 / 生成结果 and the 图片/视频 filter are subsets of 全部. When a fully loaded (no next_cursor) list
+ * covering `f` is cached, `f` is cut from it on the client instead of asking the server again.
+ */
+export function coveredList(qc: QueryClient, f: ListFilter): { data: Lists; updatedAt: number } | undefined {
+  for (const q of qc.getQueryCache().findAll({ queryKey: assetKeys.lists })) {
+    const g = q.queryKey[2] as ListFilter
+    const data = q.state.data as Lists | undefined
+    if (!data || data.pages.at(-1)?.next_cursor || g.folder !== f.folder) continue
+    if ((g.tab !== 'all' && g.tab !== f.tab) || (g.kind && g.kind !== f.kind) || (g.tab === f.tab && g.kind === f.kind)) continue
+    const items = data.pages.flatMap((p) => p.items).filter((a) => (f.tab === 'all' || a.source === f.tab) && (!f.kind || a.kind === f.kind))
+    return { data: { pages: [{ items, next_cursor: null }], pageParams: [null] }, updatedAt: q.state.dataUpdatedAt }
+  }
+}
+
+export function useAssets(f: ListFilter, enabled: boolean) {
+  const qc = useQueryClient()
+  return useInfiniteQuery({
+    queryKey: assetKeys.list(f),
+    queryFn: ({ pageParam }) => api.listAssets(toQuery(f), pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.next_cursor,
+    // Seeded as fresh as its source, so switching tabs reuses it until that goes stale.
+    initialData: () => coveredList(qc, f)?.data,
+    initialDataUpdatedAt: () => coveredList(qc, f)?.updatedAt,
+    enabled,
+    // Writes keep the lists current (prependAsset / removeFromLists; the composer invalidates after generating),
+    // so tab switches within 5 minutes don't refetch. §7.3 said 30s; signed URLs outlive this.
+    staleTime: 5 * 60_000,
+  })
+}
 
 export const useFolders = () => useQuery({ queryKey: assetKeys.folders, queryFn: () => api.listFolders() })
 export const useFavoriteAssets = () => useQuery({ queryKey: assetKeys.favs, queryFn: () => api.listFavoriteAssets() })
-
-type Lists = InfiniteData<Page<Asset>, string | null>
 
 /** A freshly uploaded asset goes to the top of every loaded list it belongs to. */
 export function prependAsset(qc: QueryClient, asset: Asset, folder: string | null = null) {

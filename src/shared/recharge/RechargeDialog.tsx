@@ -92,9 +92,10 @@ export function RechargeDialog({ open, onOpenChange, onUnauthorized }: { open: b
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2">
                 {(options.data?.enabled ? options.data.packs : []).map(pack => (
-                  <Button key={pack.key} variant="secondary" className="h-auto min-h-16 flex-col" loading={busy === pack.key} loadingText="跳转中"
+                  <Button key={pack.key} variant="secondary" className="h-auto min-h-16" loading={busy === pack.key} loadingText="跳转中"
                     disabled={!!busy} disabledReason="正在打开收银台" onClick={() => void checkout(pack.key)}>
-                    <strong className="text-lg">{formatMoney(pack.amount_cny)}</strong><small className="font-normal">到账同额余额</small>
+                    {/* Button wraps children in a row (for the loading swap), so stack them here. */}
+                    <span className="flex flex-col items-center"><strong className="text-lg">{formatMoney(pack.amount_cny)}</strong><small className="font-normal">到账同额余额</small></span>
                   </Button>
                 ))}
               </div>

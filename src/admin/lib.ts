@@ -1,6 +1,6 @@
 /** Pure helpers + types for the admin console (contract: docs/admin-api.md). Tested in lib.test.ts. */
 import type { MediaAsset } from '@/media'
-import type { MediaAsset as ServerAsset } from '@/shared/contracts'
+import type { CaseKind, LicenseTier, MediaAsset as ServerAsset } from '@/shared/contracts'
 
 export type Role = 'admin' | 'operator' | 'viewer'
 export const ROLES: Role[] = ['admin', 'operator', 'viewer']
@@ -72,6 +72,10 @@ export interface CaseFields {
 
 export interface AdminCase extends CaseFields {
   id: string
+  kind: CaseKind
+  license_tier: LicenseTier | null
+  /** Example clip of a video / 数字人 case. */
+  video: ServerAsset | null
   cover: ServerAsset | null
   references: ServerAsset[]
   status: CaseStatus

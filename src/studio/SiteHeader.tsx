@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { MouseEvent } from 'react'
 import { ShieldCheck } from 'lucide-react'
-import { cn, focusRing } from '@/ui'
+import { Tooltip, cn, focusRing } from '@/ui'
 import { formatMoney } from '@/shared/billing'
 import { isMock, loginUrl, request } from '@/shared/api'
 import { useCurrentUser, useWallet } from '@/shared/query'
@@ -26,16 +26,17 @@ function PointsPill() {
   const available = Number(wallet.available_cny)
   const frozen = Number(wallet.frozen_cny)
   return (
+    <Tooltip side="bottom" content={(frozen > 0 ? `处理中冻结 ${formatMoney(frozen)} · ` : '') + '在线充值'}>
     <button
       type="button"
       onClick={openRecharge}
       aria-haspopup="dialog"
-      title={(frozen > 0 ? `处理中冻结 ${formatMoney(frozen)} · ` : '') + '在线充值'}
       className={cn(linkClass, 'cursor-pointer border border-line bg-card font-bold tabular-nums')}
     >
       {formatMoney(available)}
       <span className={cn('font-normal max-[720px]:sr-only', available <= 0 ? 'text-danger' : 'text-label')}>{available <= 0 ? ' · 去充值' : ' · 充值'}</span>
     </button>
+    </Tooltip>
   )
 }
 
@@ -79,9 +80,11 @@ export function SiteHeader({ studioKind, onStudioKind }: { studioKind?: StudioKi
         <div className="flex min-w-0 items-center gap-2 max-[720px]:gap-1">
           {/* Admin entry first: the cluster is right-anchored, so it arriving late (after /api/me/roles) grows leftwards and moves nothing else. */}
           {user && !!roles?.length && (
-            <a href="/admin" aria-current={onAdmin ? 'page' : undefined} aria-label="管理中台" title="管理中台" className={cn(linkClass, 'inline-flex items-center gap-1.5', onAdmin && 'bg-acid font-bold text-white hover:bg-acid')}>
-              <ShieldCheck aria-hidden className="size-4 shrink-0" /><span className="max-[720px]:sr-only">管理中台</span>
-            </a>
+            <Tooltip side="bottom" content="管理中台">
+              <a href="/admin" aria-current={onAdmin ? 'page' : undefined} aria-label="管理中台" className={cn(linkClass, 'inline-flex items-center gap-1.5', onAdmin && 'bg-acid font-bold text-white hover:bg-acid')}>
+                <ShieldCheck aria-hidden className="size-4 shrink-0" /><span className="max-[720px]:sr-only">管理中台</span>
+              </a>
+            </Tooltip>
           )}
           {user && <PointsPill />}
           {user && <RechargeHost />}
