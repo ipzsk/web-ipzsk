@@ -16,8 +16,9 @@ export function downloadButtons(state: { status: 'loading' } | { status: 'error'
     else if (state.status === 'error') buttons[p] = { href: RELEASES_PAGE, label: '前往 GitHub 下载', meta: '', external: true }
     else {
       const asset = state.data.assets?.[p]
+      const version = asset?.version ?? state.data.version
       buttons[p] = asset
-        ? { href: asset.url, label: '下载最新正式版', meta: `v${state.data.version}${asset.bytes ? ` · ${(asset.bytes / 1024 / 1024).toFixed(0)} MB` : ''}` }
+        ? { href: asset.url, label: '下载最新正式版', meta: `v${version}${asset.bytes ? ` · ${(asset.bytes / 1024 / 1024).toFixed(0)} MB` : ''}` }
         : { href: null, label: '此平台暂未发布', meta: '最新正式版尚无此平台安装包' }
     }
   }

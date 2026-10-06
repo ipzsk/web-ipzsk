@@ -19,11 +19,22 @@ describe('home release selection', () => {
     expect(payload).toEqual({
       version: '1.4.2',
       assets: {
-        mac: { url: response.files[0]!.url, bytes: 120 * 1024 * 1024, name: 'IPZSK.Desktop-1.4.2-arm64.dmg' },
-        windows: { url: response.files[1]!.url, bytes: 90 * 1024 * 1024, name: 'DSH-Desktop-1.4.2-x64-Setup.exe' },
+        mac: { url: response.files[0]!.url, bytes: 120 * 1024 * 1024, name: 'IPZSK.Desktop-1.4.2-arm64.dmg', version: '1.4.2' },
+        windows: { url: response.files[1]!.url, bytes: 90 * 1024 * 1024, name: 'DSH-Desktop-1.4.2-x64-Setup.exe', version: '1.4.2' },
       },
     })
     expect(toPayload({ ...response, files: [{ ...response.files[0]!, platform: 'linux' as never }] }).assets).toEqual({})
+  })
+
+  it('shows the version embedded in each platform installer name', () => {
+    const mixed = toPayload({
+      version: '3.0.0-beta.5', released_at: '2026-10-06T10:04:38.000Z', files: [
+        { platform: 'mac', name: 'IPZSK.Desktop-2.0.7-arm64.dmg', bytes: 1, sha256: 'a'.repeat(64), url: 'https://r2.test/mac' },
+        { platform: 'windows', name: 'IPZSK.Desktop.Next-3.0.0-beta.5-win-x64-unsigned.exe', bytes: 1, sha256: 'b'.repeat(64), url: 'https://r2.test/win' },
+      ],
+    })
+    expect(releaseOptions(mixed).find(o => o.id === 'mac')?.meta).toContain('v2.0.7')
+    expect(releaseOptions(mixed).find(o => o.id === 'windows')?.meta).toContain('v3.0.0-beta.5')
   })
 
   it('maps assets per platform; a platform missing from the manifest is disabled, not a dead link', () => {

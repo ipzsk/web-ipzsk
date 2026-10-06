@@ -13,7 +13,7 @@ export const PLATFORMS: { id: Platform; label: string; hint: string }[] = [
   { id: 'windows', label: 'Windows x64', hint: '兼容 ARM64' },
 ]
 
-export interface ReleasePayload { version: string; assets: Partial<Record<Platform, { url: string; bytes?: number; name?: string }>> }
+export interface ReleasePayload { version: string; assets: Partial<Record<Platform, { url: string; bytes?: number; name?: string; version?: string }>> }
 /** href 为 null ⇒ 该平台这一版没有安装包，按钮不可点（不是死链接）。 */
 export interface Option { id: Platform; href: string | null; action: string; meta: string; direct: boolean }
 
@@ -24,11 +24,13 @@ export function detectPlatform(ua: string, platform = ''): Platform | '' {
   return ''
 }
 
+const assetVersion = (name: string, fallback: string) => name.match(/(\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?)(?=-(?:arm64|x64|win|windows)(?:[.-]|$))/i)?.[1] ?? fallback
+
 /** 网关返回的 files[] 按平台索引；未知平台忽略。 */
 export function toPayload(data: DesktopRelease): ReleasePayload {
   const assets: ReleasePayload['assets'] = {}
   for (const f of data.files ?? []) {
-    if (PLATFORMS.some(p => p.id === f.platform)) assets[f.platform as Platform] = { url: f.url, bytes: f.bytes, name: f.name }
+    if (PLATFORMS.some(p => p.id === f.platform)) assets[f.platform as Platform] = { url: f.url, bytes: f.bytes, name: f.name, version: assetVersion(f.name, data.version) }
   }
   return { version: data.version, assets }
 }
@@ -42,7 +44,8 @@ export function releaseOptions(payload: ReleasePayload | null, fallbackPage = RE
     if (!payload) return { id, href: fallbackPage, action: '前往发布页', meta: '', direct: false }
     const asset = payload.assets[id]
     if (!asset) return { id, href: null, action: '暂未发布', meta: '这一版没有此平台安装包', direct: false }
-    return { id, href: asset.url, action: `下载 v${payload.version}`, meta: `v${payload.version}${asset.bytes ? ` · ${(asset.bytes / 1024 / 1024).toFixed(0)} MB` : ''}`, direct: true }
+    const version = asset.version ?? payload.version
+    return { id, href: asset.url, action: `下载 v${version}`, meta: `v${version}${asset.bytes ? ` · ${(asset.bytes / 1024 / 1024).toFixed(0)} MB` : ''}`, direct: true }
   })
 }
 
