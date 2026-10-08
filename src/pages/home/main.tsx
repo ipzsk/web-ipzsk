@@ -1,5 +1,5 @@
 import './home.css'
-import { mountPage } from '@/pages/shared/auth/mount'
-import { Home } from './Home'
+import '@/ui/ui.css'
 
-mountPage(<Home />)
+// Paint the generated HTML before downloading the interactive account UI.
+requestAnimationFrame(() => setTimeout(() => { void import('./hydrate') }, 0))

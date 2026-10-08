@@ -72,7 +72,11 @@ export interface User { id: string; email?: string; [k: string]: unknown }
 
 /** Resolves to the profile when signed in, null otherwise. Never redirects. */
 export async function currentUser(): Promise<User | null> {
-  try { return (await request<{ user?: User }>('/api/me/profile')).user ?? null }
+  try {
+    const session = await request<{ user?: User } | null>('/api/auth/get-session')
+    if (!session?.user) return null
+    return (await request<{ user?: User }>('/api/me/profile')).user ?? null
+  }
   catch (error) { if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return null; throw error }
 }
 

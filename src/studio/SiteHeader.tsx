@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { MouseEvent } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { ShieldCheck } from 'lucide-react'
 import { Tooltip, cn, focusRing } from '@/ui'
 import { formatMoney } from '@/shared/billing'
@@ -56,21 +56,28 @@ const useMyRoles = (enabled: boolean) => useQuery({
 export function SiteHeader({ studioKind, onStudioKind }: { studioKind?: StudioKind; onStudioKind?: (kind: StudioKind) => void } = {}) {
   const { data: user, isPending } = useCurrentUser()
   const { data: roles } = useMyRoles(!!user)
-  const onAdmin = location.pathname.startsWith('/admin')
+  const [{ pathname, hash, search }, setUrl] = useState({ pathname: '/', hash: '', search: '' })
+  useEffect(() => {
+    const sync = () => setUrl({ pathname: location.pathname, hash: location.hash, search: location.search })
+    sync()
+    window.addEventListener('hashchange', sync)
+    return () => window.removeEventListener('hashchange', sync)
+  }, [])
+  const onAdmin = pathname.startsWith('/admin')
   return (
     <header className="h-16 border-b border-line bg-paper/95 backdrop-blur-md max-[720px]:h-[104px]">
       <nav aria-label="主导航" className="grid h-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-7 px-6 lg:px-8 max-[720px]:grid-cols-[minmax(0,1fr)_auto] max-[720px]:px-4 max-[720px]:grid-rows-[52px_44px] max-[720px]:gap-x-2 max-[720px]:gap-y-0">
         <a href="/" className={cn('rounded-control', focusRing)}>
           {/* Designer lockup (479bf1e); 787×644 source, fixed box → no layout shift. */}
-          <img src="/assets/ipzsk-lockup.png" alt="IPZSK" width={71} height={58} decoding="async" className="block h-[58px] w-[71px] max-w-none object-contain mix-blend-multiply max-[720px]:h-11 max-[720px]:w-[54px]" />
+          <img src="/assets/ipzsk-lockup-160.webp" alt="IPZSK" width={71} height={58} decoding="async" className="block h-[58px] w-[71px] max-w-none object-contain mix-blend-multiply max-[720px]:h-11 max-[720px]:w-[54px]" />
         </a>
         <div className="flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] max-[720px]:col-span-full max-[720px]:row-start-2">
           {links.map(l => {
-            const onStudio = location.pathname.startsWith('/studio')
+            const onStudio = pathname.startsWith('/studio')
             const current = l.kind
-              ? onStudio && (studioKind ?? new URLSearchParams(location.search).get('kind') ?? 'image') === l.kind
-              : l.wallet ? location.pathname === '/' && location.hash === '#wallet'
-                : l.href === '/' ? location.pathname === '/' && location.hash !== '#wallet' : location.pathname.startsWith(l.href)
+              ? onStudio && (studioKind ?? new URLSearchParams(search).get('kind') ?? 'image') === l.kind
+              : l.wallet ? pathname === '/' && hash === '#wallet'
+                : l.href === '/' ? pathname === '/' && hash !== '#wallet' : pathname.startsWith(l.href)
             const onClick = l.kind && onStudioKind
               ? (e: MouseEvent) => { if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; e.preventDefault(); onStudioKind(l.kind!) }
               : undefined

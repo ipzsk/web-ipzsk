@@ -5,6 +5,21 @@ const respond = (status: number, body: unknown) => vi.stubGlobal('fetch', vi.fn(
 afterEach(() => vi.unstubAllGlobals())
 
 describe('request errors', () => {
+  it('anonymous session avoids a protected profile request', async () => {
+    respond(200, null)
+    expect(await currentUser()).toBeNull()
+    expect(fetch).toHaveBeenCalledOnce()
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/auth/get-session'), expect.any(Object))
+  })
+
+  it('signed-in session still resolves the customer profile', async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ user: { id: 'auth-id' } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ user: { id: 'customer-id', email: 'test@example.com' } })))
+    vi.stubGlobal('fetch', fetcher)
+    expect(await currentUser()).toMatchObject({ id: 'customer-id' })
+    expect(fetcher).toHaveBeenNthCalledWith(2, expect.stringContaining('/api/me/profile'), expect.any(Object))
+  })
   it('maps {error:{code}} to ApiError with Chinese message', async () => {
     respond(402, { error: { code: 'insufficient_balance', message: 'x' } })
     const err = await request('/api/me/x').catch(e => e)

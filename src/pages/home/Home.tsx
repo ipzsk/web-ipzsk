@@ -15,25 +15,21 @@ const FEATURES = [
   { badge: '账号与服务', title: '我的', text: '查看个人资料、账户余额、充值与消费记录，管理自己的创作入口。', href: '/account', link: '打开个人中心' },
 ]
 const STICKERS = [
-  { src: '/assets/stickers/sticker-camera.png', cls: 'top-[8%] -left-[22px] w-[94px] -rotate-4 md:left-[1%] md:w-[145px]', delay: '0s' },
-  { src: '/assets/stickers/sticker-video.png', cls: 'top-[9%] -right-[24px] w-[104px] rotate-5 md:right-[1%] md:w-[160px]', delay: '-.9s' },
-  { src: '/assets/stickers/sticker-brush.png', cls: 'bottom-[9%] -left-[18px] w-[82px] -rotate-8 md:left-[11%] md:w-[125px]', delay: '-1.7s' },
-  { src: '/assets/stickers/sticker-board.png', cls: 'bottom-[2%] left-[31%] w-[94px] rotate-3 md:bottom-[4%] md:left-[25%] md:w-[145px]', delay: '-2.5s' },
-  { src: '/assets/stickers/sticker-brain.png', cls: 'bottom-[10%] -right-[6px] w-[80px] md:right-[5%] md:w-[120px]', delay: '-3.2s' },
+  { src: '/assets/stickers/sticker-camera-320.webp', width: 320, height: 214, cls: 'top-[8%] -left-[22px] w-[94px] -rotate-4 md:left-[1%] md:w-[145px]', delay: '0s' },
+  { src: '/assets/stickers/sticker-video-320.webp', width: 320, height: 214, cls: 'top-[9%] -right-[24px] w-[104px] rotate-5 md:right-[1%] md:w-[160px]', delay: '-.9s' },
+  { src: '/assets/stickers/sticker-brush-320.webp', width: 320, height: 293, cls: 'bottom-[9%] -left-[18px] w-[82px] -rotate-8 md:left-[11%] md:w-[125px]', delay: '-1.7s' },
+  { src: '/assets/stickers/sticker-board-320.webp', width: 320, height: 345, cls: 'bottom-[2%] left-[31%] w-[94px] rotate-3 md:bottom-[4%] md:left-[25%] md:w-[145px]', delay: '-2.5s' },
+  { src: '/assets/stickers/sticker-brain-320.webp', width: 320, height: 267, cls: 'bottom-[10%] -right-[6px] w-[80px] md:right-[5%] md:w-[120px]', delay: '-3.2s' },
 ]
 
 function useRotatingPhrase() {
   const [i, setI] = useState(0)
-  const [changing, setChanging] = useState(false)
   useEffect(() => {
-    let inner: ReturnType<typeof setTimeout>
-    const t = setInterval(() => {
-      setChanging(true)
-      inner = setTimeout(() => { setI(n => (n + 1) % PHRASES.length); setChanging(false) }, 180)
-    }, 2200)
-    return () => { clearInterval(t); clearTimeout(inner) }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const t = setInterval(() => setI(n => (n + 1) % PHRASES.length), 2200)
+    return () => clearInterval(t)
   }, [])
-  return { phrase: PHRASES[i]!, changing }
+  return PHRASES[i]!
 }
 
 type ReleaseState = { status: 'loading' } | { status: 'ready'; version: string; options: Option[] } | { status: 'error'; options: Option[] }
@@ -55,7 +51,8 @@ function DownloadMenu() {
   const release = useRelease()
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
-  const device = detectPlatform(navigator.userAgent, navigator.platform)
+  const [device, setDevice] = useState<ReturnType<typeof detectPlatform>>('')
+  useEffect(() => setDevice(detectPlatform(navigator.userAgent, navigator.platform)), [])
   useEffect(() => {
     const down = (e: PointerEvent) => { if (!root.current?.contains(e.target as Node)) setOpen(false) }
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape' && open) { setOpen(false); trigger.current?.focus() } }
@@ -117,10 +114,11 @@ function DownloadMenu() {
 }
 
 export function Home() {
-  const { phrase, changing } = useRotatingPhrase()
-  const [hash, setHash] = useState(location.hash)
+  const phrase = useRotatingPhrase()
+  const [hash, setHash] = useState('')
   useEffect(() => {
     const sync = () => setHash(location.hash)
+    sync()
     window.addEventListener('hashchange', sync)
     return () => window.removeEventListener('hashchange', sync)
   }, [])
@@ -131,20 +129,20 @@ export function Home() {
         <section aria-labelledby="hero-title" className="relative mx-auto flex min-h-[calc(100svh-104px)] w-[min(1340px,calc(100%-28px))] items-center justify-center pb-24 pt-14 md:min-h-[calc(100svh-64px)] md:w-[min(1340px,calc(100%-80px))] md:pb-[82px] md:pt-12">
           <div aria-hidden className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
             {STICKERS.map(s => (
-              <img key={s.src} src={s.src} alt="" loading="lazy" decoding="async" style={{ animationDelay: s.delay }}
+              <img key={s.src} src={s.src} width={s.width} height={s.height} alt="" loading="lazy" decoding="async" style={{ animationDelay: s.delay }}
                 className={cn('absolute h-auto opacity-90 mix-blend-multiply drop-shadow-[0_10px_11px_rgba(29,31,32,.08)] motion-safe:animate-[sticker-jitter_4.8s_ease-in-out_infinite]', s.cls)} />
             ))}
           </div>
           <div className="relative z-[2] w-full text-center">
             <div className={cn(serif, 'mb-4 flex min-h-[38px] items-center justify-center whitespace-nowrap text-[clamp(24px,7vw,31px)] md:mb-6 md:min-h-12 md:text-[clamp(30px,3.4vw,38px)]')} aria-live="polite">
-              <img src="/assets/ipzsk-wordmark.png" alt="IPZSK" width={210} height={38} className="h-[31px] w-[150px] object-contain mix-blend-multiply md:h-[38px] md:w-[210px]" />
+              <img src="/assets/ipzsk-wordmark-420.webp" alt="IPZSK" width={210} height={38} className="h-[31px] w-[150px] object-contain mix-blend-multiply md:h-[38px] md:w-[210px]" />
               <span aria-hidden> · </span>
-              <span className={cn('inline-block w-[6.2em] text-left font-bold text-label transition-[opacity,translate] duration-150', changing && 'opacity-0 motion-safe:translate-y-[7px]')}>{phrase}</span>
+              <span className="inline-block w-[6.2em] text-left font-bold text-label">{phrase}</span>
             </div>
             <h1 id="hero-title" className={cn(serif, 'm-0 text-[clamp(66px,18vw,100px)] font-normal leading-[.98] tracking-[-.09em] md:text-[clamp(78px,10vw,156px)] md:whitespace-nowrap')}>
-              把 <span className='font-["Times_New_Roman","Songti_SC",serif] font-semibold text-label'>AI</span>，装进你的电脑。
+              <span className="sr-only">IPZSK AI 创作工作台：</span>把 <span className='font-["Times_New_Roman","Songti_SC",serif] font-semibold text-label'>AI</span>，装进你的电脑。
             </h1>
-            <p className="mx-auto mt-7 text-[14px] leading-[1.8] text-muted md:text-[17px] md:leading-[1.85]">一个面向创作与知识工作的 AI 工作台。<br />下载客户端，或直接在线体验。</p>
+            <p className="mx-auto mt-7 text-[14px] leading-[1.8] text-muted md:text-[17px] md:leading-[1.85]">IPZSK AI 创作工作台，面向创作与知识工作。<br />下载客户端，或直接在线体验。</p>
             <div className="relative mt-8 flex flex-wrap items-start justify-center gap-3">
               <DownloadMenu />
               <a href="/workspace" className={cn('inline-flex h-[54px] items-center justify-center gap-2 rounded-full border border-line bg-card/50 px-6 text-[14px] font-extrabold transition-[transform,background-color] duration-(--duration-fast) hover:bg-card motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[.98]', focusRing)}>
@@ -159,7 +157,7 @@ export function Home() {
           <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
             <div>
               <span className="text-[11px] font-black tracking-[.14em] text-label">CREATE YOUR WAY</span>
-              <h2 className={cn(serif, 'mt-2.5 text-[38px] font-normal leading-[1.05] tracking-[-.04em] md:text-[clamp(34px,4vw,56px)]')}>也可以，直接在网页里开始。</h2>
+              <h2 className={cn(serif, 'mt-2.5 text-[38px] font-normal leading-[1.05] tracking-[-.04em] md:text-[clamp(34px,4vw,56px)]')}>IPZSK，也可以直接在网页里开始。</h2>
             </div>
             <p className="max-w-[390px] text-[13px] leading-[1.75] text-muted">创作工具和账号服务，各有清晰的入口。</p>
           </div>
@@ -180,6 +178,25 @@ export function Home() {
               </a>
             ))}
           </div>
+        </section>
+        <section aria-labelledby="faq-title" className="mx-auto w-[min(1180px,calc(100%-28px))] pb-16 md:w-[min(1180px,calc(100%-80px))] md:pb-24">
+          <h2 id="faq-title" className="mb-6 text-[28px] font-bold">关于 IPZSK AI 创作工作台</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {[
+              ['IPZSK 可以做什么？', 'IPZSK 把 AI 生图、生视频、数字人与内容工作台放在同一个创作入口。你可以从文字描述开始生成画面，在网页里查看任务进度与生成记录，也可以整理选题、编辑文稿和预览排版。选择需要的工具后再开始创作，无需一次配置所有功能。'],
+              ['桌面客户端支持哪些电脑？', '下载菜单分别提供 Apple Silicon Mac、Intel Mac 和 Windows 的安装选项。客户端安装包与插件独立发布，生图等插件需要在客户端插件市场安装和更新。下载前请确认电脑的芯片与系统，菜单会展示各平台实际可用的安装版本；没有发布的安装包会标为暂未发布。'],
+              ['可以直接使用网页版吗？', '可以。网页提供图片、视频、数字人与内容工作台入口，下载客户端不是使用网页工具的前提。图片和视频生成需要登录账号，并使用账户余额支付。内容工作台可用于整理选题与编辑文稿，当前文稿草稿保存在本机，重要内容请自行备份。'],
+              ['AI 图片和视频如何收费？', 'AI 生成服务按使用计费，具体价格请查看产品定价页及生成前的费用提示。提交任务时预留额度，成功取得有效结果后结算，失败或取消时释放预留额度。不同模型、清晰度与时长会影响费用，请在提交前确认选项。账户可查看余额、充值记录与消费明细。'],
+              ['内容工作台和知识库工作台有什么区别？', '网页内容工作台侧重选题、文稿编辑与排版预览。知识库工作台面向 Obsidian 的本地资料工作流，把 ChatGPT 模型、Codex 和创作工具接入知识库，用于资料整理、内容写作与演示文稿等任务。知识库工作台有独立的下载与工具说明页，可按实际需求选择。'],
+              ['如何开始使用并获得帮助？', '先选择在线工具，或下载与你的系统匹配的客户端。注册账号并完成邮箱验证后，再按工具提示配置与使用；付费任务提交前确认账户余额。遇到安装、生成或账单问题，可以通过页面底部客服邮箱联系支持。使用前请阅读服务条款、隐私政策与 AIGC 使用规范。'],
+            ].map(([question, answer]) => (
+              <details key={question} className="rounded-card border border-line bg-card p-5">
+                <summary className={cn('cursor-pointer text-[15px] font-bold', focusRing)}>{question}</summary>
+                <p className="mt-3 text-[14px] leading-7 text-muted">{answer}</p>
+              </details>
+            ))}
+          </div>
+          <p className="mt-6 flex flex-wrap gap-5 text-sm font-bold text-label"><a href="/workstation">了解知识库工作台</a><a href="/pricing.html">查看 AI 生成服务定价</a><a href="/account">登录或注册 IPZSK</a></p>
         </section>
       </main>}
       <footer className="mx-auto flex w-[min(1340px,calc(100%-28px))] flex-col justify-between gap-2 border-t border-line py-6 text-[11px] text-muted md:w-[min(1340px,calc(100%-80px))] md:flex-row">
