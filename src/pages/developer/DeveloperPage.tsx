@@ -288,7 +288,7 @@ function Earnings({ plugins }: { plugins: Plugin[] }) {
           `${r.plugin_name} / ${r.model}`, <span className="tabular-nums">{amount(r.billed_revenue_cny)}</span>, <span className="tabular-nums">{amount(r.accrued_earnings_cny)}</span>,
           <Button size="sm" onClick={() => setDetail(r)}>查看</Button>,
         ])} />}
-      <p className="mt-4 text-xs text-muted">我的收益按用户实际扣款与约定比例计算，尚未结算打款。</p>
+      <p className="mt-4 text-xs text-muted">新规则按付费余额消费的利润计提：先扣 BD 分佣，再分剩余利润的 40%。历史收益保留原规则。<a href="/#wallet" className="underline">前往邀请与收益中心查看可用余额、转余额或申请提现</a>。</p>
       <Dialog open={!!detail} onOpenChange={o => { if (!o) setDetail(null) }}>
         {detail && (
           <DialogContent title={`${detail.plugin_name} · 用量明细`} className="max-w-lg">

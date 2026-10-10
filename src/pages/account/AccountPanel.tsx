@@ -159,7 +159,7 @@ export function AccountPanel({ profile, onRecharge, onSignedOut }: { profile: Pr
       <Fold title="余额变动">
         {!w?.entries?.length ? <p className="text-sm text-muted">{wallet.isPending ? '正在读取…' : '暂无余额变动。'}</p> : (
           <ul className="grid gap-2 text-sm text-muted">
-            {w.entries.map((r, i) => <li key={i} className="tabular-nums">{time(r.created_at)} · {r.kind === 'consumption' ? '消费' : r.kind === 'signup_bonus' ? '注册赠送' : '充值'} {formatMoney(r.amount_cny, true)}</li>)}
+            {w.entries.map((r, i) => <li key={i} className="tabular-nums">{time(r.created_at)} · {({consumption:'消费',signup_bonus:'注册赠送',admin_grant:'平台补发',earnings_conversion:'收益转余额',service_refund:'消费退款',payment_refund:'充值退款'} as Readonly<Record<string,string>>)[r.kind] ?? '充值'} {formatMoney(r.amount_cny, true)}</li>)}
           </ul>
         )}
       </Fold>

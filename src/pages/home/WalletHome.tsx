@@ -8,6 +8,7 @@ import {
   type PaymentOptions, type PaymentOrders,
 } from '@/shared/billing'
 import { queryClient, useCurrentUser, useWallet } from '@/shared/query'
+import { CommissionPanel } from './CommissionPanel'
 
 interface UsageRow { id: string; model: string; created_at: string; charged_cny: string | null; billing_state?: string }
 interface Usage { rows: UsageRow[] }
@@ -107,6 +108,7 @@ export function WalletHome() {
             )}
           </section>
 
+          {user.data && <CommissionPanel userId={user.data.id} />}
           <details className="mt-5 rounded-panel border border-line bg-card p-6 md:p-8">
             <summary className={cn('cursor-pointer font-bold', focusRing)}>最近充值记录</summary>
             {!orders.data?.rows.length ? <p className="mt-3 text-sm text-muted">{orders.isPending ? '正在读取…' : '还没有充值记录。'}</p> : <ul className="mt-4 grid gap-3 text-sm">

@@ -1,7 +1,7 @@
 {
   "_source": {
     "repo": "ipzsk-api-gateway",
-    "commit": "51b26ec"
+    "commit": "9447086"
   },
   "auth_kinds": {
     "bearer": {
@@ -57,6 +57,14 @@
       ],
       "method": "POST",
       "path": "/api/account/captcha/verify"
+    },
+    {
+      "auth": "public",
+      "errors": [
+        "referral_not_found"
+      ],
+      "method": "GET",
+      "path": "/api/account/referral/:code"
     },
     {
       "auth": "public",
@@ -967,6 +975,7 @@
         "invalid_reference_upload",
         "invalid_request",
         "invalid_script",
+        "invalid_skill_calls",
         "invalid_source",
         "invalid_status",
         "invalid_text",
@@ -991,6 +1000,8 @@
         "request_already_received",
         "request_not_found",
         "script_too_long",
+        "skill_plugin_conflict",
+        "skill_version_denied",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -1008,6 +1019,42 @@
       ],
       "method": "POST",
       "path": "/api/me/chat/completions"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required"
+      ],
+      "method": "GET",
+      "path": "/api/me/commissions"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "conversion_minimum",
+        "customer_login_required",
+        "earnings_frozen",
+        "idempotency_conflict",
+        "insufficient_earnings",
+        "invalid_amount",
+        "invalid_id"
+      ],
+      "method": "POST",
+      "path": "/api/me/commissions/convert"
+    },
+    {
+      "auth": "cookie",
+      "errors": [
+        "customer_login_required",
+        "earnings_frozen",
+        "idempotency_conflict",
+        "insufficient_earnings",
+        "invalid_amount",
+        "invalid_id",
+        "payout_minimum_or_precision"
+      ],
+      "method": "POST",
+      "path": "/api/me/commissions/payouts"
     },
     {
       "auth": "cookie_or_bearer",
@@ -1364,6 +1411,7 @@
         "invalid_reference_upload",
         "invalid_request",
         "invalid_script",
+        "invalid_skill_calls",
         "invalid_source",
         "invalid_status",
         "invalid_text",
@@ -1388,6 +1436,8 @@
         "request_already_received",
         "request_not_found",
         "script_too_long",
+        "skill_plugin_conflict",
+        "skill_version_denied",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -1482,6 +1532,7 @@
         "invalid_reference_upload",
         "invalid_request",
         "invalid_script",
+        "invalid_skill_calls",
         "invalid_source",
         "invalid_status",
         "invalid_text",
@@ -1506,6 +1557,8 @@
         "request_already_received",
         "request_not_found",
         "script_too_long",
+        "skill_plugin_conflict",
+        "skill_version_denied",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2146,6 +2199,7 @@
         "invalid_reference_upload",
         "invalid_request",
         "invalid_script",
+        "invalid_skill_calls",
         "invalid_source",
         "invalid_status",
         "invalid_text",
@@ -2170,6 +2224,8 @@
         "request_already_received",
         "request_not_found",
         "script_too_long",
+        "skill_plugin_conflict",
+        "skill_version_denied",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2325,6 +2381,7 @@
         "invalid_reference_upload",
         "invalid_request",
         "invalid_script",
+        "invalid_skill_calls",
         "invalid_source",
         "invalid_status",
         "invalid_text",
@@ -2349,6 +2406,8 @@
         "request_already_received",
         "request_not_found",
         "script_too_long",
+        "skill_plugin_conflict",
+        "skill_version_denied",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2518,6 +2577,7 @@
         "invalid_reference_upload",
         "invalid_request",
         "invalid_script",
+        "invalid_skill_calls",
         "invalid_source",
         "invalid_status",
         "invalid_text",
@@ -2542,6 +2602,8 @@
         "request_already_received",
         "request_not_found",
         "script_too_long",
+        "skill_plugin_conflict",
+        "skill_version_denied",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2637,6 +2699,7 @@
         "invalid_reference_upload",
         "invalid_request",
         "invalid_script",
+        "invalid_skill_calls",
         "invalid_source",
         "invalid_status",
         "invalid_text",
@@ -2661,6 +2724,8 @@
         "request_already_received",
         "request_not_found",
         "script_too_long",
+        "skill_plugin_conflict",
+        "skill_version_denied",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2744,6 +2809,7 @@
         "invalid_reference_upload",
         "invalid_request",
         "invalid_script",
+        "invalid_skill_calls",
         "invalid_source",
         "invalid_status",
         "invalid_text",
@@ -2768,6 +2834,8 @@
         "request_already_received",
         "request_not_found",
         "script_too_long",
+        "skill_plugin_conflict",
+        "skill_version_denied",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2851,6 +2919,7 @@
         "invalid_reference_upload",
         "invalid_request",
         "invalid_script",
+        "invalid_skill_calls",
         "invalid_source",
         "invalid_status",
         "invalid_text",
@@ -2875,6 +2944,8 @@
         "request_already_received",
         "request_not_found",
         "script_too_long",
+        "skill_plugin_conflict",
+        "skill_version_denied",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -2958,6 +3029,7 @@
         "invalid_reference_upload",
         "invalid_request",
         "invalid_script",
+        "invalid_skill_calls",
         "invalid_source",
         "invalid_status",
         "invalid_text",
@@ -2982,6 +3054,8 @@
         "request_already_received",
         "request_not_found",
         "script_too_long",
+        "skill_plugin_conflict",
+        "skill_version_denied",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -3065,6 +3139,7 @@
         "invalid_reference_upload",
         "invalid_request",
         "invalid_script",
+        "invalid_skill_calls",
         "invalid_source",
         "invalid_status",
         "invalid_text",
@@ -3089,6 +3164,8 @@
         "request_already_received",
         "request_not_found",
         "script_too_long",
+        "skill_plugin_conflict",
+        "skill_version_denied",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -3196,6 +3273,7 @@
         "invalid_reference_upload",
         "invalid_request",
         "invalid_script",
+        "invalid_skill_calls",
         "invalid_source",
         "invalid_status",
         "invalid_text",
@@ -3220,6 +3298,8 @@
         "request_already_received",
         "request_not_found",
         "script_too_long",
+        "skill_plugin_conflict",
+        "skill_version_denied",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -3328,6 +3408,7 @@
         "invalid_reference_upload",
         "invalid_request",
         "invalid_script",
+        "invalid_skill_calls",
         "invalid_source",
         "invalid_status",
         "invalid_text",
@@ -3352,6 +3433,8 @@
         "request_already_received",
         "request_not_found",
         "script_too_long",
+        "skill_plugin_conflict",
+        "skill_version_denied",
         "thread_not_found",
         "too_many_active",
         "too_many_reference_images",
@@ -3703,9 +3786,27 @@
       ]
     },
     {
+      "code": "chargeback_requires_manual_resolution",
+      "status": [
+        409
+      ]
+    },
+    {
       "code": "conflicting_parameter",
       "status": [
         400
+      ]
+    },
+    {
+      "code": "conversion_minimum",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "conversion_not_in_review",
+      "status": [
+        409
       ]
     },
     {
@@ -3768,6 +3869,24 @@
       "code": "duplicate_asset",
       "status": [
         400
+      ]
+    },
+    {
+      "code": "duplicate_payment_source",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "earnings_frozen",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "earnings_frozen_or_reversed",
+      "status": [
+        409
       ]
     },
     {
@@ -3894,6 +4013,12 @@
       "code": "insufficient_balance",
       "status": [
         402,
+        409
+      ]
+    },
+    {
+      "code": "insufficient_earnings",
+      "status": [
         409
       ]
     },
@@ -4091,6 +4216,12 @@
     },
     {
       "code": "invalid_charge",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_conversion_resolution",
       "status": [
         400
       ]
@@ -4342,6 +4473,12 @@
       ]
     },
     {
+      "code": "invalid_opening_sources",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "invalid_package_name",
       "status": [
         400
@@ -4390,6 +4527,18 @@
       ]
     },
     {
+      "code": "invalid_payout_state",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_payout_transition",
+      "status": [
+        409
+      ]
+    },
+    {
       "code": "invalid_plugin",
       "status": [
         400
@@ -4414,6 +4563,12 @@
       ]
     },
     {
+      "code": "invalid_policy",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "invalid_position",
       "status": [
         400
@@ -4421,6 +4576,12 @@
     },
     {
       "code": "invalid_price",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_profile",
       "status": [
         400
       ]
@@ -4481,6 +4642,12 @@
       "code": "invalid_reference_upload",
       "status": [
         502
+      ]
+    },
+    {
+      "code": "invalid_refund_type",
+      "status": [
+        400
       ]
     },
     {
@@ -4550,7 +4717,19 @@
       ]
     },
     {
+      "code": "invalid_skill_calls",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "invalid_skill_ref",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_skill_version",
       "status": [
         400
       ]
@@ -4672,6 +4851,7 @@
     {
       "code": "lanehub_account_missing",
       "status": [
+        409,
         503
       ]
     },
@@ -4772,6 +4952,18 @@
       ]
     },
     {
+      "code": "opening_balance_requires_idle_account",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "opening_sources_exceed_balance",
+      "status": [
+        409
+      ]
+    },
+    {
       "code": "origin_denied",
       "status": [
         403
@@ -4793,6 +4985,12 @@
       "code": "password_too_short",
       "status": [
         400
+      ]
+    },
+    {
+      "code": "pause_commissions_before_source_migration",
+      "status": [
+        409
       ]
     },
     {
@@ -4838,9 +5036,21 @@
       ]
     },
     {
+      "code": "payment_sources_unresolved",
+      "status": [
+        409
+      ]
+    },
+    {
       "code": "payment_wallet_unavailable",
       "status": [
         503
+      ]
+    },
+    {
+      "code": "payout_minimum_or_precision",
+      "status": [
+        400
       ]
     },
     {
@@ -4952,7 +5162,37 @@
       ]
     },
     {
+      "code": "referral_not_found",
+      "status": [
+        404
+      ]
+    },
+    {
       "code": "refund_exceeds_charge",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "refund_exceeds_payment",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "refund_exceeds_unused_principal",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "refund_pending_usage",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "refund_reference_conflict",
       "status": [
         409
       ]
@@ -5033,6 +5273,24 @@
       "code": "skill_already_owned",
       "status": [
         409
+      ]
+    },
+    {
+      "code": "skill_owner_conflict",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "skill_plugin_conflict",
+      "status": [
+        403
+      ]
+    },
+    {
+      "code": "skill_version_denied",
+      "status": [
+        403
       ]
     },
     {
@@ -5177,6 +5435,12 @@
       "code": "unsupported_protocol",
       "status": [
         404
+      ]
+    },
+    {
+      "code": "unverified_payment_source",
+      "status": [
+        409
       ]
     },
     {
