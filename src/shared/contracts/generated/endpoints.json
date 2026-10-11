@@ -1,7 +1,7 @@
 {
   "_source": {
     "repo": "ipzsk-api-gateway",
-    "commit": "9447086"
+    "commit": "45781a8"
   },
   "auth_kinds": {
     "bearer": {
@@ -3787,6 +3787,12 @@
     },
     {
       "code": "chargeback_requires_manual_resolution",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "commission_sources_migration_required",
       "status": [
         409
       ]
