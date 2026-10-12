@@ -6,8 +6,8 @@ export const DEV_PROFILE_KEY = ['developer', 'profile'] as const
 // Ported verbatim from legacy developer.js.
 export const DEV_LABELS: Record<string, string> = { pending: '待审核', approved: '已批准', rejected: '已驳回', disabled: '已停用', published: '已上架', withdrawn: '已撤回 / 下架' }
 export const DEV_ERRORS: Record<string, string> = {
-  developer_approval_required: '需要管理员批准开发者申请。',
-  developer_application_exists: '已有申请，请等待审核。',
+  developer_approval_required: '插件开发者身份需要管理员邀请开通。',
+  developer_invitation_required: '插件开发者身份只能由管理员邀请开通，请联系平台获取邀请链接。',
   published_metadata_locked: '已上架插件的名称需要管理员修改。',
   invalid_release_url: '请填写当前仓库的 GitHub Release 地址。',
   select_one_tgz_asset: '请提供 npm pack 生成的 .tgz 附件；多个附件时需指定名称。',
@@ -41,14 +41,13 @@ export function pluginStatus(p: Plugin) {
   return { status, newPending: Number(p.pending_versions) > 0 && Number(p.published_versions) > 0 }
 }
 
-/** Gate for a non-approved developer: title, body, and whether the apply form shows. */
+const INVITE_ONLY = '插件开发者只能由管理员邀请开通，没有自助申请入口。收到邀请链接后，用被邀请的账号登录并打开链接即可接受。'
+
+/** Gate for a non-approved developer. Self-application is closed; the only way in is an administrator invitation. */
 export function gateFor(profile: DevProfile | null) {
   if (profile?.state === 'approved') return null
-  return {
-    title: profile ? DEV_LABELS[profile.state] ?? profile.state : '申请成为开发者',
-    body: profile?.review_note ?? '审核通过后，可管理自己的插件并查看使用和收益数据。',
-    canApply: !profile || profile.state === 'rejected',
-  }
+  const title = !profile ? '插件开发者需管理员邀请' : profile.state === 'pending' ? '旧版申请待处理' : DEV_LABELS[profile.state] ?? profile.state
+  return { title, body: profile?.review_note || INVITE_ONLY }
 }
 
 export const canWithdraw = (r: Release) => ['pending', 'published'].includes(r.state) && !r.withdrawal_requested

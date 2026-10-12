@@ -6,6 +6,7 @@ import { queryClient } from '@/shared/query'
 import { AuthFlow, type Notice } from './AuthFlow'
 import { AccountPanel, type Profile } from './AccountPanel'
 import { RechargeDialog } from './Recharge'
+import { IdentityCard, captureInvitation, pendingInvitation } from './RoleInvitation'
 import { AccountError, PROFILE_KEY, call, resolveNext } from './lib'
 
 /** Signed-in profile, or null when signed out / unverified (legacy loadAccount). */
@@ -27,14 +28,16 @@ export function AccountPage() {
     queryFn: () => call<{ registration_ready?: boolean }>('/api/account/status').then(s => !!s?.registration_ready).catch(() => false),
     staleTime: Infinity, refetchOnWindowFocus: false,
   })
-  const [notice, setNotice] = useState<Notice | null>(null)
+  const [invitation] = useState(captureInvitation)
+  const [notice, setNotice] = useState<Notice | null>(invitation ? { text: '请登录收到邀请的账号，登录后在本页接受 BD / 插件开发者邀请。' } : null)
   const [recharge, setRecharge] = useState(() => new URLSearchParams(location.search).get('recharge') === '1')
   const signedIn = !!profile.data
 
   useEffect(() => { if (signedIn) document.title = '个人中心 · IPZSK' }, [signedIn])
   useEffect(() => { if (profile.isError) setNotice({ text: '暂时无法加载账户，请稍后刷新重试。', error: true }) }, [profile.isError])
 
-  const onSignedIn = () => location.replace(resolveNext(new URLSearchParams(location.search).get('next')))
+  // An invitation opened before login is accepted on this page, so stay here instead of following ?next=.
+  const onSignedIn = () => location.replace(pendingInvitation() ? '/account' : resolveNext(new URLSearchParams(location.search).get('next')))
   const onSignedOut = () => {
     queryClient.removeQueries({ queryKey: ['account'], predicate: q => q.queryKey[1] !== 'status' })
     queryClient.setQueryData(PROFILE_KEY, null)
@@ -46,7 +49,10 @@ export function AccountPage() {
       {profile.isPending ? (
         <div className="grid gap-4 rounded-panel border border-line bg-card p-8"><Skeleton className="h-8 w-40" /><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-12" /></div>
       ) : signedIn ? (
-        <AccountPanel profile={profile.data!} onRecharge={() => setRecharge(true)} onSignedOut={onSignedOut} />
+        <div className="grid min-w-0 grid-cols-1 gap-5">
+          <IdentityCard />
+          <AccountPanel profile={profile.data!} onRecharge={() => setRecharge(true)} onSignedOut={onSignedOut} />
+        </div>
       ) : (
         <AuthFlow ready={status.isPending ? null : status.data!} onSignedIn={onSignedIn} notice={notice} setNotice={setNotice} />
       )}

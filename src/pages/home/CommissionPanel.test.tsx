@@ -8,17 +8,20 @@ import { TooltipProvider } from '@/ui'
 
 vi.mock('@/shared/api', async importOriginal => ({ ...await importOriginal<typeof import('@/shared/api')>(), request: vi.fn() }))
 const summary = {
-  invitation_url: 'https://api.ipzsk.com/api/account/referral/fixture', referrals: 3, profile: { bd_active: true },
-  policy: { active: true, bd_share_bps: 2000, developer_share_bps: 3500, started_at: '2026-10-12T00:00:00Z', ends_at: '2027-10-12T00:00:00Z' },
+  invitation_url: 'https://api.ipzsk.com/api/account/referral/fixture', referrals: 3, profile: { bd_active: true }, developer: null,
+  policy: { bd_share_bps: 2000, developer_share_bps: 4000, developer_basis: 'remaining_profit', active: true },
   balance: { total_cny: '220.12345678', available_cny: '200', withdrawable_cny: '180', frozen: false },
-  ledger: [], payouts: [], conversions: [],
+  earned: { bd: '20.00000000' }, ledger: [], payouts: [], conversions: [],
 } as const
-function mount(frozen = false, kind?: 'bd' | 'developer') {
-  const data = { ...summary, balance: { ...summary.balance, frozen }, ledger: kind ? [{ kind, amount_cny: kind === 'bd' ? '20.00000000' : '35.00000000', created_at: '2026-10-10T00:00:00Z', available_at: '2026-11-09T00:00:00Z' }] : [] }
+function mount(frozen = false, kind?: 'bd' | 'developer', view?: 'wallet' | 'developer') {
+  const data = { ...summary, balance: { ...summary.balance, frozen },
+    ...(kind === 'developer' ? { profile: { bd_active: false }, developer: { state: 'approved', display_name: 'Author' }, earned: { developer: '16.00000000' } } : {}),
+    ledger: kind ? [{ kind, amount_cny: kind === 'bd' ? '20.00000000' : '16.00000000', created_at: '2026-10-10T00:00:00Z', available_at: '2026-11-09T00:00:00Z',
+      request_id: '12345678-0000-4000-8000-000000000000', plugin_name: kind === 'developer' ? '海报插件' : null }] : [] }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   client.setQueryData(['commissions', 'fixture'], data)
   vi.mocked(request).mockResolvedValue(data)
-  return render(<QueryClientProvider client={client}><TooltipProvider><CommissionPanel userId="fixture" /></TooltipProvider></QueryClientProvider>)
+  return render(<QueryClientProvider client={client}><TooltipProvider><CommissionPanel userId="fixture" view={view} /></TooltipProvider></QueryClientProvider>)
 }
 afterEach(() => { cleanup(); vi.clearAllMocks() })
 
@@ -54,21 +57,47 @@ describe('commission wallet', () => {
     await waitFor(() => expect(screen.getByLabelText('操作金额（元）')).toBeTruthy())
     expect((screen.getByLabelText('操作金额（元）') as HTMLInputElement).value).toBe('')
   })
-  for (const [kind, label, amount] of [['bd', 'BD 消费分佣', '¥20.00'], ['developer', '插件开发者消费分佣', '¥35.00']] as const) {
+  for (const [kind, label, amount] of [['bd', 'BD 消费分佣', '¥20.00'], ['developer', '插件开发者利润分佣', '¥16.00']] as const) {
     it(`${kind} sees the earned amount and maturity without internal cost calculations`, async () => {
       mount(false, kind)
       await userEvent.click(screen.getByText('最近收益流水'))
       expect(screen.getByText(label)).toBeTruthy()
-      expect(screen.getByText(amount)).toBeTruthy()
+      expect(screen.getByRole('cell', { name: amount })).toBeTruthy()
       expect(screen.getByText('可用时间')).toBeTruthy()
       expect(screen.queryByText(/实际接口成本|本金占比|分佣计算明细/)).toBeNull()
     })
   }
+  it('BD wallet view shows the identity, invitation link and cumulative BD commission', () => {
+    mount(false, 'bd')
+    expect(screen.getByText('当前身份：')).toBeTruthy()
+    expect(screen.getByText('BD')).toBeTruthy()
+    expect(screen.getByText(/你是 BD：通过此链接注册的用户/)).toBeTruthy()
+    expect(screen.getByText('BD 消费分佣累计')).toBeTruthy()
+    expect(screen.queryByText('开发者利润分佣累计')).toBeNull()
+  })
+  it('developer view frames the shared account for the developer centre and attributes rows to plugins', async () => {
+    mount(false, 'developer', 'developer')
+    expect(screen.getByRole('heading', { name: '开发者收益账户' })).toBeTruthy()
+    expect(screen.getByText('插件开发者')).toBeTruthy()
+    expect(screen.queryByDisplayValue(summary.invitation_url)).toBeNull()
+    expect(screen.getByText('开发者利润分佣累计')).toBeTruthy()
+    await userEvent.click(screen.getByText('最近收益流水'))
+    expect(screen.getByText('海报插件')).toBeTruthy()
+  })
+  it('ordinary users are told BD and developer access is invitation-only', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    client.setQueryData(['commissions', 'fixture'], { ...summary, profile: { bd_active: false }, earned: {} })
+    render(<QueryClientProvider client={client}><TooltipProvider><CommissionPanel userId="fixture" /></TooltipProvider></QueryClientProvider>)
+    expect(screen.getByText('普通邀请人')).toBeTruthy()
+    expect(screen.getByText('BD 与插件开发者由平台管理员邀请开通。')).toBeTruthy()
+  })
   it('shows invitation, threshold, observation period and freezes both financial actions', () => {
     mount(true)
     expect(screen.getByDisplayValue(summary.invitation_url)).toBeTruthy()
     expect(screen.getByText(/累计净充值超过 10 元/)).toBeTruthy()
-    expect(screen.getByText(/BD 20% · 插件开发者 35%/)).toBeTruthy()
+    expect(screen.getByText(/BD 取得付费消费的 20% · 插件开发者取得剩余利润的 40%/)).toBeTruthy()
+    expect(screen.getByText(/开发者收益待成本确认后补计/)).toBeTruthy()
+    expect(screen.queryByText(/一年|活动/)).toBeNull()
     expect(screen.getByText(/收益观察 30 天/)).toBeTruthy()
     expect(screen.getByRole('button', { name: '转使用余额' }).getAttribute('aria-disabled')).toBe('true')
     expect(screen.getByRole('button', { name: '申请提现' }).getAttribute('aria-disabled')).toBe('true')

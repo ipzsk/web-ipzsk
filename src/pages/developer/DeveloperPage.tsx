@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, LogIn, Plus, Puzzle, RefreshCw, Search, UserRound } from 'lucide-react'
 import { Badge, Button, Dialog, DialogContent, DialogFooter, EmptyState, ErrorState, Input, Skeleton, buttonVariants, cn, focusRing, toast } from '@/ui'
 import { loginUrl } from '@/shared/api'
-import { queryClient } from '@/shared/query'
+import { queryClient, useCurrentUser } from '@/shared/query'
+import { CommissionPanel } from '@/pages/home/CommissionPanel'
 import {
   DEV_LABELS, DEV_PROFILE_KEY, DevError, amount, canWithdraw, count, defaultRange, devApi, gateFor, pluginStatus,
   type DevProfile, type Plugin, type Release, type UsageRow,
@@ -78,7 +79,7 @@ export function DeveloperPage() {
           : profile.isError ? <ErrorState reason={profile.error.message} action={{ label: '重试', onClick: () => void profile.refetch() }} />
             : data === 'signed-out' ? (
               <section className="rounded-card border border-line bg-card p-6">
-                <p className="text-sm">使用 IPZSK 账户登录，申请成为插件开发者。</p>
+                <p className="text-sm">插件开发者由管理员邀请开通。使用被邀请的 IPZSK 账户登录，管理插件并查看开发者分佣。</p>
                 <a href={loginUrl('/developer')} className={cn(buttonVariants({ variant: 'primary' }), 'mt-4')}><LogIn aria-hidden />登录 / 注册</a>
               </section>
             ) : approved ? <Workspace profile={data as DevProfile} /> : <Gate profile={data as DevProfile | null} />}
@@ -89,13 +90,6 @@ export function DeveloperPage() {
 
 function Gate({ profile }: { profile: DevProfile | null }) {
   const gate = gateFor(profile)!
-  const [name, setName] = useState(profile?.display_name ?? '')
-  const action = useAction()
-  const submit = (e: FormEvent) => {
-    e.preventDefault()
-    if (!name.trim()) { action.setError('请填写开发者名称。'); return }
-    void action.run('apply', async () => { await devApi('/apply', { display_name: name }); await refreshAll() })
-  }
   return (
     <section className="rounded-card border border-line bg-card p-6 max-sm:p-4">
       <div className="flex items-center gap-2">
@@ -103,18 +97,14 @@ function Gate({ profile }: { profile: DevProfile | null }) {
         {profile && <Badge tone={profile.state === 'rejected' || profile.state === 'disabled' ? 'danger' : 'warning'}>{DEV_LABELS[profile.state] ?? profile.state}</Badge>}
       </div>
       <p className="mt-2 text-sm leading-6 text-muted">{gate.body}</p>
-      {gate.canApply && (
-        <form onSubmit={submit} noValidate className="mt-5 grid max-w-md gap-3">
-          <Input label="开发者名称" name="display_name" maxLength={100} required value={name} onChange={e => { setName(e.target.value); action.setError(null) }} error={action.error ?? undefined} />
-          <div><Button type="submit" variant="primary" loading={action.busy === 'apply'} loadingText="正在提交">提交申请</Button></div>
-        </form>
-      )}
+      <a href="/account" className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'mt-4')}>查看我的身份与邀请</a>
     </section>
   )
 }
 
 function Workspace({ profile }: { profile: DevProfile }) {
   const plugins = useQuery({ queryKey: ['developer', 'plugins'], queryFn: async () => (await devApi<{ plugins: Plugin[] }>('/plugins')).plugins })
+  const user = useCurrentUser()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const selected = plugins.data?.find(p => p.id === selectedId) ?? null
@@ -150,6 +140,7 @@ function Workspace({ profile }: { profile: DevProfile }) {
       </Card>
 
       <Earnings plugins={plugins.data ?? []} />
+      {user.data && <CommissionPanel userId={user.data.id} view="developer" />}
       {selected && <ReleasesDialog plugin={selected} onClose={() => setSelectedId(null)} />}
     </div>
   )
@@ -288,7 +279,7 @@ function Earnings({ plugins }: { plugins: Plugin[] }) {
           `${r.plugin_name} / ${r.model}`, <span className="tabular-nums">{amount(r.billed_revenue_cny)}</span>, <span className="tabular-nums">{amount(r.accrued_earnings_cny)}</span>,
           <Button size="sm" onClick={() => setDetail(r)}>查看</Button>,
         ])} />}
-      <p className="mt-4 text-xs text-muted">活动期内按有效付费 API 消费计提：插件开发者 35%，BD 20%。赠送额度不分佣，历史收益保留原规则。<a href="/#wallet" className="underline">前往邀请与收益中心查看可用余额、转余额或申请提现</a>。</p>
+      <p className="mt-4 text-xs text-muted">新规则下插件开发者取得剩余利润的 40%：有效付费 API 消费减对应的实际上游成本和 BD 分佣（消费的 20%），不低于 0；上游成本确认后计提。赠送额度不分佣，历史收益保留原规则。可用余额、转余额和提现见下方收益账户。</p>
       <Dialog open={!!detail} onOpenChange={o => { if (!o) setDetail(null) }}>
         {detail && (
           <DialogContent title={`${detail.plugin_name} · 用量明细`} className="max-w-lg">

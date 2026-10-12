@@ -24,7 +24,13 @@ e2eDescribe('commission operations console', () => {
       let body: unknown = {}
       if (path.endsWith('/session')) body = { role: 'superadmin', username: 'fixture' }
       else if (path.endsWith('/overview')) body = { accounts: { remain_credits: 0, stale: 0 }, requests: {}, chart: [], recent: [], active: 0, queue: 0 }
-      else if (path.endsWith('/commissions')) body = { policy: { enabled: false }, profiles: [{ user_id: 'fixture-bd', name: '测试 BD', bd_active: true, frozen: false }],
+      else if (path.endsWith('/commissions/invitations') && route.request().method() === 'GET') body = { rows: [{ id: 'fixture-invite', role: 'developer', user_id: 'fixture-dev', email: 'dev@example.com',
+        name: '测试开发者', state: 'pending', reason: 'fixture invite', created_at: '2026-10-12T00:00:00Z', expires_at: '2026-10-19T00:00:00Z', accepted_at: null, revoked_at: null, created_by: 'fixture', revoked_by: null }] }
+      else if (path.endsWith('/commissions/invitations')) {
+        writes.push({ path, body: route.request().postDataJSON() })
+        body = { invitation: { id: 'fixture-new', role: 'bd', email: 'bd@example.com', expires_at: '2026-10-19T00:00:00Z' }, invitation_url: 'https://www.ipzsk.com/account#invite=' + 'a'.repeat(43) }
+      }
+      else if (path.endsWith('/commissions')) body ={ policy: { enabled: false }, profiles: [{ user_id: 'fixture-bd', name: '测试 BD', bd_active: true, frozen: false }],
         payouts: [{ id: 'fixture-payout', name: '测试 BD', amount_cny: '100', state, created_at: '2026-10-10T00:00:00Z' }], conversions: [], accounts: [],
         requests: [{ request_id: 'fixture-request', charged_cny: '100', paid_cny: '100', bd_cny: '12', developer_cny: '19.2', state: 'accrued' }] }
       else if (route.request().method() === 'POST') {
@@ -47,5 +53,22 @@ e2eDescribe('commission operations console', () => {
     expect(writes).toEqual([{ path: '/admin/api/commissions/payouts/fixture-payout', body: { reference: 'verified-audit-fixture', state: 'approved' } }])
     expect(t.errors).toEqual([])
     await shot(page, 'commissions-admin')
+  })
+  it('lists invitations with status and shows a new link exactly once; BD cannot be switched on directly', async () => {
+    const { page } = t
+    writes.length = 0
+    await page.getByRole('heading', { name: 'BD 与插件开发者邀请' }).waitFor()
+    await page.getByRole('cell', { name: '待接受', exact: true }).waitFor()
+    expect(await page.getByRole('button', { name: '开通 BD', exact: true }).count()).toBe(0)
+    await page.getByRole('button', { name: '发起邀请', exact: true }).click()
+    await page.getByLabel('身份').selectOption('bd')
+    await page.getByLabel('被邀请用户的邮箱或用户 ID').fill('BD@Example.com')
+    await page.getByLabel('操作依据（至少 5 字）').fill('fixture BD invitation')
+    await page.getByRole('button', { name: '确认保存', exact: true }).click()
+    expect(await page.getByLabel('邀请链接').inputValue()).toContain('/account#invite=')
+    expect(writes).toEqual([{ path: '/admin/api/commissions/invitations', body: { role: 'bd', target: 'BD@Example.com', reason: 'fixture BD invitation' } }])
+    await page.getByRole('button', { name: '关闭', exact: true }).click()
+    expect(await page.getByLabel('邀请链接').count()).toBe(0)
+    expect(t.errors).toEqual([])
   })
 })

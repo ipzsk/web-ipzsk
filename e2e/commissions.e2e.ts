@@ -12,9 +12,10 @@ for (const viewport of [DESKTOP, MOBILE]) {
       if (path === '/api/me/payments/options') return [200, { enabled: false, packs: [] }]
       if (path === '/api/me/usage' || path === '/api/me/payments/orders') return [200, { rows: [] }]
       if (path === '/api/me/commissions') return [200, { invitation_url: 'https://api.ipzsk.com/api/account/referral/0123456789abcdef0123456789abcdef', referrals: 2,
-        profile: { bd_active: role === 'bd' }, balance: { total_cny: '220', available_cny: '200', withdrawable_cny: '180', frozen: false },
-        policy: { active: true, bd_share_bps: 2000, developer_share_bps: 3500, started_at: '2026-10-12T00:00:00Z', ends_at: '2027-10-12T00:00:00Z' },
-        ledger: [{ kind: role, amount_cny: role === 'bd' ? '20.00000000' : '35.00000000', created_at: '2026-09-01T00:00:00Z', available_at: '2026-10-01T00:00:00Z' }], conversions, payouts: [] }]
+        profile: { bd_active: role === 'bd' }, developer: role === 'developer' ? { state: 'approved', display_name: 'Author' } : null,
+        earned: { [role]: role === 'bd' ? '20.00000000' : '16.00000000' }, balance: { total_cny: '220', available_cny: '200', withdrawable_cny: '180', frozen: false },
+        policy: { bd_share_bps: 2000, developer_share_bps: 4000, developer_basis: 'remaining_profit', active: true },
+        ledger: [{ kind: role, amount_cny: role === 'bd' ? '20.00000000' : '16.00000000', created_at: '2026-09-01T00:00:00Z', available_at: '2026-10-01T00:00:00Z' }], conversions, payouts: [] }]
       if (method === 'POST' && path === '/api/me/commissions/convert') {
         const row = { id: 'conversion-fixture', amount_cny: '20', state: 'applied', created_at: '2026-10-10T00:00:00Z' }
         conversions.push(row); return [200, row]
@@ -35,8 +36,8 @@ for (const viewport of [DESKTOP, MOBILE]) {
       await page.getByText('转余额与提现记录', { exact: true }).click()
       await page.getByText('conversion-fixture', { exact: false }).waitFor()
       await page.getByText('最近收益流水', { exact: true }).click()
-      await page.getByRole('cell', { name: role === 'bd' ? 'BD 消费分佣' : '插件开发者消费分佣', exact: true }).waitFor()
-      await page.getByRole('cell', { name: role === 'bd' ? '¥20.00' : '¥35.00', exact: true }).waitFor()
+      await page.getByRole('cell', { name: role === 'bd' ? 'BD 消费分佣' : '插件开发者利润分佣', exact: true }).waitFor()
+      await page.getByRole('cell', { name: role === 'bd' ? '¥20.00' : '¥16.00', exact: true }).waitFor()
       expect(await page.getByText('分佣计算明细', { exact: true }).count()).toBe(0)
       expect(t.apiCalls.filter(call => call.method === 'POST' && call.url.endsWith('/convert'))).toHaveLength(1)
       expect(await overflowX(page)).toBe(0)
