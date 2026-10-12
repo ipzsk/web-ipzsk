@@ -9,11 +9,12 @@ import { TooltipProvider } from '@/ui'
 vi.mock('@/shared/api', async importOriginal => ({ ...await importOriginal<typeof import('@/shared/api')>(), request: vi.fn() }))
 const summary = {
   invitation_url: 'https://api.ipzsk.com/api/account/referral/fixture', referrals: 3, profile: { bd_active: true },
+  policy: { active: true, bd_share_bps: 2000, developer_share_bps: 3500, started_at: '2026-10-12T00:00:00Z', ends_at: '2027-10-12T00:00:00Z' },
   balance: { total_cny: '220.12345678', available_cny: '200', withdrawable_cny: '180', frozen: false },
   ledger: [], payouts: [], conversions: [],
 } as const
 function mount(frozen = false, kind?: 'bd' | 'developer') {
-  const data = { ...summary, balance: { ...summary.balance, frozen }, ledger: kind ? [{ kind, amount_cny: kind === 'bd' ? '12.00000000' : '19.20000000', created_at: '2026-10-10T00:00:00Z', available_at: '2026-11-09T00:00:00Z' }] : [] }
+  const data = { ...summary, balance: { ...summary.balance, frozen }, ledger: kind ? [{ kind, amount_cny: kind === 'bd' ? '20.00000000' : '35.00000000', created_at: '2026-10-10T00:00:00Z', available_at: '2026-11-09T00:00:00Z' }] : [] }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   client.setQueryData(['commissions', 'fixture'], data)
   vi.mocked(request).mockResolvedValue(data)
@@ -53,7 +54,7 @@ describe('commission wallet', () => {
     await waitFor(() => expect(screen.getByLabelText('操作金额（元）')).toBeTruthy())
     expect((screen.getByLabelText('操作金额（元）') as HTMLInputElement).value).toBe('')
   })
-  for (const [kind, label, amount] of [['bd', 'BD 利润分佣', '¥12.00'], ['developer', '开发者利润分佣', '¥19.20']] as const) {
+  for (const [kind, label, amount] of [['bd', 'BD 消费分佣', '¥20.00'], ['developer', '插件开发者消费分佣', '¥35.00']] as const) {
     it(`${kind} sees the earned amount and maturity without internal cost calculations`, async () => {
       mount(false, kind)
       await userEvent.click(screen.getByText('最近收益流水'))
@@ -67,6 +68,7 @@ describe('commission wallet', () => {
     mount(true)
     expect(screen.getByDisplayValue(summary.invitation_url)).toBeTruthy()
     expect(screen.getByText(/累计净充值超过 10 元/)).toBeTruthy()
+    expect(screen.getByText(/BD 20% · 插件开发者 35%/)).toBeTruthy()
     expect(screen.getByText(/收益观察 30 天/)).toBeTruthy()
     expect(screen.getByRole('button', { name: '转使用余额' }).getAttribute('aria-disabled')).toBe('true')
     expect(screen.getByRole('button', { name: '申请提现' }).getAttribute('aria-disabled')).toBe('true')

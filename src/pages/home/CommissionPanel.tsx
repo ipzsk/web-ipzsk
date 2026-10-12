@@ -15,13 +15,14 @@ interface CommissionSummary {
   readonly invitation_url: string
   readonly referrals: number
   readonly profile: { readonly bd_active: boolean }
+  readonly policy: { readonly active: boolean; readonly bd_share_bps: number; readonly developer_share_bps: number; readonly started_at: string | null; readonly ends_at: string | null }
   readonly balance: { readonly total_cny: string; readonly available_cny: string; readonly withdrawable_cny: string; readonly frozen: boolean }
   readonly ledger: readonly { readonly kind: string; readonly amount_cny: string; readonly created_at: string; readonly available_at: string }[]
   readonly payouts: readonly Transaction[]
   readonly conversions: readonly Transaction[]
 }
 const labels: Readonly<Record<string, string>> = {
-  bd: 'BD 利润分佣', developer: '开发者利润分佣', invitation: '邀请奖励', conversion: '转使用余额', payout: '提现',
+  bd: 'BD 消费分佣', developer: '插件开发者消费分佣', invitation: '邀请奖励', conversion: '转使用余额', payout: '提现',
   requested: '待审核', approved: '待人工转账', paid: '已打款', cancelled: '已取消', pending: '待转入', applying: '正在转入', applied: '已转入', review: '待人工核对',
 }
 const errors: Readonly<Record<string, string>> = {
@@ -44,6 +45,10 @@ function CommissionAccountPanel({ userId }: { readonly userId: string }) {
   const [notice, setNotice] = useState<{ readonly text: string; readonly error: boolean } | null>(null)
   const attempt = useRef<Attempt | null>(null)
   const data = summary.data
+  const percent = (bps: number) => `${bps / 100}%`
+  const campaign = data?.policy.started_at && data.policy.ends_at
+    ? `${new Date(data.policy.started_at).toLocaleDateString('zh-CN')} 至 ${new Date(data.policy.ends_at).toLocaleDateString('zh-CN')}`
+    : '首次启用后持续一年'
 
   function propose(action: Action) {
     if (busy || data?.balance.frozen) return
@@ -85,10 +90,11 @@ function CommissionAccountPanel({ userId }: { readonly userId: string }) {
 
   return <section className="mt-5 rounded-panel border border-line bg-card p-6 md:p-8" aria-labelledby="commission-title">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="commission-title" className="text-lg font-bold">邀请与收益</h2><Button size="sm" variant="secondary" onClick={() => void summary.refetch()}>核对记录</Button></div>
-    <p className="mt-2 text-sm leading-6 text-muted">邀请的新用户累计净充值超过 10 元，奖励 5 元，每人一次。BD 和开发者按实际付费消费的利润分佣，赠额消费不分佣。</p>
+    <p className="mt-2 text-sm leading-6 text-muted">邀请的新用户累计净充值超过 10 元，奖励 5 元，每人一次。有效付费 API 消费中，BD 分 20%，插件开发者分 35%；赠送额度不分佣。</p>
     {summary.isPending ? <Skeleton className="mt-5 h-32" /> : summary.isError ? <ErrorState reason="收益加载失败，请重试。" action={{ label: '重试', onClick: () => void summary.refetch() }} /> : data && <>
       <label className="mt-5 block text-sm font-medium">我的邀请链接（已邀请 {data.referrals} 人）<Input className="mt-2" value={data.invitation_url} readOnly onFocus={event => event.currentTarget.select()} /></label>
-      {data.profile.bd_active && <p className="mt-2 text-sm text-muted">BD 身份已开通 · 利润的 20%</p>}
+      <p className="mt-2 text-sm text-muted">活动{data.policy.active ? '进行中' : '未启用或已结束'} · BD {percent(data.policy.bd_share_bps)} · 插件开发者 {percent(data.policy.developer_share_bps)} · {campaign}</p>
+      {data.profile.bd_active && <p className="mt-2 text-sm text-muted">BD 身份已开通</p>}
       <div className="mt-5 grid gap-4 sm:grid-cols-3">{[['收益余额', data.balance.total_cny], ['可转使用余额', data.balance.available_cny], ['本月可申请提现', data.balance.withdrawable_cny]].map(([label, amount]) => <div key={label}><p className="text-xs text-muted">{label}</p><p className="mt-1 text-xl font-bold tabular-nums">{formatMoney(amount, true)}</p></div>)}</div>
       <p className="mt-3 text-xs leading-5 text-muted">收益观察 30 天。上月已成熟收益按月结算，提现至少 100 元，平台审核后每月 15 日人工转账（非工作日顺延）。转为使用余额至少 0.01 元，转入后不能退回或再次分佣。</p>
       {data.balance.frozen && <p role="status" className="mt-3 text-sm text-danger">收益正在核对，转余额与提现暂时冻结。请联系平台。</p>}
