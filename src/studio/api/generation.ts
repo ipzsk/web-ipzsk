@@ -49,16 +49,30 @@ export class SubmitError extends Error {
   constructor(outcome: Exclude<SubmitOutcome, { status: 'accepted' }>) { super(outcome.error.message); this.outcome = outcome }
 }
 
-const RETRYABLE_CODES = new Set(['rate_limited', 'too_many_active', 'billing_unavailable'])
+/**
+ * Resending is safe: the gateway re-runs an item whose earlier attempt never ran upstream (same Idempotency-Key,
+ * gateway.mjs rerunnableAttempt) — insufficient balance after a top-up, rate limits, a refused upstream account.
+ */
+const RETRYABLE_CODES = new Set(['rate_limited', 'too_many_active', 'billing_unavailable', 'insufficient_balance', 'upstream_connect_failed',
+  'request_cancelled', 'upstream_http_401', 'upstream_http_402', 'upstream_http_403', 'upstream_http_429'])
+/**
+ * The gateway already holds a request for this item (`q:{item_id}`) that may have created an upstream task:
+ * a duplicate/conflict 409, a lost upstream response, or an upstream 5xx (its hold stays pending for review).
+ * Never resend — the item's generation record shows the real outcome and charge.
+ */
+const isRecorded = (e: ApiError) =>
+  (e.status === 409 && (e.code === 'request_already_received' || e.code === 'idempotency_conflict'))
+  || e.code === 'upstream_result_uncertain' || /^upstream_http_5\d\d$/.test(e.code)
 
-/** Only the gateway's explicit duplicate acknowledgement counts as accepted; other 409s are errors. */
 export function classify(error: unknown): SubmitOutcome {
   if (!(error instanceof ApiError)) return { status: 'retryable', error: { code: 'network_error', message: '网络异常，请重试' } }
-  if (error.status === 409 && error.code === 'request_already_received') return { status: 'accepted' }
+  if (isRecorded(error)) return { status: 'accepted' }
   const field = (error.body as { error?: { field?: unknown } } | null)?.error?.field
   const e = { code: error.code, message: error.message, ...(typeof field === 'string' && { field }) }
-  if (error.status === 0 || error.status >= 500 || error.status === 429 || RETRYABLE_CODES.has(error.code)) return { status: 'retryable', error: e }
-  return { status: 'rejected', error: e }
+  if (error.status === 0 || error.status === 429 || RETRYABLE_CODES.has(error.code)) return { status: 'retryable', error: e }
+  // Upstream 4xx other than the account-side ones above: the parameters were refused — edit before resending.
+  if (/^upstream_http_4\d\d$/.test(error.code) || error.status < 500) return { status: 'rejected', error: e }
+  return { status: 'retryable', error: e }
 }
 
 const avatarOutcome = (error: unknown): SubmitOutcome => {

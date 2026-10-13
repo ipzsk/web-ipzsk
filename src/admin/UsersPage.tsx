@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Coins, Plus, ShieldCheck, UserSearch, X } from 'lucide-react'
 import { Badge, Dialog, DialogContent, DialogFooter, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, EmptyState, ErrorState, Button, Input, Skeleton, Textarea, Tooltip, cn, focusRing, toast } from '@/ui'
 import { queryClient } from '@/shared/query'
 import { adminApi, type AdminUserDetail } from './api'
-import { GEN_STATUS_LABEL, ROLES, ROLE_LABEL, fmtPoints, fmtTime, grantIssues, revokeBlockReason, type Role } from './lib'
+import { GEN_STATUS_LABEL, ROLES, ROLE_LABEL, fmtPoints, fmtTime, grantIssues, grantKey, releaseGrantKey, revokeBlockReason, type Role } from './lib'
 import { Confirm, Drawer, FilterInput, KV, PageHeader } from './ui'
 import { useAdminMe, useCan } from './App'
 
@@ -197,23 +197,22 @@ function Wallet({ d }: { d: AdminUserDetail }) {
 }
 
 /**
- * 补发余额：填写 → 确认两步。一个 Idempotency-Key 对应一份（金额，原因）：出错后原样重试沿用同一个 key，
- * 网关只会落一笔；改了内容才换新 key。
+ * 补发余额：填写 → 确认两步。同一用户同一份（金额，原因）在成功前始终沿用同一个 Idempotency-Key（grantKey），
+ * 关掉对话框重开、刷新页面后重试也不换 key，网关只会落一笔；成功后才释放。
  */
 function GrantWallet({ d }: { d: AdminUserDetail }) {
   const [step, setStep] = useState<'closed' | 'form' | 'confirm'>('closed')
   const [amount, setAmount] = useState('')
   const [reason, setReason] = useState('')
   const [touched, setTouched] = useState(false)
-  const keyFor = useRef<{ payload: string; key: string } | null>(null)
   const issues = grantIssues(amount, reason)
   const value = Number(amount).toFixed(2)
   const who = d.user.email ?? d.user.id
-  const open = () => { setAmount(''); setReason(''); setTouched(false); keyFor.current = null; setStep('form') }
+  const open = () => { setAmount(''); setReason(''); setTouched(false); setStep('form') }
   const submit = async () => {
-    const body = { amount_cny: amount.trim(), reason: reason.trim() }, payload = JSON.stringify(body)
-    if (keyFor.current?.payload !== payload) keyFor.current = { payload, key: crypto.randomUUID() }
-    await adminApi.users.grantWallet(d.user.id, body, keyFor.current.key)
+    const body = { amount_cny: amount.trim(), reason: reason.trim() }
+    await adminApi.users.grantWallet(d.user.id, body, grantKey(d.user.id, body.amount_cny, body.reason))
+    releaseGrantKey(d.user.id, body.amount_cny, body.reason)
     setStep('closed')
     await queryClient.invalidateQueries({ queryKey: ['admin', 'user', d.user.id] })
     toast({ title: `已给 ${who} 补发 ¥${value}`, tone: 'success' })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GenerationRecord } from '../api/records'
 import type { PendingGeneration } from '../api/generation'
-import { anchorCalls, chargeLabel, differingParams, groupItems, mergeItems, newResultsAction, sharedPrompt, streamSignature, type PendingState } from './lib'
+import { anchorCalls, chargeLabel, chargeText, differingParams, failureText, groupItems, mergeItems, newResultsAction, sharedPrompt, streamSignature, type PendingState } from './lib'
 
 const rec = (p: Partial<GenerationRecord> & { id: string }): GenerationRecord => ({
   thread_id: 't', batch_id: null, batch_position: null, anchor_record_id: null, parent_record_id: null, idempotency_key: null,
@@ -76,6 +76,28 @@ describe('charges', () => {
     expect(chargeLabel([{ status: 'running', charged_points: null }])).toBeNull()
     expect(chargeLabel([{ status: 'succeeded', charged_points: null }, { status: 'succeeded', charged_points: '6' }])).toBe('结算中')
     expect(chargeLabel([{ status: 'succeeded', charged_points: '6' }, { status: 'failed', charged_points: '0' }, { status: 'succeeded', charged_points: '1.5' }])).toBe('消耗 ¥0.08')
+  })
+  it('a failure whose hold is under review is never shown as 未扣费 nor summed as 0', () => {
+    expect(chargeText({ status: 'failed', charged_points: null })).toBe('扣费待核对')
+    expect(chargeText({ status: 'cancelled', charged_points: null })).toBe('扣费待核对')
+    expect(chargeText({ status: 'cancelled', charged_points: '6' })).toBe('消耗 ¥0.06')
+    expect(chargeText({ status: 'failed', charged_points: '0' })).toBe('未扣费')
+    expect(chargeText({ status: 'succeeded', charged_points: null })).toBe('结算中')
+    expect(chargeText({ status: 'submit_failed', charged_points: null, submit_code: 'insufficient_balance' })).toBe('未扣费')
+    expect(chargeText({ status: 'submit_failed', charged_points: null, submit_code: 'network_error' })).toBe('扣费以记录为准')
+    expect(chargeLabel([{ status: 'succeeded', charged_points: '6' }, { status: 'failed', charged_points: null }])).toBe('扣费待核对')
+  })
+})
+
+describe('failure texts', () => {
+  it('maps gateway task and upstream codes to readable Chinese', () => {
+    expect(failureText('upstream_result_uncertain')).toMatch(/待核对/)
+    expect(failureText('upstream_http_500')).toMatch(/待核对/)
+    expect(failureText('upstream_http_400')).toMatch(/修改后重试/)
+    expect(failureText('upstream_http_429')).toMatch(/稍后重试/)
+    expect(failureText('image_result_missing')).toBe('任务结束但没有返回图片')
+    expect(failureText('media_task_failed')).toBe('生成失败（上游任务失败）')
+    expect(failureText('brand_new_code')).toBe('生成失败（brand_new_code）')
   })
 })
 

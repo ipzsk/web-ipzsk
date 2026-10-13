@@ -70,6 +70,8 @@ npm run contracts:sync -- --from /path/to/token-ipzsk
 npm run contracts:check
 ```
 
+`--from` 必须显式指向本次对接的后端工作树。同步会记录后端完整 commit、工作树是否有未提交改动以及契约内容哈希；后端工作树有未提交改动时默认拒绝同步。`contracts:check` 在快照缺少完整 commit、来自未提交工作树或内容与记录不符时失败；加 `--from <后端工作树>` 还会核对该工作树的 HEAD 与契约是否与快照一致。联调未提交的后端改动时可加 `--allow-dirty` 做本地核对，正式检查与 CI 不使用它。
+
 ## 开发
 
 ```bash

@@ -56,13 +56,17 @@ describe('log filters ↔ URL', () => {
 })
 
 describe('dashboard aggregation', () => {
-  const row = (date: string, key: string, requests: number, amount_cny: number, cost_cny: number, avg_latency_ms: number) =>
+  const row = (date: string, key: string, requests: number, amount_cny: number, cost_cny: number | null, avg_latency_ms: number) =>
     ({ date, key, requests, amount_cny, cost_cny, prompt_tokens: 0, completion_tokens: 0, avg_latency_ms })
   const rows = [row('2026-09-16', 'a', 10, 5, 3, 1000), row('2026-09-17', 'a', 30, 15, 9, 2000), row('2026-09-17', 'b', 5, 50, 60, 500)]
   it('totals by key: sorted by amount, weighted latency, margin', () => {
     const [b, a] = totalsByKey(rows)
     expect(b).toMatchObject({ key: 'b', margin_cny: -10 })
     expect(a).toMatchObject({ key: 'a', requests: 40, amount_cny: 20, margin_cny: 8, avg_latency_ms: 1750 })
+  })
+  it('keeps aggregate cost and margin unknown when any source row has no cost', () => {
+    expect(totalsByKey([row('2026-09-17', 'a', 1, 5, 2, 100), row('2026-09-18', 'a', 1, 5, null, 100)])[0])
+      .toMatchObject({ cost_cny: null, margin_cny: null })
   })
   it('totals by day zero-fills', () => {
     expect(totalsByDay(rows, ['2026-09-15', '2026-09-16', '2026-09-17'])).toEqual([

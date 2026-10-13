@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ACCOUNT_ERRORS, accountMessage, activeTokenCount, clearPendingFlow, cooldownSeconds, readFlow, rememberFlow,
-  resolveNext, tokenInitial, tokenReducer, tokenStatus,
+  resolveNext, tokenInitial, tokenReducer, tokenStatus, usageAmounts, type UsageRow,
 } from './lib'
 
 // Supported account errors; retired voucher codes are intentionally absent.
@@ -94,5 +94,24 @@ describe('token state machine', () => {
     ]
     expect(rows.map(r => tokenStatus(r, now))).toEqual(['有效', '已吊销', '已到期'])
     expect(activeTokenCount(rows, now)).toBe(1)
+  })
+})
+
+describe('usage detail', () => {
+  const money = (v: string) => '¥' + Number(v).toFixed(2)
+  const row: UsageRow = { id: 'r', created_at: '', model: 'gpt-image-2', status: 'succeeded', input_tokens: 1, output_tokens: 1,
+    charged_cny: '1.20000000', billing_state: 'settled', plugin_name: 'IPZSK 生图', refunded_cny: '0.20000000',
+    net_charged_cny: '1.00000000', pricing_version: 'policy-3', attribution_state: 'credential_unverified' }
+  it('shows plugin, original charge, refund, net spend and pricing version', () => {
+    expect(usageAmounts(row, money)).toEqual({ charged: '¥1.20', refunded: '-¥0.20', net: '¥1.00', pricing: '计价规则 v3', plugin: 'IPZSK 生图 · 插件归属待核验' })
+  })
+  it('keeps unknown charges pending instead of zero', () => {
+    const pending = usageAmounts({ ...row, charged_cny: null, billing_state: 'reserved', refunded_cny: null, net_charged_cny: null, plugin_name: null, pricing_version: null }, money)
+    expect(pending).toEqual({ charged: '处理中', refunded: '—', net: '处理中', pricing: '—', plugin: null })
+  })
+  it('handles rows from an older gateway without the new fields', () => {
+    const legacy = usageAmounts({ id: 'r', created_at: '', model: 'm', status: 'succeeded', input_tokens: null, output_tokens: null, charged_cny: '0.5', billing_state: 'settled' }, money)
+    expect(legacy).toEqual({ charged: '¥0.50', refunded: '—', net: '¥0.50', pricing: '—', plugin: null })
+    expect(usageAmounts({ ...row, pricing_version: 'lanehub', attribution_state: 'none', refunded_cny: '0' }, money).pricing).toBe('平台实时计价')
   })
 })

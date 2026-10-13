@@ -9,12 +9,12 @@ import { Badge, Button, Checkbox, Dialog, DialogContent, DialogFooter, EmptyStat
 import { ApiError } from '@/shared/api'
 import { queryClient } from '@/shared/query'
 import { useCan } from '../App'
-import { Confirm, Drawer, FilterInput, PageHeader, Select, adminErrorText } from '../ui'
+import { Confirm, Drawer, FilterInput, PageHeader, Select } from '../ui'
 import { laneApi } from './laneApi'
 import { opsApi } from './opsApi'
-import { fmtCny as fmtMoney, fmtPriceUnit, isLowBalance } from './lib'
+import { fmtCny as fmtMoney, fmtPriceUnit, isLowBalance, opsErrorText } from './lib'
 import { BalanceText } from './ChannelsPage'
-import { applyPatch, applyReorder, canRemoveFromLane, cellIds, changeCount, diffRows, effectiveChannels, rowChannelIds, toChanges, type Draft } from './laneDraft'
+import { applyPatch, applyReorder, canRemoveFromLane, cellIds, changeCount, diffRows, effectiveChannels, rebase, rowChannelIds, toChanges, type Draft, type LaneConflict } from './laneDraft'
 import type { LaneChannel, LaneMatrix } from './types'
 
 type Row = LaneMatrix['rows'][number]
@@ -40,11 +40,6 @@ function fmtAgo(unix: number | null, now = Date.now()) {
   if (unix == null) return '未检查'
   const m = Math.max(0, Math.round((now / 1000 - unix) / 60))
   return m < 1 ? '刚刚' : m < 60 ? `${m}分钟前` : m < 1440 ? `${Math.floor(m / 60)}小时前` : `${Math.floor(m / 1440)}天前`
-}
-const opsErrorText = (e: unknown) => {
-  if (e instanceof ApiError && e.code === 'lanehub_unavailable') return 'lanehub 未配置或不可用。'
-  if (e instanceof ApiError && e.code === 'lanehub_api_failed') return 'lanehub 拒绝了这次操作。'
-  return adminErrorText(e)
 }
 const lanehubDetail = (e: unknown) => {
   const b = e instanceof ApiError ? e.body as { detail?: string; error?: { detail?: string } } | null : null
@@ -88,7 +83,18 @@ export function LaneMatrixPage() {
   const save = useMutation({
     mutationFn: () => laneApi.save(toChanges(draft)),
     onSuccess: r => { setDraft({}); setCompare(false); toast({ title: `已保存 ${r.results.length} 个渠道的改动`, tone: 'success' }); void queryClient.invalidateQueries({ queryKey: KEY }) },
-    onError: e => toast({ title: '保存失败，改动仍保留', description: [opsErrorText(e), lanehubDetail(e)].filter(Boolean).join(' '), tone: 'error' }),
+    onError: e => {
+      // Someone else saved these channels since this draft started: re-base the draft on their values, refresh, and let the
+      // operator review the compare dialog again instead of overwriting their work.
+      const conflicts = e instanceof ApiError && e.code === 'lane_matrix_conflict' ? (e.body as { error?: { conflicts?: LaneConflict[] } } | null)?.error?.conflicts ?? [] : null
+      if (conflicts) {
+        setDraft(d => rebase(d, conflicts))
+        void queryClient.invalidateQueries({ queryKey: KEY })
+        toast({ title: '未保存：其他人刚修改了这些渠道', description: `${conflicts.length} 个渠道已载入最新数据并保留你的改动（已下线的渠道已移出草稿），请核对后再保存。`, tone: 'error' })
+        return
+      }
+      toast({ title: '保存失败，改动仍保留', description: [opsErrorText(e), lanehubDetail(e)].filter(Boolean).join(' '), tone: 'error' })
+    },
   })
   const [compare, setCompare] = useState(false)
   const [discard, setDiscard] = useState(false)

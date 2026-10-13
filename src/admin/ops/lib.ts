@@ -1,4 +1,6 @@
 /** Pure helpers for the ops pages (contract: docs/admin-ops.md). Tested in ops.test.ts. */
+import { ApiError } from '@/shared/api'
+import { adminErrorText } from '../ui'
 import type { DashboardPeriodRow, LaneChannel, LogEntry } from './types'
 
 export type RangePreset = 'today' | '7d' | '30d'
@@ -130,19 +132,22 @@ export const isLowBalance = (c: BalanceFields) => c.balance_supported && c.balan
 
 /* ---------- dashboard ---------- */
 
-export interface KeyTotal { key: string; requests: number; amount_cny: number; cost_cny: number; margin_cny: number; avg_latency_ms: number }
+export interface KeyTotal { key: string; requests: number; amount_cny: number; cost_cny: number | null; margin_cny: number | null; avg_latency_ms: number }
 export interface DayTotal { date: string; requests: number; amount_cny: number }
 
 /** Per-key totals, sorted by amount desc; latency is request-weighted. */
 export function totalsByKey(rows: DashboardPeriodRow[]): KeyTotal[] {
-  const m = new Map<string, KeyTotal & { lat: number }>()
+  const m = new Map<string, KeyTotal & { lat: number; costUnknown: boolean }>()
   for (const r of rows) {
-    const t = m.get(r.key) ?? { key: r.key, requests: 0, amount_cny: 0, cost_cny: 0, margin_cny: 0, avg_latency_ms: 0, lat: 0 }
-    t.requests += r.requests; t.amount_cny += r.amount_cny; t.cost_cny += r.cost_cny; t.lat += r.avg_latency_ms * r.requests
+    const t = m.get(r.key) ?? { key: r.key, requests: 0, amount_cny: 0, cost_cny: 0, margin_cny: 0, avg_latency_ms: 0, lat: 0, costUnknown: false }
+    t.requests += r.requests; t.amount_cny += r.amount_cny; t.lat += r.avg_latency_ms * r.requests
+    if (r.cost_cny == null) t.costUnknown = true
+    else if (!t.costUnknown) t.cost_cny = (t.cost_cny ?? 0) + r.cost_cny
     m.set(r.key, t)
   }
   return [...m.values()]
-    .map(({ lat, ...t }) => ({ ...t, margin_cny: t.amount_cny - t.cost_cny, avg_latency_ms: t.requests ? lat / t.requests : 0 }))
+    .map(({ lat, costUnknown, ...t }) => ({ ...t, cost_cny: costUnknown ? null : t.cost_cny,
+      margin_cny: costUnknown ? null : t.amount_cny - (t.cost_cny ?? 0), avg_latency_ms: t.requests ? lat / t.requests : 0 }))
     .sort((a, b) => b.amount_cny - a.amount_cny || b.requests - a.requests)
 }
 
@@ -151,4 +156,24 @@ export function totalsByDay(rows: DashboardPeriodRow[], days: string[]): DayTota
   const m = new Map(days.map(date => [date, { date, requests: 0, amount_cny: 0 }]))
   for (const r of rows) { const d = m.get(r.date); if (d) { d.requests += r.requests; d.amount_cny += r.amount_cny } }
   return [...m.values()]
+}
+
+const OPS_ERRORS: Record<string, string> = {
+  lanehub_unavailable: 'lanehub 未配置或不可用。',
+  lanehub_api_failed: 'lanehub 拒绝了这次操作。',
+  lanehub_rate_unavailable: '读不到 lanehub 的美元汇率，暂时无法换算人民币金额；请检查 lanehub 的 PaymentUSDRate 设置后重试。',
+  lane_matrix_conflict: '其他人刚修改了这些渠道。',
+  invalid_channel_id: '渠道编号无效。',
+  invalid_date_range: '时间范围无效（最长 366 天，开始不能晚于结束）。',
+}
+/** Ops page error text: specific gateway codes first; a 400 invalid_query names the bad filter; network last. */
+export function opsErrorText(e: unknown): string {
+  if (e instanceof ApiError) {
+    if (e.code === 'invalid_query') {
+      const field = (e.body as { error?: { field?: string } } | null)?.error?.field
+      return field ? `筛选条件「${field}」的取值无效，请修改后重试。` : '筛选条件无效，请修改后重试。'
+    }
+    if (OPS_ERRORS[e.code]) return OPS_ERRORS[e.code]!
+  }
+  return adminErrorText(e)
 }

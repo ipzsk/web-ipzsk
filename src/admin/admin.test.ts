@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '@/shared/api'
-import { can, cancelBlockReason, grantIssues, moveCase, positionBetween, publishIssues, revokeBlockReason, sessionLeft, templateIssues, type AdminCase } from './lib'
-import { createMockApi } from './api'
+import { can, cancelBlockReason, grantIssues, grantKey, releaseGrantKey, moveCase, positionBetween, publishIssues, revokeBlockReason, sessionLeft, templateIssues, type AdminCase } from './lib'
+import { createMockApi, newCaseSession, saveNewCase, type AdminApi } from './api'
+import { adminErrorText, inputError } from './ui'
 
 const noDelay = async () => {}
 
@@ -176,5 +177,72 @@ describe('mock adapter', () => {
     expect(Number(again.wallet!.available_points)).toBe(before + 5000)
     expect(await code(api.users.grantWallet('u-5', { amount_cny: '60', reason: '测试补发' }, 'k1'))).toBe('idempotency_conflict')
     expect((await api.audit.list({ action: 'wallet.grant' })).items.filter(e => e.target_id === 'u-5')).toHaveLength(1)
+  })
+})
+
+describe('wallet grant idempotency key', () => {
+  const store = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v) } } }
+  it('reuses one key for the same normalised grant across dialog reopen until it succeeds', () => {
+    const s = store()
+    const first = grantKey('u1', '50', '补偿', s)
+    // Reopen + retype: "50.0" and padded reason are the same grant for the gateway fingerprint.
+    expect(grantKey('u1', '50.0', '  补偿 ', s)).toBe(first)
+    expect(grantKey('u1', '50.00', '补偿', s)).toBe(first)
+    expect(grantKey('u1', '60', '补偿', s)).not.toBe(first)
+    expect(grantKey('u2', '50', '补偿', s)).not.toBe(first)
+    releaseGrantKey('u1', '50', '补偿', s)
+    expect(grantKey('u1', '50', '补偿', s)).not.toBe(first)
+  })
+})
+
+describe('admin error text', () => {
+  it('shows operator-facing validation messages but hides raw technical errors', () => {
+    expect(adminErrorText(inputError('请填写标记取消的原因。'))).toBe('请填写标记取消的原因。')
+    expect(adminErrorText(new TypeError('x is undefined'))).toBe('操作未成功，请稍后重试。')
+    expect(adminErrorText(new ApiError('m', { status: 409, code: 'lanehub_adjustment_review' }))).toMatch(/人工核对/)
+  })
+})
+
+describe('new case save', () => {
+  const fields = { title: 't', prompt: 'p', category: 'poster', category_zh: null, tags: [], model: null, params: {}, template: null,
+    author: null, author_url: null, source_repo: null, source_url: null, license_note: null }
+  function fakeApi(failReferencesOnce: boolean) {
+    const calls: string[] = [], keys: (string | undefined)[] = []
+    const made = { id: 'c_1', updated_at: 'v1', cover: { id: 'copy-of-cover' } }
+    let fail = failReferencesOnce
+    const api = { cases: {
+      create: async (_b: unknown, key?: string) => { calls.push('create'); keys.push(key); return { ...made } },
+      update: async () => { calls.push('update'); return { ...made, updated_at: 'v2' } },
+      setCover: async () => { calls.push('setCover'); return { ...made } },
+      setReferences: async () => { calls.push('setReferences'); if (fail) { fail = false; throw new Error('storage_copy_failed') } return { ...made } },
+    } } as unknown as AdminApi
+    return { api, calls, keys }
+  }
+  it('create succeeded but references failed: the retry updates that case instead of creating a second draft', async () => {
+    const { api, calls } = fakeApi(true)
+    const session = newCaseSession()
+    await expect(saveNewCase(api, session, fields, 'cover-1', ['r1'])).rejects.toThrow()
+    const saved = await saveNewCase(api, session, { ...fields, title: 'edited' }, 'cover-1', ['r1'])
+    expect(saved.id).toBe('c_1')
+    expect(calls).toEqual(['create', 'setReferences', 'update', 'setReferences'])
+  })
+  it('a lost create response is replayed with the same Idempotency-Key', async () => {
+    const { api, keys } = fakeApi(false)
+    const session = newCaseSession()
+    const create = api.cases.create
+    let lose = true
+    api.cases.create = async (b, key) => { const c = await create(b, key); if (lose) { lose = false; throw new Error('network') } return c }
+    await expect(saveNewCase(api, session, fields, 'cover-1', [])).rejects.toThrow()
+    await saveNewCase(api, session, fields, 'cover-1', [])
+    expect(keys).toHaveLength(2)
+    expect(keys[0]).toBe(keys[1])
+  })
+  it('changing the cover after the case exists sets it once, without re-copying on later saves', async () => {
+    const { api, calls } = fakeApi(false)
+    const session = newCaseSession()
+    await saveNewCase(api, session, fields, 'cover-1', [])
+    await saveNewCase(api, session, fields, 'cover-1', [])
+    await saveNewCase(api, session, fields, 'cover-2', [])
+    expect(calls).toEqual(['create', 'update', 'update', 'setCover'])
   })
 })

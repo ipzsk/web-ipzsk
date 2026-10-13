@@ -4,7 +4,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Copy, ScrollText } from 'lucide-react'
 import { Badge, Button, EmptyState, ErrorState, IconButton, Skeleton, cn, focusRing, toast } from '@/ui'
 import { opsApi } from './opsApi'
-import { LOG_KEYS, LOG_TEXT_KEYS, LOG_TYPE, fmtCny, fmtInt, fmtLatency, fmtUnix, logQueryFromParams, withParam } from './lib'
+import { LOG_KEYS, LOG_TEXT_KEYS, LOG_TYPE, fmtCny, fmtInt, fmtLatency, fmtUnix, logQueryFromParams, opsErrorText, withParam } from './lib'
 import type { LogEntry } from './types'
 import { Drawer, FilterInput, KV, PageHeader, Select } from '../ui'
 
@@ -53,7 +53,7 @@ export function LogsPage() {
         {LOG_KEYS.some(k => sp.get(k)) && <Button size="sm" variant="ghost" onClick={() => { setText(t => Object.fromEntries(Object.keys(t).map(k => [k, ''])) as typeof t); setSp({}, { replace: true }) }}>清除筛选</Button>}
       </div>
 
-      {list.isError ? <ErrorState reason="日志加载失败，请检查网络后重试" action={{ label: '重试', onClick: () => void list.refetch() }} />
+      {list.isError ? <ErrorState reason={opsErrorText(list.error)} action={{ label: '重试', onClick: () => void list.refetch() }} />
         : list.isPending ? <div className="grid gap-1">{Array.from({ length: 12 }, (_, i) => <Skeleton key={i} className="h-9" />)}</div>
         : !rows.length ? <EmptyState icon={ScrollText} text="没有符合筛选的日志" />
         : (
@@ -116,7 +116,7 @@ function LogDrawer({ entry: l, onClose }: { entry: LogEntry | null; onClose: () 
             <KV k="渠道">{l.channel ? `#${l.channel.id} ${l.channel.name}` : '—'}</KV>
             <KV k="收入">{fmtCny(l.amount_cny)}</KV>
             <KV k="成本">{fmtCny(l.cost_cny)} {l.cost_source && <span className="text-xs text-muted">{l.cost_source === 'real' ? '实际' : '估算'}</span>}</KV>
-            <KV k="毛利">{fmtCny(l.amount_cny - l.cost_cny)}</KV>
+            <KV k="毛利">{fmtCny(l.cost_cny == null ? null : l.amount_cny - l.cost_cny)}</KV>
             <KV k="tokens">输入 {fmtInt(l.prompt_tokens)} · 输出 {fmtInt(l.completion_tokens)}</KV>
             <KV k="耗时">{fmtLatency(l.latency_ms)}{l.is_stream && ' · 流式'}</KV>
             <KV k="request_id"><Mono v={l.request_id} /></KV>

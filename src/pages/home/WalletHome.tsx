@@ -3,14 +3,12 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowUpRight, RefreshCw, Wallet } from 'lucide-react'
 import { Button, EmptyState, ErrorState, Skeleton, cn, focusRing } from '@/ui'
 import { request } from '@/shared/api'
-import {
-  createCheckout, formatMoney, hasPendingPayment, paymentStates,
-  type PaymentOptions, type PaymentOrders,
-} from '@/shared/billing'
+import { createCheckout, formatMoney, orderStatus, type PaymentOptions } from '@/shared/billing'
+import { usePaymentOrders } from '@/shared/recharge/RechargeDialog'
 import { queryClient, useCurrentUser, useWallet } from '@/shared/query'
 import { CommissionPanel } from './CommissionPanel'
 
-interface UsageRow { id: string; model: string; created_at: string; charged_cny: string | null; billing_state?: string }
+import { usageAmounts, type UsageRow } from '@/pages/account/lib'
 interface Usage { rows: UsageRow[] }
 
 export function WalletHome() {
@@ -19,11 +17,7 @@ export function WalletHome() {
   const wallet = useWallet(signedIn)
   const usage = useQuery({ queryKey: ['home', 'usage'], enabled: signedIn, queryFn: () => request<Usage>('/api/me/usage') })
   const options = useQuery({ queryKey: ['account', 'payment-options'], enabled: signedIn, queryFn: () => request<PaymentOptions>('/api/me/payments/options') })
-  const orders = useQuery({
-    queryKey: ['account', 'payment-orders'], enabled: signedIn,
-    queryFn: () => request<PaymentOrders>('/api/me/payments/orders'),
-    refetchInterval: query => hasPendingPayment(query.state.data?.rows) ? 5_000 : false,
-  })
+  const orders = usePaymentOrders(signedIn)
   const [busy, setBusy] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(
     new URLSearchParams(location.search).get('payment') === 'return'
@@ -98,12 +92,12 @@ export function WalletHome() {
 
           <section className="mt-5 rounded-panel border border-line bg-card p-6 md:p-8">
             <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">最近消费</h2><a className="text-sm font-semibold text-label" href="/account">全部消费明细 ↗</a></div>
-            <p className="mt-2 text-xs text-muted">展示实际人民币扣款；账单回传前显示“待结算”。</p>
+            <p className="mt-2 text-xs text-muted">展示扣除退款后的实际人民币消费；账单回传前显示“待结算”。</p>
             {usage.isPending ? <Skeleton className="mt-5 h-28" /> : usage.isError ? <ErrorState reason="消费记录加载失败。" action={{ label: '重试', onClick: () => void usage.refetch() }} /> : !usage.data?.rows.length ? (
               <EmptyState icon={Wallet} text="还没有消费记录，生成内容后会显示在这里。" />
             ) : (
-              <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead className="text-xs text-muted"><tr><th className="pb-3">模型</th><th className="pb-3">时间</th><th className="pb-3 text-right">扣款（人民币）</th></tr></thead><tbody>
-                {usage.data.rows.slice(0, 5).map(row => <tr key={row.id} className="border-t border-line"><td className="py-3">{row.model || '模型调用'}</td><td className="py-3 text-muted">{new Date(row.created_at).toLocaleString('zh-CN')}</td><td className="py-3 text-right tabular-nums">{row.charged_cny != null && ['settled', 'released'].includes(row.billing_state ?? '') ? formatMoney(row.charged_cny, true) : '待结算'}</td></tr>)}
+              <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead className="text-xs text-muted"><tr><th className="pb-3">模型</th><th className="pb-3">时间</th><th className="pb-3 text-right">净消费（人民币）</th></tr></thead><tbody>
+                {usage.data.rows.slice(0, 5).map(row => { const amounts = usageAmounts(row, v => formatMoney(v, true)); return <tr key={row.id} className="border-t border-line"><td className="py-3">{row.model || '模型调用'}</td><td className="py-3 text-muted">{new Date(row.created_at).toLocaleString('zh-CN')}</td><td className="py-3 text-right tabular-nums">{amounts.net}{amounts.refunded !== '—' && <small className="block text-xs text-muted">已退 {amounts.refunded.slice(1)}</small>}</td></tr> })}
               </tbody></table></div>
             )}
           </section>
@@ -112,7 +106,7 @@ export function WalletHome() {
           <details className="mt-5 rounded-panel border border-line bg-card p-6 md:p-8">
             <summary className={cn('cursor-pointer font-bold', focusRing)}>最近充值记录</summary>
             {!orders.data?.rows.length ? <p className="mt-3 text-sm text-muted">{orders.isPending ? '正在读取…' : '还没有充值记录。'}</p> : <ul className="mt-4 grid gap-3 text-sm">
-              {orders.data.rows.slice(0, 5).map(order => <li key={order.id} className="border-t border-line pt-3 first:border-0 first:pt-0"><strong>{formatMoney(order.amount_cny)}</strong> · {paymentStates[order.state] ?? '状态待确认'}<small className="mt-1 block text-muted">{new Date(order.created_at).toLocaleString('zh-CN')}{order.mode === 'test' ? ' · 测试' : ''}</small></li>)}
+              {orders.data.rows.slice(0, 5).map(order => <li key={order.id} className="border-t border-line pt-3 first:border-0 first:pt-0"><strong>{formatMoney(order.amount_cny)}</strong> · {orderStatus(order).label}<small className="mt-1 block text-muted">{new Date(order.created_at).toLocaleString('zh-CN')}{order.mode === 'test' ? ' · 测试' : ''}</small></li>)}
             </ul>}
           </details>
         </>

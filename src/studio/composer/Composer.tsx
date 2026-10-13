@@ -16,7 +16,7 @@ import type { ParamInput, QueueEntry } from '../api/queue'
 import { clearDraft, loadDraft, useComposer } from '../store'
 import { useAccount, useModels, useQueueSync, useQuote, useSubjects } from './hooks'
 import {
-  addManual, applyVars, chipsOf, docFromText, expandModels, isSendable, itemFromDraft, normalizeParams, planSend, queueRoom, quoteEntry, quoteSummary, referenceState, serializePrompt,
+  addManual, applyQueueEdit, applyVars, batchLimitReason, chipsOf, docFromText, expandModels, isSendable, itemFromDraft, normalizeParams, planSend, queueRoom, quoteEntry, quoteSummary, referenceState, serializePrompt,
   subjectBlockReason, subjectVarLabel, subjectVarsOf, textVarsOf, varBlockReason, varLabel, isOptionalVar, varOptions,
 } from './logic'
 import { COMPOSER_FILL_EVENT, onStudioEvent } from '@/shared/events'
@@ -401,6 +401,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
     return !online ? '网络已断开，恢复后再发送'
     : !model ? '型号加载中'
     : !items.length ? (queue.some(i => i.missing) ? '队列里的项引用了已删除的素材，请编辑移除后再发送' : queue.length ? '队列里没有可发送的项（标红的项需要先编辑）' : '先输入提示词')
+    : batchLimitReason(items.length) ? batchLimitReason(items.length)
     : includesComposer && avatar?.reason ? avatar.reason
     : includesComposer && refs.over ? refs.message
     : varBlockReason(items.map(i => ({ prompt: applyVars(i.prompt, varValues) }))) ?? subjectBlockReason(items, subjectIds)
@@ -434,7 +435,7 @@ export function Composer({ hidden }: { hidden: boolean }) {
     if (addReason) return
     if (avatarMode) rememberAvatarItems([{ ...current, item_id: editingId ?? current.item_id, fromDraft: true }])
     if (editingId) {
-      useComposer.setState(s => ({ queue: s.queue.map(i => i.item_id === editingId ? { ...current, item_id: editingId, anchor_of: i.anchor_of } : i), editingId: null }))
+      useComposer.setState(s => ({ queue: applyQueueEdit(s.queue, editingId, current), editingId: null }))
       toast({ title: '已更新队列项' })
       return
     }

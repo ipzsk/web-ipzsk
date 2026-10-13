@@ -1,7 +1,9 @@
 {
   "_source": {
     "repo": "ipzsk-api-gateway",
-    "commit": "fe03279-dirty"
+    "commit": "6864898e84ad6d903aa92ddcfef6f00b1f64da3e",
+    "dirty": false,
+    "sha256": "2177cf6585e652d640c895b347ccb3c4faeb3d9824d5b8ee621848ef75536fc6"
   },
   "auth_kinds": {
     "bearer": {
@@ -443,6 +445,7 @@
         "forbidden_role",
         "invalid_query",
         "lanehub_api_failed",
+        "lanehub_rate_unavailable",
         "lanehub_unavailable"
       ],
       "method": "GET",
@@ -462,6 +465,7 @@
         "forbidden_role",
         "invalid_channel_id",
         "lanehub_api_failed",
+        "lanehub_rate_unavailable",
         "lanehub_unavailable"
       ],
       "method": "POST",
@@ -480,6 +484,7 @@
         "invalid_date_range",
         "invalid_query",
         "lanehub_api_failed",
+        "lanehub_rate_unavailable",
         "lanehub_unavailable"
       ],
       "method": "GET",
@@ -498,6 +503,7 @@
         "customer_login_required",
         "forbidden_role",
         "lanehub_api_failed",
+        "lanehub_rate_unavailable",
         "lanehub_unavailable"
       ],
       "method": "GET",
@@ -516,6 +522,7 @@
         "forbidden_role",
         "invalid_query",
         "lanehub_api_failed",
+        "lanehub_rate_unavailable",
         "lanehub_unavailable"
       ],
       "method": "GET",
@@ -536,6 +543,7 @@
         "customer_login_required",
         "forbidden_role",
         "invalid_lane_changes",
+        "lane_matrix_conflict",
         "lanehub_api_failed",
         "lanehub_unavailable"
       ],
@@ -554,6 +562,7 @@
         "forbidden_role",
         "invalid_query",
         "lanehub_api_failed",
+        "lanehub_rate_unavailable",
         "lanehub_unavailable"
       ],
       "method": "GET",
@@ -573,6 +582,7 @@
         "forbidden_role",
         "invalid_query",
         "lanehub_api_failed",
+        "lanehub_rate_unavailable",
         "lanehub_unavailable"
       ],
       "method": "GET",
@@ -645,6 +655,7 @@
     {
       "auth": "cookie",
       "errors": [
+        "billing_unavailable",
         "customer_login_required",
         "forbidden_role",
         "user_not_found"
@@ -696,6 +707,8 @@
       "body": "WalletGrantCreate",
       "body_shape": "{ amount_cny: Decimal reason: string }",
       "errors": [
+        "adjustment_reference_conflict",
+        "billing_unavailable",
         "credit_reference_required",
         "customer_login_required",
         "forbidden_role",
@@ -706,8 +719,11 @@
         "invalid_json",
         "invalid_reason",
         "lanehub_account_missing",
+        "lanehub_adjustment_not_applied",
+        "lanehub_adjustment_review",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "unknown_field",
         "user_not_found"
@@ -807,6 +823,7 @@
     {
       "auth": "cookie_or_bearer",
       "errors": [
+        "adjustment_reference_conflict",
         "avatar_catalog_unavailable",
         "avatar_catalog_upstream_error",
         "credit_reference_required",
@@ -815,6 +832,7 @@
         "invalid_voice_type",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision"
       ],
       "method": "GET",
@@ -913,6 +931,7 @@
     {
       "auth": "cookie_or_bearer",
       "errors": [
+        "adjustment_reference_conflict",
         "anchor_not_succeeded",
         "audio_asset_not_found",
         "audio_duration_unknown",
@@ -983,6 +1002,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "media_uses_task_polling",
@@ -1060,13 +1080,16 @@
       "auth": "cookie_or_bearer",
       "errors": [
         "account_disabled",
+        "adjustment_reference_conflict",
         "credit_reference_required",
         "customer_login_required",
         "desktop_access_revoked",
         "desktop_models_unavailable",
         "invalid_credit_amount",
+        "invalid_installed_packages",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision"
       ],
       "method": "POST",
@@ -1348,6 +1371,7 @@
     {
       "auth": "cookie_or_bearer",
       "errors": [
+        "adjustment_reference_conflict",
         "anchor_not_succeeded",
         "audio_asset_not_found",
         "audio_duration_unknown",
@@ -1418,6 +1442,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "media_uses_task_polling",
@@ -1469,6 +1494,7 @@
       "body": "GenerationBody",
       "body_shape": "{ model: string prompt?: string reference_asset_ids?: Uuid[] image_urls?: string[] batch_id?: Uuid | null batch_position?: number | null thread_id?: Uuid | null anchor_record_id?: Uuid | null parent_record_id?: Uuid | null mentions?: Mention[] prompt_doc?: Record<string, unknown> | null source?: \"studio\" | \"template\" | \"canvas\" avatar_id?: string photo_asset_id?: Uuid script?: string voice_id?: string audio_asset_id?: Uuid captions?: boolean background_color?: string background_asset_id?: Uuid [extra: string]: unknown }",
       "errors": [
+        "adjustment_reference_conflict",
         "anchor_not_succeeded",
         "audio_asset_not_found",
         "audio_duration_unknown",
@@ -1539,6 +1565,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "media_uses_task_polling",
@@ -1594,6 +1621,7 @@
       "body": "QuoteRequest",
       "body_shape": "{ items: GenerationBody[] }",
       "errors": [
+        "adjustment_reference_conflict",
         "audio_asset_not_found",
         "audio_duration_unknown",
         "avatar_engine_unavailable",
@@ -1621,6 +1649,7 @@
         "invalid_voice_id",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "quote_requires_lanehub",
@@ -1914,6 +1943,15 @@
       "path": "/api/me/tasks/:id/image/:index"
     },
     {
+      "auth": "cookie_or_bearer",
+      "errors": [
+        "invalid_id",
+        "media_not_found"
+      ],
+      "method": "GET",
+      "path": "/api/me/tasks/:id/media/:kind/:index"
+    },
+    {
       "auth": "cookie",
       "errors": [
         "customer_login_required",
@@ -2162,6 +2200,7 @@
       "body": "GenerationBody",
       "body_shape": "{ model: string prompt?: string reference_asset_ids?: Uuid[] image_urls?: string[] batch_id?: Uuid | null batch_position?: number | null thread_id?: Uuid | null anchor_record_id?: Uuid | null parent_record_id?: Uuid | null mentions?: Mention[] prompt_doc?: Record<string, unknown> | null source?: \"studio\" | \"template\" | \"canvas\" avatar_id?: string photo_asset_id?: Uuid script?: string voice_id?: string audio_asset_id?: Uuid captions?: boolean background_color?: string background_asset_id?: Uuid [extra: string]: unknown }",
       "errors": [
+        "adjustment_reference_conflict",
         "anchor_not_succeeded",
         "audio_asset_not_found",
         "audio_duration_unknown",
@@ -2232,6 +2271,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "media_uses_task_polling",
@@ -2276,6 +2316,7 @@
     {
       "auth": "cookie_or_bearer",
       "errors": [
+        "adjustment_reference_conflict",
         "avatar_catalog_unavailable",
         "avatar_catalog_upstream_error",
         "credit_reference_required",
@@ -2284,6 +2325,7 @@
         "invalid_voice_type",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision"
       ],
       "method": "GET",
@@ -2297,10 +2339,13 @@
     {
       "auth": "cookie_or_bearer",
       "errors": [
+        "adjustment_reference_conflict",
+        "billing_unavailable",
         "credit_reference_required",
         "invalid_credit_amount",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision"
       ],
       "method": "GET",
@@ -2310,11 +2355,13 @@
       "auth": "cookie_or_bearer",
       "errors": [
         "account_disabled",
+        "adjustment_reference_conflict",
         "credit_reference_required",
         "customer_login_required",
         "invalid_credit_amount",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "web_access_revoked"
       ],
@@ -2344,6 +2391,7 @@
     {
       "auth": "cookie_or_bearer",
       "errors": [
+        "adjustment_reference_conflict",
         "anchor_not_succeeded",
         "audio_asset_not_found",
         "audio_duration_unknown",
@@ -2414,6 +2462,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "media_uses_task_polling",
@@ -2462,6 +2511,7 @@
     {
       "auth": "cookie_or_bearer",
       "errors": [
+        "adjustment_reference_conflict",
         "billing_unavailable",
         "conflicting_parameter",
         "credit_reference_required",
@@ -2480,6 +2530,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "model_not_media",
         "only_n_one_supported",
@@ -2540,6 +2591,7 @@
     {
       "auth": "bearer",
       "errors": [
+        "adjustment_reference_conflict",
         "anchor_not_succeeded",
         "audio_asset_not_found",
         "audio_duration_unknown",
@@ -2610,6 +2662,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "media_uses_task_polling",
@@ -2662,6 +2715,7 @@
     {
       "auth": "bearer",
       "errors": [
+        "adjustment_reference_conflict",
         "anchor_not_succeeded",
         "audio_asset_not_found",
         "audio_duration_unknown",
@@ -2732,6 +2786,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "media_uses_task_polling",
@@ -2772,6 +2827,7 @@
     {
       "auth": "bearer",
       "errors": [
+        "adjustment_reference_conflict",
         "anchor_not_succeeded",
         "audio_asset_not_found",
         "audio_duration_unknown",
@@ -2842,6 +2898,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "media_uses_task_polling",
@@ -2882,6 +2939,7 @@
     {
       "auth": "bearer",
       "errors": [
+        "adjustment_reference_conflict",
         "anchor_not_succeeded",
         "audio_asset_not_found",
         "audio_duration_unknown",
@@ -2952,6 +3010,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "media_uses_task_polling",
@@ -2992,6 +3051,7 @@
     {
       "auth": "bearer",
       "errors": [
+        "adjustment_reference_conflict",
         "anchor_not_succeeded",
         "audio_asset_not_found",
         "audio_duration_unknown",
@@ -3062,6 +3122,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "media_uses_task_polling",
@@ -3102,6 +3163,7 @@
     {
       "auth": "bearer",
       "errors": [
+        "adjustment_reference_conflict",
         "anchor_not_succeeded",
         "audio_asset_not_found",
         "audio_duration_unknown",
@@ -3172,6 +3234,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "media_uses_task_polling",
@@ -3220,11 +3283,13 @@
       "body": "BearerQuoteBody",
       "body_shape": "{ model: string [extra: string]: unknown }",
       "errors": [
+        "adjustment_reference_conflict",
         "credit_reference_required",
         "invalid_credit_amount",
         "invalid_request",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "quote_requires_lanehub",
         "quote_upstream_error"
@@ -3236,6 +3301,7 @@
     {
       "auth": "bearer",
       "errors": [
+        "adjustment_reference_conflict",
         "anchor_not_succeeded",
         "audio_asset_not_found",
         "audio_duration_unknown",
@@ -3306,6 +3372,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "media_uses_task_polling",
@@ -3371,6 +3438,16 @@
     {
       "auth": "bearer",
       "errors": [
+        "invalid_id",
+        "media_not_found"
+      ],
+      "method": "GET",
+      "path": "/v1/tasks/:id/media/:kind/:index"
+    },
+    {
+      "auth": "bearer",
+      "errors": [
+        "adjustment_reference_conflict",
         "anchor_not_succeeded",
         "audio_asset_not_found",
         "audio_duration_unknown",
@@ -3441,6 +3518,7 @@
         "invalid_workspace_prompt",
         "lanehub_token_create_failed",
         "lanehub_user_create_failed",
+        "lanehub_user_required",
         "lanehub_username_collision",
         "media_storage_unavailable",
         "media_uses_task_polling",
@@ -3484,6 +3562,24 @@
       "code": "account_disabled",
       "status": [
         403
+      ]
+    },
+    {
+      "code": "adjustment_not_in_review",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "adjustment_reference_conflict",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "adjustment_target_unknown",
+      "status": [
+        409
       ]
     },
     {
@@ -4084,6 +4180,12 @@
       ]
     },
     {
+      "code": "invalid_adjustment_resolution",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "invalid_administrator",
       "status": [
         400
@@ -4403,6 +4505,12 @@
     },
     {
       "code": "invalid_input",
+      "status": [
+        400
+      ]
+    },
+    {
+      "code": "invalid_installed_packages",
       "status": [
         400
       ]
@@ -4964,6 +5072,12 @@
       ]
     },
     {
+      "code": "lane_matrix_conflict",
+      "status": [
+        409
+      ]
+    },
+    {
       "code": "lanehub_account_missing",
       "status": [
         409,
@@ -4971,9 +5085,27 @@
       ]
     },
     {
+      "code": "lanehub_adjustment_not_applied",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "lanehub_adjustment_review",
+      "status": [
+        409
+      ]
+    },
+    {
       "code": "lanehub_api_failed",
       "status": [
         502
+      ]
+    },
+    {
+      "code": "lanehub_rate_unavailable",
+      "status": [
+        503
       ]
     },
     {
@@ -5001,6 +5133,12 @@
       ]
     },
     {
+      "code": "lanehub_user_required",
+      "status": [
+        400
+      ]
+    },
+    {
       "code": "lanehub_username_collision",
       "status": [
         500
@@ -5010,6 +5148,12 @@
       "code": "last_admin",
       "status": [
         409
+      ]
+    },
+    {
+      "code": "media_not_found",
+      "status": [
+        404
       ]
     },
     {
@@ -5146,6 +5290,12 @@
     },
     {
       "code": "payment_order_unmatched",
+      "status": [
+        409
+      ]
+    },
+    {
+      "code": "payment_refund_in_progress",
       "status": [
         409
       ]
@@ -5301,13 +5451,19 @@
       ]
     },
     {
+      "code": "refund_in_progress",
+      "status": [
+        409
+      ]
+    },
+    {
       "code": "refund_pending_usage",
       "status": [
         409
       ]
     },
     {
-      "code": "refund_reference_conflict",
+      "code": "refund_quota_too_small",
       "status": [
         409
       ]

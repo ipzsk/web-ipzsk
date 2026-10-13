@@ -2,15 +2,23 @@
 import type { LaneChange, LaneChannel, LaneMatrix } from './types'
 
 type Row = LaneMatrix['rows'][number]
-export type Patch = Omit<LaneChange, 'channel_id'>
-/** channel_id → only the fields that differ from the server. */
-export type Draft = Record<number, Patch>
+export type Expected = LaneChange['expected']
+export type Patch = Omit<LaneChange, 'channel_id' | 'expected'>
+/**
+ * channel_id → the fields that differ from the server, plus `expected`: the server values when this channel was first
+ * edited. The gateway compares them on save (409 lane_matrix_conflict) so a refetch never turns a stale draft into a
+ * silent overwrite of another operator's change.
+ */
+export type Entry = Patch & { expected: Expected }
+export type Draft = Record<number, Entry>
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x))
+const fields = (e?: Entry): Patch => { if (!e) return {}; const { expected: _expected, ...p } = e; return p }
+const snapshot = (c: Pick<LaneChannel, 'priority' | 'status' | 'lanes'>): Expected => ({ priority: c.priority, status: c.status, lanes: [...c.lanes] })
 
 /** Server channel with the draft applied. */
-export function effective(base: LaneChannel, patch?: Patch): LaneChannel {
-  return patch ? { ...base, ...patch } : base
+export function effective(base: LaneChannel, entry?: Entry): LaneChannel {
+  return entry ? { ...base, ...fields(entry) } : base
 }
 
 export function effectiveChannels(m: LaneMatrix, d: Draft): Record<string, LaneChannel> {
@@ -21,13 +29,28 @@ export function effectiveChannels(m: LaneMatrix, d: Draft): Record<string, LaneC
 
 /** Merge `patch` into the draft for channel `id`, dropping fields that end up equal to the server value. */
 export function applyPatch(d: Draft, base: LaneChannel, patch: Patch): Draft {
-  const merged: Patch = { ...d[base.id], ...patch }
+  const merged: Patch = { ...fields(d[base.id]), ...patch }
   if (merged.lanes && sameSet(merged.lanes, base.lanes)) delete merged.lanes
   if (merged.priority === base.priority) delete merged.priority
   if (merged.status === base.status) delete merged.status
   const next = { ...d }
-  if (Object.keys(merged).length) next[base.id] = merged
+  if (Object.keys(merged).length) next[base.id] = { ...merged, expected: d[base.id]?.expected ?? snapshot(base) }
   else delete next[base.id]
+  return next
+}
+
+export interface LaneConflict { channel_id: number; reason: 'changed' | 'channel_missing'; current?: Expected }
+/**
+ * After a 409: re-base each conflicting channel on the values someone else saved (the edit is kept, so the compare dialog
+ * shows exactly what this save would now change); a channel that left the matrix is dropped from the draft.
+ */
+export function rebase(d: Draft, conflicts: LaneConflict[]): Draft {
+  const next = { ...d }
+  for (const c of conflicts) {
+    if (!next[c.channel_id]) continue
+    if (c.reason === 'channel_missing' || !c.current) delete next[c.channel_id]
+    else next[c.channel_id] = { ...next[c.channel_id]!, expected: snapshot(c.current) }
+  }
   return next
 }
 
@@ -70,17 +93,20 @@ export function applyReorder(d: Draft, m: LaneMatrix, ordered: number[]): Draft 
   return next
 }
 
-export const toChanges = (d: Draft): LaneChange[] => Object.entries(d).map(([id, p]) => ({ channel_id: Number(id), ...p }))
+export const toChanges = (d: Draft): LaneChange[] => Object.entries(d).map(([id, e]) => ({ channel_id: Number(id), ...fields(e), expected: e.expected }))
 
 /** Number of changed fields (the 「N 处改动」 count). */
-export const changeCount = (d: Draft) => Object.values(d).reduce((n, p) => n + Object.keys(p).length, 0)
+export const changeCount = (d: Draft) => Object.values(d).reduce((n, e) => n + Object.keys(fields(e)).length, 0)
 
 /** Only a channel in more than one lane may leave a lane: the server refuses removing the last group (we can't see non-lane groups). */
 export const canRemoveFromLane = (c: LaneChannel) => c.lanes.length > 1
 
+/** Compare rows. A drafted channel missing from a refetched matrix still renders from its `expected` snapshot. */
 export function diffRows(m: LaneMatrix, d: Draft) {
-  return Object.entries(d).map(([id, p]) => {
-    const before = m.channels[id]!
-    return { id: Number(id), name: before.name, before, after: effective(before, p), patch: p }
+  return Object.entries(d).map(([id, e]) => {
+    const server = m.channels[id]
+    const before: Pick<LaneChannel, 'priority' | 'status' | 'lanes'> = server ?? e.expected
+    const patch = fields(e)
+    return { id: Number(id), name: server?.name ?? `渠道 #${id}（已不在线路矩阵中）`, missing: !server, before, after: { ...before, ...patch }, patch }
   })
 }

@@ -6,6 +6,7 @@ import type { ModelSpec, ParamSpec } from '@/shared/contracts'
 import { MOCK_MODELS } from '../api/catalog'
 import type { QueueEntry, RefSlot } from '../api/queue'
 import { classify, type SubmitOutcome } from '../api/generation'
+import { applyQueueEdit, batchLimitReason } from './logic'
 import { ApiError } from '@/shared/api'
 import {
   addFromChip, addManual, diffItem, expandModels, itemFromDraft, normalizeParams, planSend, pruneChips,
@@ -148,12 +149,25 @@ describe('send semantics', () => {
 
 it('classifies HTTP outcomes', () => {
   expect(classify(new ApiError('', { status: 409, code: 'request_already_received' })).status).toBe('accepted')
-  expect(classify(new ApiError('', { status: 409, code: 'idempotency_conflict' })).status).toBe('rejected')
   expect(classify(new ApiError('', { status: 400, code: 'unsupported_param' })).status).toBe('rejected')
-  expect(classify(new ApiError('', { status: 402, code: 'insufficient_balance' })).status).toBe('rejected')
   expect(classify(new ApiError('', { status: 503, code: 'x' })).status).toBe('retryable')
   expect(classify(new ApiError('', { status: 429, code: 'too_many_active' })).status).toBe('retryable')
   expect(classify(new TypeError('fetch')).status).toBe('retryable')
+})
+
+it('never resends an item the gateway may already have run; retries only what never ran upstream', () => {
+  // Same item key already recorded (a retry after a lost response, or the earlier attempt is uncertain): not a new submit.
+  expect(classify(new ApiError('', { status: 409, code: 'idempotency_conflict', body: { error: { status: 'uncertain' } } })).status).toBe('accepted')
+  expect(classify(new ApiError('', { status: 502, code: 'upstream_result_uncertain' })).status).toBe('accepted')
+  expect(classify(new ApiError('', { status: 502, code: 'upstream_http_502' })).status).toBe('accepted')
+  // Never ran upstream: the gateway re-runs it under the same key, so the composer may resend it.
+  expect(classify(new ApiError('', { status: 402, code: 'insufficient_balance' })).status).toBe('retryable')
+  expect(classify(new ApiError('', { status: 502, code: 'upstream_connect_failed' })).status).toBe('retryable')
+  expect(classify(new ApiError('', { status: 502, code: 'upstream_http_402' })).status).toBe('retryable')
+  expect(classify(new ApiError('', { status: 408, code: 'request_cancelled' })).status).toBe('retryable')
+  // Upstream refused the parameters: edit first.
+  expect(classify(new ApiError('', { status: 502, code: 'upstream_http_400' })).status).toBe('rejected')
+  expect(classify(new ApiError('', { status: 400, code: 'invalid_batch_position' })).status).toBe('rejected')
 })
 
 describe('sender', () => {
@@ -320,5 +334,25 @@ describe('{{填空}} 文本变量', () => {
     expect(varOptions('{{红色 / 绿色 / 自动判断}}')).toEqual(['红色', '绿色', '自动判断'])
     expect(varOptions('{{主题词}}')).toBeNull()
     expect(varOptions('{{辅助短句，可留空，建议 4-12 个字}}')).toBeNull() // 没有 /，是自由填空
+  })
+})
+
+describe('send limits and edits', () => {
+  const q = (id: string, extra: Partial<QueueEntry> = {}): QueueEntry => ({ ...itemFromDraft(draft(), id), ...extra })
+  it('one send carries at most the 12 batch positions the gateway accepts', () => {
+    expect(batchLimitReason(12)).toBeNull()
+    expect(batchLimitReason(13)).toMatch(/最多发送 12 项/)
+  })
+  it('an edited item that was already submitted becomes a new item; dependents follow the new id', () => {
+    const queue = [q('a', { state: 'failed' }), q('b', { anchor_of: 'a' }), q('c')]
+    const edited = applyQueueEdit(queue, 'a', { ...q('draft'), prompt: 'edited' }, () => 'a2')
+    expect(edited.map(i => i.item_id)).toEqual(['a2', 'b', 'c'])
+    expect(edited[0]!.prompt).toBe('edited')
+    expect(edited[0]!.state).toBeUndefined()
+    expect(edited[1]!.anchor_of).toBe('a2')
+  })
+  it('editing a never-submitted item keeps its id', () => {
+    const edited = applyQueueEdit([q('a'), q('b')], 'a', { ...q('draft'), prompt: 'edited' }, () => 'new')
+    expect(edited.map(i => i.item_id)).toEqual(['a', 'b'])
   })
 })

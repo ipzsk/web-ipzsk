@@ -21,6 +21,22 @@ const messages: Record<string, string> = {
   payment_checkout_already_requested: '充值请求已提交，请先查看充值记录。',
   online_payment_unavailable: '在线充值暂不可用，请稍后再试。',
   payment_checkout_failed: '收银台暂时无法打开，请稍后重试。',
+  // Generation submit (gateway.mjs): whether to resend is decided by studio/api/generation.ts classify().
+  upstream_result_uncertain: '生成服务没有返回结果，这次生成与扣费正在核对，请勿重复提交。',
+  upstream_connect_failed: '暂时连不上生成服务，请稍后重试。',
+  request_cancelled: '请求已中断，请重试。',
+  invalid_batch_position: '一次最多发送 12 项，请分批发送。',
+  billing_requires_priced_media: '这个型号暂时无法计价，请换一个型号或稍后再试。',
+}
+
+/** upstream_http_{status} carries the upstream status; see studio/create/lib.ts upstreamHttpText for the same split. */
+function upstreamHttpMessage(code: string): string | undefined {
+  const m = /^upstream_http_(\d{3})$/.exec(code)
+  if (!m) return undefined
+  const status = Number(m[1])
+  if ([401, 402, 403, 429].includes(status)) return '生成服务暂时繁忙或不可用，请稍后重试。'
+  if (status < 500) return '生成服务拒绝了这次请求（参数或内容不被接受），请修改后重试。'
+  return '生成服务出错，这次生成与扣费正在核对，请勿重复提交。'
 }
 
 export class ApiError extends Error {
@@ -37,7 +53,7 @@ export class ApiError extends Error {
   }
 }
 
-export const errorMessage = (code: string, fallback = '操作未成功，请稍后重试。') => messages[code] ?? fallback
+export const errorMessage = (code: string, fallback = '操作未成功，请稍后重试。') => messages[code] ?? upstreamHttpMessage(code) ?? fallback
 
 /** Same-site path to return to after login, e.g. /account?next=%2Fstudio */
 export const loginUrl = (next = location.pathname + location.search) => '/account?next=' + encodeURIComponent(next)

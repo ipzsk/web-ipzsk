@@ -284,7 +284,7 @@ function Earnings({ plugins }: { plugins: Plugin[] }) {
         {detail && (
           <DialogContent title={`${detail.plugin_name} · 用量明细`} className="max-w-lg">
             <dl className="grid divide-y divide-line text-sm">
-              {([['使用人数', count(detail.active_users)], ['调用次数', detail.requests], ['失败次数', detail.failed_requests], ['输入 / 输出 token', `${count(detail.input_tokens)} / ${count(detail.output_tokens)}`], ['未返回 token', detail.unknown_token_requests + ' 次'], ['媒体任务 / 完成', `${detail.media_tasks} / ${detail.completed_media_tasks}`], ['未配置分成比例的计费请求', detail.unconfigured_share_requests + ' 笔']] as const).map(([k, v]) => (
+              {([['使用人数', count(detail.active_users)], ['调用次数', detail.requests], ['失败次数', detail.failed_requests], ['输入 / 输出 token', `${count(detail.input_tokens)} / ${count(detail.output_tokens)}`], ['未返回 token', detail.unknown_token_requests + ' 次'], ['媒体任务 / 完成', `${detail.media_tasks} / ${detail.completed_media_tasks}`], ['未配置分成比例的计费请求', detail.unconfigured_share_requests + ' 笔'], ['仅凭插件凭证归属（不计收入）', (detail.unverified_attribution_requests ?? 0) + ' 次']] as const).map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-4 py-2.5"><dt className="text-muted">{k}</dt><dd className="tabular-nums">{String(v)}</dd></div>
               ))}
             </dl>

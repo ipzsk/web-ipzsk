@@ -29,6 +29,8 @@ export interface ItemView {
   anchor: boolean
   /** submitting = request in flight; submit_failed = never accepted (retry via composer retryItem). */
   status: GenerationStatus | 'submitting' | 'submit_failed'
+  /** submit_failed only: the submit error code (network_error = the gateway may still have received it). */
+  submit_code?: string
   failure: string | null
   charged_points: string | null
   results: MediaAsset[]
@@ -57,10 +59,30 @@ export const FAILURE_MESSAGES: Record<string, string> = {
   upstream_unavailable: '上游服务暂不可用',
   rate_limited: '请求太频繁，请稍后再试',
   queue_timeout: '排队超时，请重试',
+  invalid_batch_position: '一次最多发送 12 项',
+  // Submit / task outcomes written by the gateway (gateway.mjs finalize, media-task-sync.mjs, admin cancel).
+  upstream_result_uncertain: '上游未返回结果，生成与扣费待核对',
+  upstream_connect_failed: '暂时连不上生成服务，请重试',
+  request_cancelled: '请求已中断，请重试',
+  process_restarted: '服务重启中断了这次生成，请重试',
+  media_task_failed: '生成失败（上游任务失败）',
+  media_task_cancelled: '上游已取消这次生成',
+  image_result_missing: '任务结束但没有返回图片',
+  video_result_missing: '任务结束但没有返回视频',
+  admin_cancelled: '已由客服标记取消',
   // Client-side status only (anchor failed → dependents cancelled in composer/send.ts); never a server code.
   anchor_failed: '锚图失败',
 }
-export const failureText = (code: string | null) => code ? FAILURE_MESSAGES[code] ?? `生成失败（${code}）` : '生成失败'
+/** upstream_http_{status}: 4xx from the platform's own upstream account vs. a refused request vs. an upstream fault. */
+export function upstreamHttpText(code: string): string | null {
+  const m = /^upstream_http_(\d{3})$/.exec(code)
+  if (!m) return null
+  const status = Number(m[1])
+  if ([401, 402, 403, 429].includes(status)) return '生成服务暂时繁忙或不可用，请稍后重试'
+  if (status >= 400 && status < 500) return '生成服务拒绝了这次请求（参数或内容不被接受），请修改后重试'
+  return '生成服务出错，生成与扣费待核对'
+}
+export const failureText = (code: string | null) => code ? FAILURE_MESSAGES[code] ?? upstreamHttpText(code) ?? `生成失败（${code}）` : '生成失败'
 
 export const itemIdOf = (r: Pick<GenerationRecord, 'idempotency_key'>) => r.idempotency_key?.startsWith('q:') ? r.idempotency_key.slice(2) : null
 
@@ -96,6 +118,7 @@ export function mergeItems(records: GenerationRecord[], pendings: PendingState[]
       mentions: v.mentions, params: v.params, references: v.references, batch_id: v.batch_id, batch_position: v.batch_position ?? 0, thread_id: v.thread_id,
       anchor_record_id: v.anchor_record_id, anchor: false, status: p.status === 'success' ? 'queued' : p.status === 'error' ? 'submit_failed' : 'submitting',
       failure: p.status === 'error' ? (out && out.status !== 'accepted' ? out.error.message : '提交失败') : null,
+      ...(p.status === 'error' && { submit_code: out && out.status !== 'accepted' ? out.error.code : 'network_error' }),
       charged_points: null, results: [], created_at: new Date(p.submittedAt).toISOString(),
     })
   }
@@ -137,11 +160,24 @@ const TERMINAL = new Set(['succeeded', 'failed', 'cancelled'])
 export const isActive = (s: ItemView['status']) => s === 'queued' || s === 'running' || s === 'submitting'
 
 /** 「消耗 ¥N」 once every finished item is settled; 「结算中」 while any finished item still has null; null when nothing finished. */
+/**
+ * Charge line of one item. The gateway returns charged_points=null only while the amount is unknown: a success not yet
+ * settled, or a failure whose hold is under review (it may have run upstream). Certainly-uncharged failures come back as 0.
+ * submit_failed never reached a gateway record — except a network error, where the request may have arrived.
+ */
+export function chargeText(i: Pick<ItemView, 'status' | 'charged_points' | 'submit_code'>): string {
+  if (i.status === 'submit_failed') return i.submit_code === 'network_error' ? '扣费以记录为准' : '未扣费'
+  if (i.charged_points == null) return i.status === 'succeeded' ? '结算中' : '扣费待核对'
+  return Number(i.charged_points) === 0 ? '未扣费' : `消耗 ${formatCharge(i.charged_points)}`
+}
+
 export function chargeLabel(items: Pick<ItemView, 'status' | 'charged_points'>[]): string | null {
   const done = items.filter(i => TERMINAL.has(i.status))
   if (!done.length) return null
   if (done.some(i => i.status === 'succeeded' && i.charged_points == null)) return '结算中'
-  const sum = done.reduce((a, i) => a + Number(i.charged_points ?? 0), 0)
+  // An unknown charge is never summed as 0.
+  if (done.some(i => i.charged_points == null)) return '扣费待核对'
+  const sum = done.reduce((a, i) => a + Number(i.charged_points), 0)
   return `消耗 ${formatCharge(sum)}`
 }
 

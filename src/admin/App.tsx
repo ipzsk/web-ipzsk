@@ -44,7 +44,7 @@ const nav: { group?: string; items: { to: string; label: string; icon: LucideIco
 export function App() {
   const me = useQuery({ queryKey: ME_KEY, queryFn: adminApi.me, retry: false, staleTime: 60_000 })
 
-  // Any 401 later (e.g. the 12h admin session runs out mid-edit) → re-run the gate.
+  // Any 401 later (e.g. the login session expires mid-edit) → re-run the gate.
   useEffect(() => {
     const on = () => void queryClient.invalidateQueries({ queryKey: ME_KEY })
     window.addEventListener(UNAUTHORIZED_EVENT, on)
@@ -58,7 +58,7 @@ export function App() {
 
   let body: ReactNode
   if (me.isPending) body = <GateSkeleton />
-  else if (e?.code === 'admin_session_expired') body = <GateMessage icon={LogIn} title="管理会话已过期" text="管理中台的操作要求最近 12 小时内登录过。你的网站登录仍然有效，所以要先退出、再登录一次：退出后会回到登录页，登录完成自动回到这里。" action={<ReloginButton />} />
+  else if (e?.code === 'admin_session_expired') body = <GateMessage icon={LogIn} title="登录会话已失效" text="请先退出、再登录一次：退出后会回到登录页，登录完成自动回到这里。" action={<ReloginButton />} />
   else if (loginRequired) body = <GateMessage icon={LogIn} title="正在跳转登录…" text="管理中台需要先登录。" action={<Button variant="primary" onClick={() => location.assign(loginUrl('/admin'))}>去登录</Button>} />
   else if (e?.status === 403) body = <GateMessage icon={ShieldOff} title="没有访问权限" text="你的账户没有管理中台的角色。管理中台只对管理员、运营和只读成员开放，重新登录也不会改变这一点，请联系管理员为你的账户授予角色。" action={<Button onClick={() => location.assign('/studio')}>返回创作工作台</Button>} />
   else if (me.isError) body = <GateMessage icon={ShieldOff} title="加载失败" text="暂时无法确认你的权限，请检查网络后重试。" action={<Button variant="primary" onClick={() => void me.refetch()}>重试</Button>} />
@@ -81,8 +81,8 @@ function Chrome({ children }: { children: ReactNode }) {
 }
 
 /**
- * The 12h admin window only resets on a fresh sign-in, and the site session (7d, auto-renewing) keeps
- * /account showing the signed-in profile — so re-auth has to sign out first, same endpoint as 个人中心.
+ * The admin console rides the site's 7-day, auto-renewing login session (roles.mjs). /account keeps showing a
+ * signed-in profile while it is valid, so re-auth has to sign out first, same endpoint as 个人中心.
  */
 function ReloginButton({ size }: { size?: 'sm' }) {
   const [busy, setBusy] = useState(false)

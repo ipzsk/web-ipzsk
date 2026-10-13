@@ -34,7 +34,9 @@ export async function devApi<T>(path: string, body?: unknown): Promise<T> {
 export interface DevProfile { state: string; display_name: string; review_note?: string | null }
 export interface Plugin { id: string; name: string; repository: string; enabled: boolean; published_versions: number | string; pending_versions: number | string; active_users: number | null; versions: number; revenue_share_bps: number | null }
 export interface Release { id: string; version: string; state: string; review_note?: string | null; withdrawal_requested?: boolean }
-export interface UsageRow { plugin_name: string; model: string; billed_revenue_cny: string | null; accrued_earnings_cny: string | null; active_users: number | null; requests: number; failed_requests: number; input_tokens: number | null; output_tokens: number | null; unknown_token_requests: number; media_tasks: number; completed_media_tasks: number; unconfigured_share_requests: number }
+export interface UsageRow { plugin_name: string; model: string; billed_revenue_cny: string | null; accrued_earnings_cny: string | null; active_users: number | null; requests: number; failed_requests: number; input_tokens: number | null; output_tokens: number | null; unknown_token_requests: number; media_tasks: number; completed_media_tasks: number; unconfigured_share_requests: number
+  /** Requests attributed only by a desktop plugin credential: counted in usage, never in revenue or earnings. Absent on older gateways. */
+  unverified_attribution_requests?: number }
 
 export function pluginStatus(p: Plugin) {
   const status = !p.enabled ? '已停用' : Number(p.published_versions) > 0 ? '已上架' : Number(p.pending_versions) > 0 ? '待审核' : '未上架'

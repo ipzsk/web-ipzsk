@@ -30,7 +30,7 @@ function saveBatchAsTemplate(items: ItemView[]) {
     })),
   })
 }
-import { chargeLabel, circled, differingParams, formatWait, paramText, sharedPrompt, type Group, type ItemView } from './lib'
+import { chargeLabel, chargeText, circled, differingParams, formatWait, paramText, sharedPrompt, type Group, type ItemView } from './lib'
 
 /** Catalog display name, falling back to the id. */
 function useModelName() {
@@ -141,12 +141,12 @@ function Status({ item, now }: { item: ItemView; now: number }) {
       return (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="flex items-center gap-1.5 text-danger"><TriangleAlert className="size-4" />{item.failure}</span>
-          <span className="text-xs text-muted">{item.status === 'submit_failed' || Number(item.charged_points ?? 0) === 0 ? '未扣费' : `消耗 ${formatCharge(item.charged_points)}`}</span>
+          <span className="text-xs text-muted">{chargeText(item)}</span>
           <Button size="sm" icon={<RefreshCw className="size-4" />} onClick={() => regenerate(item)}>重试</Button>
         </div>
       )
     case 'cancelled':
-      return <p className="text-sm text-muted">已取消{item.failure ? ` · ${item.failure}` : ''} · 未扣费</p>
+      return <p className="text-sm text-muted">已取消{item.failure ? ` · ${item.failure}` : ''} · {chargeText(item)}</p>
     default:
       return null
   }

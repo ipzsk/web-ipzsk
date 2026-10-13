@@ -17,7 +17,9 @@ const qs = (s: Scenario) => new URLSearchParams(Object.entries(s).filter(([, v])
 
 export const realLaneApi: LaneApi = {
   matrix: s => request(`/api/admin/ops/lane-matrix?${qs(s)}`),
-  save: changes => request('/api/admin/ops/lane-matrix', { method: 'PUT', body: { changes }, headers: { 'Idempotency-Key': crypto.randomUUID() } }),
+  // No Idempotency-Key: the gateway makes a retried save idempotent itself (a change already in place is skipped) and refuses
+  // stale ones by `expected` (409 lane_matrix_conflict).
+  save: changes => request('/api/admin/ops/lane-matrix', { method: 'PUT', body: { changes } }),
 }
 
 /* ───────────────────────────── mock ───────────────────────────── */
@@ -84,12 +86,19 @@ export function createMockLaneApi(role: MockRole = 'admin', delay = mockDelay): 
         if (!channels[ch.channel_id]) throw err(404, 'channel_not_found')
         if (ch.lanes && !ch.lanes.length) throw err(502, 'lanehub_api_failed', `channel ${ch.channel_id}: 渠道至少要保留一个分组`)
       }
+      // Same optimistic check as the gateway: the fields being written must still hold the values the edit started from.
+      const conflicts = changes.filter(ch => {
+        const c = channels[ch.channel_id]!
+        return (ch.priority !== undefined && c.priority !== ch.expected.priority) || (ch.status !== undefined && c.status !== ch.expected.status)
+          || (ch.lanes !== undefined && c.lanes.join() !== ch.expected.lanes.join())
+      }).map(ch => ({ channel_id: ch.channel_id, reason: 'changed', current: { priority: channels[ch.channel_id]!.priority, status: channels[ch.channel_id]!.status, lanes: [...channels[ch.channel_id]!.lanes] } }))
+      if (conflicts.length) throw new ApiError('lane_matrix_conflict', { status: 409, code: 'lane_matrix_conflict', body: { error: { code: 'lane_matrix_conflict', conflicts } } })
       return {
         results: changes.map(ch => {
           const c = channels[ch.channel_id]!
           const state = () => ({ group: c.lanes.join(','), priority: c.priority, status: c.status })
           const before = state()
-          Object.assign(c, Object.fromEntries(Object.entries(ch).filter(([k]) => k !== 'channel_id')))
+          Object.assign(c, Object.fromEntries(Object.entries(ch).filter(([k, v]) => k !== 'channel_id' && k !== 'expected' && v !== undefined)))
           return { channel_id: c.id, name: c.name, before, after: state() }
         }),
       }

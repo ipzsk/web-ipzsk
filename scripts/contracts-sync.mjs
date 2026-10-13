@@ -1,13 +1,21 @@
 #!/usr/bin/env node
 // Shared API contracts with ipzsk-api-gateway (docs/studio-redesign.md §10.2 / §11).
 //
-//   npm run contracts:sync   copy ../ipzsk-api-gateway/contracts/{endpoints.json,ipzsk-api.d.ts}
-//                            into src/shared/contracts/generated/ (override with --from <gateway dir>)
-//   npm run contracts:check  scan src/**/*.{ts,tsx} for API paths; fail on any (method, path) missing
-//                            from generated/endpoints.json; warn on error codes the gateway never emits.
+//   npm run contracts:sync -- --from <gateway worktree>
+//       copy <gateway>/contracts/{endpoints.json,ipzsk-api.d.ts} into src/shared/contracts/generated/.
+//       --from is required: the snapshot must come from an explicit gateway worktree, never an implicit sibling
+//       checkout. The full HEAD commit, the worktree's dirty flag and a content hash are recorded in _source.
+//       A dirty worktree is refused unless --allow-dirty is passed.
+//   npm run contracts:check [-- --from <gateway worktree>] [--allow-dirty]
+//       fail when the snapshot has no full commit, was taken from a dirty worktree, or no longer matches its
+//       recorded hash; with --from, also fail when that worktree's HEAD or contracts differ from the snapshot.
+//       Then scan src/**/*.{ts,tsx} for API paths; fail on any (method, path) missing from generated/endpoints.json;
+//       warn on error codes the gateway never emits. --allow-dirty is for local verification against an
+//       uncommitted gateway worktree only; CI must run without it.
 //
 // Silence a known false positive with `// contracts-ignore: reason` on the same or the previous line.
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,21 +27,55 @@ const FILES = ['endpoints.json', 'ipzsk-api.d.ts']
 // Codes produced by the website itself, not the gateway.
 const CLIENT_CODES = new Set(['network_error'])
 
-// ── sync ──
-export function sync(from) {
+// ── provenance ──
+// Hash of the parsed endpoint list plus the declaration file, so the generated copy (with _source and a header
+// line added) can be compared with the gateway's files without re-reading them.
+export const contentHash = (json, dts) => createHash('sha256').update(JSON.stringify(json) + '\n' + dts).digest('hex')
+
+export function describeSource(from) {
   const src = join(from, 'contracts')
   const missing = FILES.filter((f) => !existsSync(join(src, f)))
   if (missing.length) throw new Error(`missing ${missing.map((f) => join(src, f)).join(', ')} — run \`npm run contracts\` in the gateway first`)
-  const git = (...args) => execFileSync('git', ['-C', from, ...args], { encoding: 'utf8' }).trim()
-  let commit = 'unknown'
-  try { commit = git('rev-parse', '--short', 'HEAD') + (git('status', '--porcelain') ? '-dirty' : '') } catch { /* not a git checkout */ }
-  mkdirSync(GENERATED, { recursive: true })
+  const git = (...args) => execFileSync('git', ['-C', from, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  let commit = null, dirty = null
+  try { commit = git('rev-parse', 'HEAD'); dirty = Boolean(git('status', '--porcelain')) } catch { /* not a git checkout */ }
   const json = JSON.parse(readFileSync(join(src, 'endpoints.json'), 'utf8'))
-  writeFileSync(join(GENERATED, 'endpoints.json'), JSON.stringify({ _source: { repo: 'ipzsk-api-gateway', commit }, ...json }, null, 2) + '\n')
-  writeFileSync(join(GENERATED, 'ipzsk-api.d.ts'),
-    `// Synced from ipzsk-api-gateway@${commit} by scripts/contracts-sync.mjs. Do not edit; re-run \`npm run contracts:sync\`.\n`
-    + readFileSync(join(src, 'ipzsk-api.d.ts'), 'utf8'))
-  return commit
+  const dts = readFileSync(join(src, 'ipzsk-api.d.ts'), 'utf8')
+  return { commit, dirty, sha256: contentHash(json, dts), json, dts }
+}
+
+// ── sync ──
+export function sync(from, { allowDirty = false, to = GENERATED } = {}) {
+  const source = describeSource(from)
+  if (!source.commit) throw new Error(`${from} is not a git checkout — contracts must come from an identifiable gateway commit`)
+  if (source.dirty && !allowDirty) throw new Error(`${from} has uncommitted changes — commit them, or pass --allow-dirty (contracts:check then fails until re-synced from a clean commit)`)
+  mkdirSync(to, { recursive: true })
+  const _source = { repo: 'ipzsk-api-gateway', commit: source.commit, dirty: source.dirty, sha256: source.sha256 }
+  writeFileSync(join(to, 'endpoints.json'), JSON.stringify({ _source, ...source.json }, null, 2) + '\n')
+  writeFileSync(join(to, 'ipzsk-api.d.ts'),
+    `// Synced from ipzsk-api-gateway@${source.commit}${source.dirty ? ' (dirty worktree)' : ''} by scripts/contracts-sync.mjs. Do not edit; re-run \`npm run contracts:sync\`.\n`
+    + source.dts)
+  return source
+}
+
+export function readGenerated(dir = GENERATED) {
+  const { _source: source, ...json } = JSON.parse(readFileSync(join(dir, 'endpoints.json'), 'utf8'))
+  const dts = readFileSync(join(dir, 'ipzsk-api.d.ts'), 'utf8').replace(/^[^\n]*\n/, '')
+  return { source, json, sha256: contentHash(json, dts) }
+}
+
+// Returns every reason the generated snapshot cannot be trusted as "the gateway at a known commit".
+export function verifySource({ source, sha256 }, { actual = null, allowDirty = false } = {}) {
+  const problems = []
+  if (!/^[0-9a-f]{40}$/.test(source?.commit ?? '')) problems.push(`snapshot records no full gateway commit (${source?.commit ?? 'none'}); re-sync with --from <gateway worktree>`)
+  if (source?.dirty !== false && !allowDirty) problems.push('snapshot was taken from a dirty or unknown gateway worktree; re-sync from a clean commit')
+  if (source?.sha256 !== sha256) problems.push('generated files do not match the recorded content hash (edited by hand or partial sync)')
+  if (actual) {
+    if (actual.commit !== source?.commit) problems.push(`gateway HEAD ${actual.commit ?? 'unknown'} differs from snapshot ${source?.commit ?? 'unknown'}`)
+    if (actual.sha256 !== source?.sha256) problems.push('gateway contracts differ from the snapshot; re-run contracts:sync')
+    if (actual.dirty && !allowDirty) problems.push('gateway worktree has uncommitted changes')
+  }
+  return problems
 }
 
 // ── source scanning ──
@@ -152,19 +194,27 @@ export function check({ root = ROOT, contracts = JSON.parse(readFileSync(join(GE
 }
 
 function main(argv) {
-  const at = argv.indexOf('--from')
+  const at = argv.indexOf('--from'), allowDirty = argv.includes('--allow-dirty')
+  const from = at >= 0 && argv[at + 1] ? resolve(argv[at + 1]) : null
   if (argv.includes('--check')) {
-    if (!FILES.every((f) => existsSync(join(GENERATED, f)))) { console.error('generated contracts missing — run npm run contracts:sync'); return 1 }
+    if (!FILES.every((f) => existsSync(join(GENERATED, f)))) { console.error('generated contracts missing — run npm run contracts:sync -- --from <gateway worktree>'); return 1 }
+    let problems
+    try { problems = verifySource(readGenerated(), { actual: from ? describeSource(from) : null, allowDirty }) }
+    catch (e) { console.error(e.message); return 1 }
     const { drift, warnings, source } = check()
-    console.log(`contracts from ipzsk-api-gateway@${source?.commit ?? 'unknown'}`)
+    console.log(`contracts from ipzsk-api-gateway@${source?.commit ?? 'unknown'}${source?.dirty ? ' (dirty worktree)' : ''}`)
+    for (const p of problems) console.error(`source  ${p}`)
     for (const w of warnings) console.warn(`warning ${w.file}:${w.line} ${w.code}: ${w.reason}`)
     for (const d of drift) console.error(`drift   ${d.file}:${d.line} ${d.methods.join('/') || '?'} ${d.raw}: ${d.reason}`)
-    console.log(`${drift.length} drift, ${warnings.length} warnings`)
-    return drift.length ? 1 : 0
+    console.log(`${problems.length} source problems, ${drift.length} drift, ${warnings.length} warnings`)
+    return drift.length || problems.length ? 1 : 0
   }
-  const from = resolve(at >= 0 ? argv[at + 1] : join(ROOT, '../ipzsk-api-gateway'))
-  try { console.log(`synced contracts from ipzsk-api-gateway@${sync(from)}`); return 0 }
-  catch (e) { console.error(e.message); return 1 }
+  if (!from) { console.error('usage: npm run contracts:sync -- --from <gateway worktree> [--allow-dirty]'); return 1 }
+  try {
+    const source = sync(from, { allowDirty })
+    console.log(`synced contracts from ipzsk-api-gateway@${source.commit}${source.dirty ? ' (dirty worktree — contracts:check will fail until re-synced from a clean commit)' : ''}`)
+    return 0
+  } catch (e) { console.error(e.message); return 1 }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exit(main(process.argv.slice(2)))

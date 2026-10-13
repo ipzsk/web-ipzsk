@@ -23,7 +23,7 @@ export interface AdminApi {
     list(q: CaseQuery): Promise<Page<AdminCase>>
     categories(): Promise<CategoryCount[]>
     get(id: string): Promise<AdminCase>
-    create(body: CaseCreate): Promise<AdminCase>
+    create(body: CaseCreate, idempotencyKey?: string): Promise<AdminCase>
     update(id: string, patch: CasePatch): Promise<AdminCase>
     move(id: string, to: { after_id: string | null; before_id: string | null }): Promise<{ id: string; position: number }>
     bulkStatus(ids: string[], status: CaseStatus): Promise<BulkResult>
@@ -56,13 +56,32 @@ const qs = (o: object) => {
 }
 const enc = encodeURIComponent
 
+/**
+ * First save of a new case is two requests (create, then references). If create succeeded but its response or the
+ * references call failed, the next save must not create a second draft (and a second cover copy in R2).
+ * `session` lives as long as the editor: a lost create is replayed with the same Idempotency-Key; a case that was
+ * already created is updated in place.
+ */
+export interface NewCaseSession { key: string; created: AdminCase | null; coverId: string | null }
+export const newCaseSession = (): NewCaseSession => ({ key: crypto.randomUUID(), created: null, coverId: null })
+export async function saveNewCase(api: AdminApi, session: NewCaseSession, fields: CaseFields, coverId: string, referenceIds: string[]): Promise<AdminCase> {
+  let c = session.created
+  if (!c) { c = session.created = await api.cases.create({ ...fields, cover_asset_id: coverId }, session.key); session.coverId = coverId }
+  else {
+    c = session.created = await api.cases.update(c.id, { ...fields, expected_updated_at: c.updated_at })
+    // The gateway copies the cover on create, so compare with what was submitted, not the copy's id.
+    if (session.coverId !== coverId) { c = session.created = await api.cases.setCover(c.id, coverId); session.coverId = coverId }
+  }
+  return referenceIds.length ? (session.created = await api.cases.setReferences(c.id, referenceIds)) : c
+}
+
 export const realApi: AdminApi = {
   me: () => request('/api/admin/me'),
   cases: {
     list: q => request(`/api/admin/cases?${qs(q)}`),
     categories: async () => (await request<{ items: CategoryCount[] }>('/api/admin/case-categories')).items,
     get: id => request(`/api/admin/cases/${enc(id)}`),
-    create: body => request('/api/admin/cases', { body, headers: { 'Idempotency-Key': crypto.randomUUID() } }),
+    create: (body, key = crypto.randomUUID()) => request('/api/admin/cases', { body, headers: { 'Idempotency-Key': key } }),
     update: (id, patch) => request(`/api/admin/cases/${enc(id)}`, { method: 'PATCH', body: patch }),
     move: (id, to) => request(`/api/admin/cases/${enc(id)}/position`, { method: 'PATCH', body: to }),
     bulkStatus: (ids, status) => request('/api/admin/cases/bulk-status', { body: { ids, status } }),

@@ -9,7 +9,7 @@ import { queryClient } from '@/shared/query'
 import { fetchModels } from '@/studio/api/catalog'
 import { uploadApi } from '@/studio/composer/uploadApi'
 import { paramLabel } from '@/studio/composer/logic'
-import { adminApi } from './api'
+import { adminApi, newCaseSession, saveNewCase } from './api'
 import { MAX_OUTPUTS, STATUS_LABEL, publishIssues, serverIssues, templateIssues, type AdminCase, type CaseFields, type CaseStatus, type FieldIssue, type IssueField, type TemplateItem } from './lib'
 import { Confirm, Select, StatusBadge, adminErrorText } from './ui'
 import { useCan } from './App'
@@ -65,13 +65,12 @@ function Form({ initial }: { initial: AdminCase | null }) {
   const cats = useQuery({ queryKey: ['admin', 'case-categories'], queryFn: adminApi.cases.categories, staleTime: 5 * 60_000 })
   const model = models.data?.find(m => m.id === draft.model)
 
+  // One create Idempotency-Key and one created case per editing session (see saveNewCase).
+  const newCase = useRef(newCaseSession())
   /* ---- save (optimistic, §6) ---- */
   const save = useMutation({
     mutationFn: async ({ next, status: to }: { next: Draft; status?: CaseStatus }) => {
-      if (!initial) {
-        const c = await adminApi.cases.create({ ...fieldsOf(next), cover_asset_id: next.cover!.id })
-        return next.references.length ? adminApi.cases.setReferences(c.id, next.references.map(r => r.id)) : c
-      }
+      if (!initial) return saveNewCase(adminApi, newCase.current, fieldsOf(next), next.cover!.id, next.references.map(r => r.id))
       return adminApi.cases.update(initial.id, { ...fieldsOf(next), ...(to && { status: to }), expected_updated_at: initial.updated_at })
     },
     onMutate: ({ next, status: to }) => {

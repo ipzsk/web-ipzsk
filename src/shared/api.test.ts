@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, UNAUTHORIZED_EVENT, currentUser, request } from './api'
+import { ApiError, UNAUTHORIZED_EVENT, currentUser, errorMessage, request } from './api'
 
 const respond = (status: number, body: unknown) => vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(body), { status })))
 afterEach(() => vi.unstubAllGlobals())
@@ -43,5 +43,17 @@ describe('request errors', () => {
     window.addEventListener(UNAUTHORIZED_EVENT, heard)
     expect(await currentUser()).toBeNull()
     expect(heard).toHaveBeenCalledOnce()
+  })
+})
+
+describe('generation submit messages', () => {
+  it('explains upstream outcomes instead of a generic retry prompt', () => {
+    expect(errorMessage('upstream_result_uncertain')).toMatch(/核对.*请勿重复提交/)
+    expect(errorMessage('upstream_http_502')).toMatch(/请勿重复提交/)
+    expect(errorMessage('upstream_http_400')).toMatch(/修改后重试/)
+    expect(errorMessage('upstream_http_402')).toMatch(/稍后重试/)
+    expect(errorMessage('invalid_batch_position')).toMatch(/12 项/)
+    expect(errorMessage('request_cancelled')).toBe('请求已中断，请重试。')
+    expect(errorMessage('something_new')).toBe('操作未成功，请稍后重试。')
   })
 })

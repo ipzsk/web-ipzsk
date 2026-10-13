@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { create } from 'zustand'
 import { ExternalLink, LogIn } from 'lucide-react'
 import { Button, Dialog, DialogContent, cn, focusRing } from '@/ui'
 import { ApiError, isMock, request, type Wallet } from '@/shared/api'
+import { qk } from '@/shared/query'
 import {
-  createCheckout, formatMoney, hasPendingPayment, paymentStates,
+  createCheckout, formatMoney, hasPendingPayment, orderStatus,
   type PaymentOptions, type PaymentOrders,
 } from '@/shared/billing'
 
@@ -17,6 +18,32 @@ export async function fetchWallet(onUnauthorized?: () => void): Promise<AccountW
   if (isMock) return { available_cny: '10.00', frozen_cny: '0.00', available_points: '1000.00000000', frozen_points: '0.00000000' }
   try { return await request<AccountWallet>('/api/me/wallet') }
   catch (e) { if (e instanceof ApiError && (e.status === 401 || e.status === 403)) { if (e.status === 401) onUnauthorized?.(); return null } throw e }
+}
+
+/**
+ * Recent payment orders, polled while any is still pending. When a pending order settles (credited by the webhook
+ * worker, or moved to review) every wallet cache is refreshed: the header/home use qk.wallet, the dialog WALLET_KEY.
+ */
+export function usePaymentOrders(enabled: boolean) {
+  const client = useQueryClient()
+  const orders = useQuery({
+    queryKey: ['account', 'payment-orders'], enabled,
+    queryFn: () => request<PaymentOrders>('/api/me/payments/orders'),
+    refetchInterval: query => hasPendingPayment(query.state.data?.rows) ? 5_000 : false,
+  })
+  const pending = useRef<Set<string> | null>(null)
+  useEffect(() => {
+    const rows = orders.data?.rows
+    if (!rows) return
+    const now = new Set(rows.filter(order => orderStatus(order).pending).map(order => order.id))
+    const settled = pending.current !== null && [...pending.current].some(id => !now.has(id))
+    pending.current = now
+    if (settled) {
+      void client.invalidateQueries({ queryKey: qk.wallet })
+      void client.invalidateQueries({ queryKey: WALLET_KEY })
+    }
+  }, [orders.data, client])
+  return orders
 }
 
 /** App-wide state: the studio header and composer open the same online-recharge dialog. */
@@ -34,11 +61,7 @@ export function RechargeDialog({ open, onOpenChange, onUnauthorized }: { open: b
     queryKey: ['account', 'payment-options'], enabled: open && signedIn && !isMock,
     queryFn: () => request<PaymentOptions>('/api/me/payments/options'),
   })
-  const orders = useQuery({
-    queryKey: ['account', 'payment-orders'], enabled: open && signedIn && !isMock,
-    queryFn: () => request<PaymentOrders>('/api/me/payments/orders'),
-    refetchInterval: query => hasPendingPayment(query.state.data?.rows) ? 5_000 : false,
-  })
+  const orders = usePaymentOrders(open && signedIn && !isMock)
   const [busy, setBusy] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null)
 
@@ -115,7 +138,7 @@ export function RechargeDialog({ open, onOpenChange, onUnauthorized }: { open: b
               <ul className="mt-3 grid gap-2 text-sm text-muted">
                 {orders.data.rows.slice(0, 5).map(order => (
                   <li key={order.id} className="border-t border-line pt-2 first:border-0 first:pt-0">
-                    <span className="font-semibold text-ink">{formatMoney(order.amount_cny)}</span> · {paymentStates[order.state] ?? '状态待确认'}
+                    <span className="font-semibold text-ink">{formatMoney(order.amount_cny)}</span> · {orderStatus(order).label}
                     <small className="mt-1 block">{new Date(order.created_at).toLocaleString('zh-CN')}{order.mode === 'test' ? ' · 测试' : ''}</small>
                   </li>
                 ))}

@@ -225,6 +225,24 @@ export function expandModels(d: Draft, models: ModelSpec[]): QueueEntry[] {
   })
 }
 
+/** The gateway accepts batch_position 0–11 (studio.mjs invalid_batch_position): one send is at most 12 items. */
+export const BATCH_MAX = 12
+export const batchLimitReason = (count: number) =>
+  count > BATCH_MAX ? `一次最多发送 ${BATCH_MAX} 项（当前 ${count} 项）：请先发送队列，再发送草稿` : null
+
+/**
+ * Saving an edit over a queue item. An item that was already submitted (failed / retryable) keeps a gateway request
+ * under its key `q:{item_id}`; the edited content is a new generation, so it gets a new item_id (dependents follow).
+ * Reusing the old key would either be refused as a conflict or, worse, be mistaken for the earlier submission.
+ */
+export function applyQueueEdit(queue: QueueEntry[], editingId: string, current: QueueEntry, newId: () => string = () => crypto.randomUUID()): QueueEntry[] {
+  const old = queue.find(i => i.item_id === editingId)
+  if (!old) return queue
+  const id = old.state === 'failed' || old.state === 'retryable' ? newId() : editingId
+  return queue.map(i => i.item_id === editingId ? { ...current, item_id: id, anchor_of: i.anchor_of }
+    : i.anchor_of === editingId && id !== editingId ? { ...i, anchor_of: id } : i)
+}
+
 export const queueRoom = (queueLength: number, adding: number) =>
   queueLength + adding > QUEUE_MAX ? `队列最多 ${QUEUE_MAX} 项，当前 ${queueLength} 项` : null
 

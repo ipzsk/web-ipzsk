@@ -5,7 +5,7 @@ import { RefreshCw, Server } from 'lucide-react'
 import { Badge, Button, EmptyState, ErrorState, Skeleton, Tooltip, cn, toast } from '@/ui'
 import { queryClient } from '@/shared/query'
 import { opsApi, type ChannelQuery } from './opsApi'
-import { CHANNEL_STATUS, fmtAgo, fmtBalance, fmtCny, fmtLatency, withParam } from './lib'
+import { CHANNEL_STATUS, fmtAgo, fmtBalance, fmtCny, fmtLatency, opsErrorText, withParam } from './lib'
 import type { ChannelSummary, Page, Probe } from './types'
 import { FilterInput, PageHeader, Select, adminErrorText } from '../ui'
 import { useCan } from '../App'
@@ -72,7 +72,7 @@ export function ChannelsPage() {
         {['keyword', 'status', 'type', 'group'].some(k => sp.get(k)) && <Button size="sm" variant="ghost" onClick={() => { setText({ keyword: '', group: '', type: '' }); setSp({}, { replace: true }) }}>清除筛选</Button>}
       </div>
 
-      {list.isError ? <ErrorState reason="渠道加载失败，请检查网络后重试" action={{ label: '重试', onClick: () => void list.refetch() }} />
+      {list.isError ? <ErrorState reason={opsErrorText(list.error)} action={{ label: '重试', onClick: () => void list.refetch() }} />
         : list.isPending ? <div className="grid gap-1">{Array.from({ length: 10 }, (_, i) => <Skeleton key={i} className="h-10" />)}</div>
         : !rows.length ? <EmptyState icon={Server} text="没有符合筛选的渠道" />
         : (

@@ -17,8 +17,8 @@ export function can(roles: readonly string[], cap: Capability): boolean {
 }
 
 /**
- * The gateway only accepts /api/admin/* while the login session is younger than 12h, and it only
- * resets on a fresh sign-in — so `low` is the cue to offer re-auth before an edit is lost.
+ * Time left on the login session /api/admin/* rides (7 days, auto-renewed by the site; roles.mjs).
+ * `low` is the cue to offer re-auth before an edit is lost.
  */
 export function sessionLeft(expiresAt: string, now = Date.now()) {
   const ms = Math.max(0, Date.parse(expiresAt) - now) || 0
@@ -182,6 +182,32 @@ export function grantIssues(amount: string, reason: string): { amount?: string; 
   const r = reason.trim().length
   if (r < 2 || r > 200) out.reason = '原因需 2–200 字'
   return out
+}
+
+/**
+ * Wallet grant Idempotency-Key. The gateway fingerprints (user, amount.toFixed(2), trimmed reason) and keeps a key
+ * forever; an unknown result (network drop, 409 lanehub_adjustment_review) must be retried with the SAME key or the
+ * grant is credited twice. So the key is derived from the same normalised payload and kept in sessionStorage until
+ * that grant succeeds: closing and reopening the dialog, or reloading the tab, reuses it.
+ */
+type KeyStore = Pick<Storage, 'getItem' | 'setItem'>
+const GRANT_KEYS = 'ipzsk.admin.grant-keys'
+const memoryKeys = new Map<string, string>()
+const memoryStore: KeyStore = { getItem: k => memoryKeys.get(k) ?? null, setItem: (k, v) => { memoryKeys.set(k, v) } }
+const sessionStore = (): KeyStore => { try { sessionStorage.getItem(GRANT_KEYS); return sessionStorage } catch { return memoryStore } }
+const grantSlot = (userId: string, amount: string, reason: string) => [userId, Number(amount).toFixed(2), reason.trim()].join('\u0000')
+const readKeys = (store: KeyStore): Record<string, string> => { try { return JSON.parse(store.getItem(GRANT_KEYS) ?? '{}') ?? {} } catch { return {} } }
+
+export function grantKey(userId: string, amount: string, reason: string, store: KeyStore = sessionStore()): string {
+  const keys = readKeys(store), slot = grantSlot(userId, amount, reason)
+  if (!keys[slot]) { keys[slot] = crypto.randomUUID(); store.setItem(GRANT_KEYS, JSON.stringify(keys)) }
+  return keys[slot]
+}
+/** Only after the gateway confirmed the grant: the next identical grant is a deliberate new one. */
+export function releaseGrantKey(userId: string, amount: string, reason: string, store: KeyStore = sessionStore()) {
+  const keys = readKeys(store)
+  delete keys[grantSlot(userId, amount, reason)]
+  store.setItem(GRANT_KEYS, JSON.stringify(keys))
 }
 
 export const fmtTime = (iso: string) => new Date(iso).toLocaleString('zh-CN', { hour12: false })

@@ -56,7 +56,7 @@ export function Confirm({ open, onOpenChange, title, description, confirmLabel, 
 
 const ADMIN_ERRORS: Record<string, string> = {
   forbidden_role: '你的角色没有这个操作的权限。',
-  admin_session_expired: '管理会话已超过 12 小时，请重新登录。',
+  admin_session_expired: '登录会话已失效，请重新登录。',
   case_publish_invalid: '发布前还有字段没填好。',
   case_conflict: '案例已被其他人修改，已载入最新版本，请重新编辑。',
   case_order_conflict: '列表顺序已变化，已刷新，请重新拖动。',
@@ -74,9 +74,14 @@ const ADMIN_ERRORS: Record<string, string> = {
   invalid_reason: '原因需 2–200 字。',
   idempotency_conflict: '这次提交与之前的内容不一致，请关闭后重新发起。',
   lanehub_account_missing: '该用户的计费账户开通失败，请稍后重试。',
+  lanehub_adjustment_review: 'LaneHub 入账结果未知，已转人工核对。请勿改金额或原因重发；核对确认后按原内容重新提交即可补齐，不会重复入账。',
+  lanehub_adjustment_not_applied: 'LaneHub 入账正在执行或已被终止，请稍后刷新；已终止的需要用新的原因重新发起。',
 }
+/** A message written for the operator (form validation inside onConfirm), shown as is. */
+export const inputError = (message: string) => Object.assign(new Error(message), { userFacing: true })
 export const adminErrorText = (e: unknown) =>
-  e instanceof ApiError ? ADMIN_ERRORS[e.code] ?? e.message : '操作未成功，请稍后重试。'
+  e instanceof ApiError ? ADMIN_ERRORS[e.code] ?? e.message
+    : e instanceof Error && (e as { userFacing?: boolean }).userFacing ? e.message : '操作未成功，请稍后重试。'
 
 export function StatusBadge({ status }: { status: CaseStatus }) {
   return <Badge tone={status === 'published' ? 'acid' : status === 'hidden' ? 'neutral' : 'outline'}>{STATUS_LABEL[status]}</Badge>

@@ -1,8 +1,9 @@
 import { request } from './api'
 
 export interface PaymentPack { key: string; amount_cny: string | number }
-export interface PaymentOptions { enabled: boolean; mode: 'test' | 'live'; packs: PaymentPack[] }
-export interface PaymentOrder { id: string; amount_cny: string | number; state: string; mode?: 'test' | 'live'; created_at: string }
+// Backend payments.mjs: mode is the Waffo environment ('prod' | 'test'), null while online payment is disabled.
+export interface PaymentOptions { enabled: boolean; mode: 'test' | 'prod' | null; packs: PaymentPack[] }
+export interface PaymentOrder { id: string; amount_cny: string | number; state: string; mode?: 'test' | 'prod'; created_at: string; refunded_cny?: string | number }
 export interface PaymentOrders { rows: PaymentOrder[] }
 
 export const paymentStates: Record<string, string> = {
@@ -41,5 +42,20 @@ export async function createCheckout(pack: string) {
   return url.href
 }
 
-export const hasPendingPayment = (orders: PaymentOrder[] = []) =>
-  orders.some(order => ['creating', 'checkout_ready', 'paid', 'crediting'].includes(order.state))
+// The backend creates Waffo checkout sessions with expiresInSeconds 1800 and never expires the order row itself.
+// After that (plus a grace period for a late webhook) an unpaid checkout can no longer complete, so stop polling it.
+const CHECKOUT_CLOSED_AFTER_MS = 30 * 60_000 + 10 * 60_000
+const CHECKOUT_STATES = ['creating', 'checkout_ready']
+const DELIVERY_STATES = ['paid', 'crediting']
+
+/** Label and polling need of one order, as the user should see it. */
+export function orderStatus(order: PaymentOrder, now = Date.now()): { label: string; pending: boolean } {
+  if (CHECKOUT_STATES.includes(order.state) && now - Date.parse(order.created_at) > CHECKOUT_CLOSED_AFTER_MS)
+    return { label: '未完成支付（收银台已关闭；如已付款请联系客服）', pending: false }
+  const refunded = Number(order.refunded_cny ?? 0)
+  if (order.state === 'credited' && refunded > 0)
+    return { label: refunded >= Number(order.amount_cny) ? '已全额退款' : '已部分退款 ' + formatMoney(order.refunded_cny), pending: false }
+  return { label: paymentStates[order.state] ?? '状态待确认', pending: CHECKOUT_STATES.includes(order.state) || DELIVERY_STATES.includes(order.state) }
+}
+
+export const hasPendingPayment = (orders: PaymentOrder[] = [], now = Date.now()) => orders.some(order => orderStatus(order, now).pending)

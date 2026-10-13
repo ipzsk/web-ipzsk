@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { BarChart3 } from 'lucide-react'
 import { EmptyState, ErrorState, SegmentedControl, Skeleton, cn } from '@/ui'
 import { opsApi } from './opsApi'
-import { RANGE_LABEL, daysBetween, fmtCny, fmtInt, fmtLatency, rangeOf, totalsByDay, totalsByKey, type DayTotal, type RangePreset } from './lib'
+import { RANGE_LABEL, daysBetween, fmtCny, fmtInt, fmtLatency, opsErrorText, rangeOf, totalsByDay, totalsByKey, type DayTotal, type RangePreset } from './lib'
 import { PageHeader } from '../ui'
 
 const TOP_N = 10
@@ -32,7 +32,7 @@ export function DashboardPage() {
         {rt.dataUpdatedAt > 0 && <span className="text-xs text-muted tabular-nums">实时数据每分钟刷新 · {new Date(rt.dataUpdatedAt).toLocaleTimeString('zh-CN', { hour12: false })}</span>}
       </PageHeader>
 
-      {rt.isError ? <ErrorState reason="实时数据加载失败" action={{ label: '重试', onClick: () => void rt.refetch() }} /> : (
+      {rt.isError ? <ErrorState reason={opsErrorText(rt.error)} action={{ label: '重试', onClick: () => void rt.refetch() }} /> : (
         <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-1" aria-busy={rt.isPending}>
           <Tile label="RPM" hint="每分钟请求" value={rt.data && fmtInt(rt.data.rpm)} />
           <Tile label="TPM" hint="每分钟 token" value={rt.data && fmtInt(rt.data.tpm)} />
@@ -48,7 +48,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {period.isError ? <ErrorState reason="区间统计加载失败" action={{ label: '重试', onClick: () => void period.refetch() }} />
+      {period.isError ? <ErrorState reason={opsErrorText(period.error)} action={{ label: '重试', onClick: () => void period.refetch() }} />
         : period.isPending ? <div className="grid gap-3"><Skeleton className="h-64" /><Skeleton className="h-72" /></div>
         : !keys.length ? <EmptyState icon={BarChart3} text="这段时间没有调用" />
         : (
@@ -68,8 +68,8 @@ export function DashboardPage() {
                       <td className={cn(td, 'text-right')}>{fmtInt(k.requests)}</td>
                       <td className={cn(td, 'text-right')}>{fmtCny(k.amount_cny)}</td>
                       <td className={cn(td, 'text-right text-muted')}>{fmtCny(k.cost_cny)}</td>
-                      <td className={cn(td, 'text-right', k.margin_cny < 0 && 'text-danger')}>
-                        {fmtCny(k.margin_cny)}{k.amount_cny > 0 && <span className="ml-1 text-xs text-muted">{Math.round((k.margin_cny / k.amount_cny) * 100)}%</span>}
+                      <td className={cn(td, 'text-right', k.margin_cny != null && k.margin_cny < 0 && 'text-danger')}>
+                        {fmtCny(k.margin_cny)}{k.margin_cny != null && k.amount_cny > 0 && <span className="ml-1 text-xs text-muted">{Math.round((k.margin_cny / k.amount_cny) * 100)}%</span>}
                       </td>
                       <td className={cn(td, 'text-right')}>{fmtLatency(k.avg_latency_ms)}</td>
                     </tr>

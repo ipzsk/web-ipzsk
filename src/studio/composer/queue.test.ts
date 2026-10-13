@@ -31,12 +31,14 @@ describe('queue sync', () => {
     expect(out).toEqual({ status: 'rejected', error: { code: 'invalid_param_value', message: 'bad', field: 'resolution' } })
   })
 
-  it.each(['idempotency_conflict', 'anchor_not_succeeded', 'unknown_conflict'])('409 %s remains a rejected submission', code => {
+  it.each(['anchor_not_succeeded', 'unknown_conflict'])('409 %s remains a rejected submission', code => {
     expect(classify(new ApiError('conflict', { status: 409, code }))).toEqual({ status: 'rejected', error: { code, message: 'conflict' } })
   })
 
-  it('only an explicit duplicate acknowledgement is accepted; concurrency limits stay retryable', () => {
+  it('a request already recorded under the item key is accepted (never resent); concurrency limits stay retryable', () => {
     expect(classify(new ApiError('duplicate', { status: 409, code: 'request_already_received' }))).toEqual({ status: 'accepted' })
+    // Edits get a new item id (applyQueueEdit), so a conflict on the same key means the earlier, possibly uncertain, attempt stands.
+    expect(classify(new ApiError('conflict', { status: 409, code: 'idempotency_conflict' }))).toEqual({ status: 'accepted' })
     expect(classify(new ApiError('busy', { status: 409, code: 'too_many_active' })).status).toBe('retryable')
   })
 

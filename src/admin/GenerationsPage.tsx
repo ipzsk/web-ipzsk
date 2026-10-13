@@ -9,7 +9,7 @@ import { queryClient } from '@/shared/query'
 import { fetchModels } from '@/studio/api/catalog'
 import { adminApi, type AdminGenerationDetail, type GenerationQuery } from './api'
 import { FAILURE_LABEL, GEN_STATUS_LABEL, cancelBlockReason, fmtPoints, fmtTime, type GenStatus } from './lib'
-import { Confirm, Drawer, FilterInput, KV, PageHeader, Select, adminErrorText } from './ui'
+import { Confirm, Drawer, FilterInput, KV, PageHeader, Select, adminErrorText, inputError } from './ui'
 import { useCan } from './App'
 
 const KEYS = ['user', 'model', 'status', 'kind', 'from', 'to'] as const
@@ -172,7 +172,7 @@ function GenerationDrawer({ id, onClose }: { id: string | null; onClose: () => v
         title="标记为已取消？" confirmLabel="标记取消" loadingText="处理中"
         description="只改本地记录状态，释放用户的「进行中」名额。不会退款、不改扣点：lanehub 模式下扣费和退回都在 lanehub 完成。"
         onConfirm={async () => {
-          if (!reason.trim()) throw new Error('请填写原因')
+          if (!reason.trim()) throw inputError('请填写标记取消的原因。')
           // Optimistic (§6): flip status now, roll back if the server refuses.
           const prev = queryClient.getQueryData<AdminGenerationDetail>(key)
           queryClient.setQueryData<AdminGenerationDetail>(key, old => old && { ...old, status: 'cancelled', failure_code: 'admin_cancelled' })
